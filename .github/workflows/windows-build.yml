@@ -40,7 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y xvfb ffmpeg xdotool
+          sudo apt-get install -y xvfb ffmpeg xdotool x11-utils
           Xvfb :99 -screen 0 1280x720x24 -ac +extension GLX +render -noreset &
           XVFB_PID=$!
           GAME_PID=""
@@ -58,7 +58,7 @@ jobs:
           GAME_PID=$!
           WINDOW_ID=""
           for n in $(seq 1 40); do
-            WINDOW_ID=$(xdotool search --onlyvisible --class Godot 2>/dev/null | head -n 1 || true)
+            WINDOW_ID=$(xdotool search --name "DUST" 2>/dev/null | head -n 1 || true)
             if [ -n "$WINDOW_ID" ]; then break; fi
             if ! kill -0 "$GAME_PID" 2>/dev/null; then
               cat game-runtime.log
@@ -69,12 +69,13 @@ jobs:
           done
           if [ -z "$WINDOW_ID" ]; then
             cat game-runtime.log
-            xdotool search --onlyvisible --name '.*' getwindowname %@ || true
+            xwininfo -root -tree || true
             echo "Could not find the Godot game window"
             exit 1
           fi
           xdotool windowmap "$WINDOW_ID"
-          xdotool windowfocus --sync "$WINDOW_ID"
+          xdotool windowfocus "$WINDOW_ID" || true
+          xdotool windowraise "$WINDOW_ID" || true
           sleep 8
           if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|ERROR:" game-runtime.log; then
             cat game-runtime.log
