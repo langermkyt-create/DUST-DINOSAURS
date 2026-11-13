@@ -79,15 +79,15 @@ func _box(parent: Node3D, pos: Vector3, size: Vector3, color: Color, rot := Vect
 	return _mesh(parent, mesh, _material(color), pos, Vector3.ONE, rot)
 func _sphere(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
 	var mesh := SphereMesh.new()
-	mesh.radial_segments = 16
-	mesh.rings = 10
+	mesh.radial_segments = 32
+	mesh.rings = 20
 	return _mesh(parent, mesh, _material(color), pos, size)
 func _cylinder(parent: Node3D, pos: Vector3, radius: float, height: float, color: Color, sides := 10) -> MeshInstance3D:
 	var mesh := CylinderMesh.new()
 	mesh.top_radius = radius
 	mesh.bottom_radius = radius * 1.08
 	mesh.height = height
-	mesh.radial_segments = sides
+	mesh.radial_segments = maxi(sides, 16)
 	return _mesh(parent, mesh, _material(color), pos)
 func _build_atmosphere() -> void:
 	var env := WorldEnvironment.new()
@@ -106,13 +106,25 @@ func _build_atmosphere() -> void:
 	e.ambient_light_energy = 0.72
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	e.glow_enabled = true
-	e.glow_intensity = 0.35
+	e.glow_intensity = 0.22
+	e.ssao_enabled = true
+	e.ssao_radius = 2.0
+	e.ssao_intensity = 1.4
+	e.ssil_enabled = true
+	e.ssil_intensity = 0.65
+	e.fog_enabled = true
+	e.fog_light_color = Color(0.78, 0.57, 0.39)
+	e.fog_density = 0.0018
+	e.fog_sun_scatter = 0.18
 	env.environment = e
 	add_child(env)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-32, -28, 0)
 	sun.light_color = Color(1.0, 0.77, 0.54)
-	sun.light_energy = 1.55
+	sun.light_energy = 1.25
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	sun.shadow_bias = 0.035
+	sun.shadow_normal_bias = 1.2
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 180.0
 	add_child(sun)
@@ -130,17 +142,16 @@ func _build_landscape() -> void:
 	ground_shape.position.y = -0.5
 	terrain.add_child(ground_shape)
 	_mesh(self, ground, _terrain_material(), Vector3.ZERO)
-	for i in range(22):
-		var angle := TAU * float(i) / 22.0
+	for i in range(34):
+		var angle := TAU * float(i) / 34.0
 		var radius := randf_range(125.0, 190.0)
 		var p := Vector3(cos(angle) * radius, randf_range(13.0, 25.0), sin(angle) * radius)
-		_sphere(self, p, Vector3(randf_range(22, 42), randf_range(22, 42), randf_range(22, 42)), Color(0.43, 0.22, 0.15))
-		_box(self, p + Vector3(0, 13, 0), Vector3(randf_range(18, 35), 5, randf_range(18, 35)), Color(0.58, 0.31, 0.2))
-	for i in range(260):
+		_rock_formation(p, randf_range(0.8, 1.5))
+	for i in range(420):
 		var p := Vector3(randf_range(-110, 110), 0.8, randf_range(-110, 110))
 		if Vector2(p.x, p.z).length() > 23:
 			_sphere(self, p, Vector3(randf_range(1, 3.5), randf_range(0.7, 2.0), randf_range(1, 3)), Color(0.45, 0.27, 0.18))
-	for i in range(190):
+	for i in range(260):
 		var p := Vector3(randf_range(-115, 115), 0, randf_range(-115, 115))
 		if Vector2(p.x, p.z).length() > 20:
 			var h := randf_range(1.3, 3.8)
@@ -148,7 +159,71 @@ func _build_landscape() -> void:
 			if i % 3 == 0:
 				var arm := _cylinder(self, p + Vector3(0.42, h * 0.55, 0), 0.13, h * 0.38, Color(0.18, 0.31, 0.19), 7)
 				arm.rotation.z = -0.8
+
+func _rock_formation(pos: Vector3, factor: float) -> void:
+	var root := Node3D.new()
+	root.position = pos
+	root.scale = Vector3.ONE * factor
+	add_child(root)
+	for layer in range(4):
+		var block := BoxMesh.new()
+		block.size = Vector3(15.0 - float(layer) * 2.2, 3.2, 10.0 - float(layer))
+		_mesh(root, block, _material(Color(0.43 + float(layer % 2) * 0.08, 0.22, 0.15)), Vector3(randf_range(-1.5, 1.5), float(layer) * 2.4, randf_range(-1.0, 1.0)), Vector3.ONE, Vector3(0, randf_range(-0.12, 0.12), 0))
+	for j in range(8):
+		_sphere(root, Vector3(randf_range(-7, 7), randf_range(0, 8), randf_range(-5, 5)), Vector3(randf_range(2, 5), randf_range(2, 5), randf_range(2, 5)), Color(0.38, 0.19, 0.13))
+
+func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
+	var wood := _material(wall.darkened(0.22), 0.94)
+	var trim := _material(Color(0.19, 0.105, 0.065), 0.88)
+	var glass := _material(Color(0.12, 0.22, 0.25), 0.22, 0.12)
+	for y in [0.55, 1.0, 1.45, 1.9, 2.35, 2.8, 3.25]:
+		_box(root, Vector3(0, y, 3.57), Vector3(9.8, 0.055, 0.035), wood)
+	for x in [-4.82, 4.82]:
+		_box(root, Vector3(x, 2.1, 3.62), Vector3(0.16, 4.0, 0.12), trim)
+	for x in [-3.3, 3.3]:
+		_box(root, Vector3(x, 2.1, 3.91), Vector3(1.52, 1.95, 0.12), trim)
+		_box(root, Vector3(x, 2.1, 3.99), Vector3(1.25, 1.62, 0.035), glass)
+		_box(root, Vector3(x, 2.1, 4.02), Vector3(0.09, 1.7, 0.045), wood)
+		_box(root, Vector3(x, 2.1, 4.03), Vector3(1.3, 0.09, 0.045), wood)
+		_box(root, Vector3(x, 3.13, 3.92), Vector3(1.75, 0.16, 0.22), trim)
+		_box(root, Vector3(x, 1.07, 3.92), Vector3(1.75, 0.16, 0.22), trim)
+	for x in range(-4, 5):
+		_box(root, Vector3(float(x), 2.1, 3.62), Vector3(0.045, 4.0, 0.055), wood)
+	if porch:
+		for x in [-4.7, 0.0, 4.7]:
+			_box(root, Vector3(x, 1.55, 6.18), Vector3(0.2, 3.1, 0.2), trim)
+			_box(root, Vector3(x, 3.12, 6.18), Vector3(0.36, 0.14, 0.36), wood)
+		_box(root, Vector3(0, 0.48, 6.35), Vector3(11, 0.28, 1.0), wood)
+	for x in [-1.35, 1.35]:
+		_sphere(root, Vector3(x, 2.75, 4.0), Vector3(0.18, 0.24, 0.16), Color(1.0, 0.62, 0.22))
+		var light := OmniLight3D.new()
+		light.position = Vector3(x, 2.75, 4.15)
+		light.light_color = Color(1.0, 0.58, 0.28)
+		light.light_energy = 0.45
+		light.omni_range = 5.0
+		root.add_child(light)
+
+func _scatter_ground_detail() -> void:
+	var grass := _material(Color(0.39, 0.34, 0.19), 1.0)
+	var stone := _material(Color(0.57, 0.43, 0.31), 1.0)
+	for i in range(520):
+		var x := randf_range(-115.0, 115.0)
+		var z := randf_range(-115.0, 115.0)
+		if Vector2(x, z).length() < 18.0:
+			continue
+		var h := randf_range(0.12, 0.42)
+		var tuft := _cylinder(self, Vector3(x, h * 0.5, z), randf_range(0.025, 0.06), h, Color(0.39, 0.34, 0.19), 5)
+		tuft.material_override = grass
+	for i in range(340):
+		var x := randf_range(-125.0, 125.0)
+		var z := randf_range(-125.0, 125.0)
+		if Vector2(x, z).length() < 17.0:
+			continue
+		var pebble := _sphere(self, Vector3(x, 0.06, z), Vector3(randf_range(0.08, 0.3), randf_range(0.05, 0.14), randf_range(0.08, 0.25)), Color(0.55, 0.4, 0.28))
+		pebble.material_override = stone
+
 func _build_town() -> void:
+	_scatter_ground_detail()
 	_box(self, Vector3(0, 0.025, 0), Vector3(19, 0.05, 110), Color(0.58, 0.36, 0.22))
 	_build_building(Vector3(-12, 0, -12), "SALOON", Color(0.43, 0.18, 0.12), true)
 	_build_building(Vector3(12, 0, -8), "GENERAL STORE", Color(0.55, 0.38, 0.22), false)
@@ -194,9 +269,10 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 	sign.font_size = 42
 	sign.pixel_size = 0.012
 	sign.position = Vector3(0, 4.0, 4.08)
-	sign.rotation_degrees.y = 180
+	sign.rotation_degrees.y = 0
 	sign.modulate = Color(1.0, 0.79, 0.48)
 	root.add_child(sign)
+	_add_building_details(root, wall, porch)
 func _build_dinosaur_herd() -> void:
 	_make_triceratops(Vector3(-31, 0, -52), 1.0, 0.0)
 	_make_triceratops(Vector3(-39, 0, -59), 0.78, 0.45)
