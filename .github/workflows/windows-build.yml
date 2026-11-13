@@ -28,10 +28,52 @@ jobs:
           cp -a templates/templates/. ~/.local/share/godot/export_templates/4.4.1.stable/
       - name: Import project
         run: '"$GODOT_BIN" --headless --editor --path . --quit'
+      - name: Record gameplay preview (virtual display)
+        shell: bash
+        continue-on-error: true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb ffmpeg xdotool
+          Xvfb :99 -screen 0 1280x720x24 -ac +extension GLX +render -noreset &
+          XVFB_PID=$!
+          export DISPLAY=:99
+          export LIBGL_ALWAYS_SOFTWARE=1
+          sleep 2
+          "$GODOT_BIN" --path . --rendering-method gl_compatibility --resolution 1280x720 > /tmp/dust-dinosaurs-game.log 2>&1 &
+          GAME_PID=$!
+          sleep 4
+          ffmpeg -y -f x11grab -video_size 1280x720 -framerate 30 -i :99.0 -t 18 -pix_fmt yuv420p build-preview.mp4 >/tmp/ffmpeg-preview.log 2>&1 &
+          REC_PID=$!
+          sleep 2
+          xdotool keydown w
+          sleep 3
+          xdotool keyup w
+          xdotool keydown shift
+          xdotool keydown d
+          sleep 2
+          xdotool keyup shift
+          xdotool keyup d
+          xdotool key space
+          sleep 2
+          xdotool key e
+          sleep 2
+          xdotool key Escape
+          wait $REC_PID || true
+          kill $GAME_PID 2>/dev/null || true
+          kill $XVFB_PID 2>/dev/null || true
+          test -s build-preview.mp4
       - name: Export Windows executable
         run: |
           mkdir -p build
           "$GODOT_BIN" --headless --path . --export-release "Windows Desktop" "build/DUST & DINOSAURS.exe"
+      - name: Upload gameplay preview
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: DUST-DINOSAURS-Gameplay-Preview
+          path: build-preview.mp4
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Upload game
         uses: actions/upload-artifact@v4
         with:
