@@ -97,7 +97,8 @@ func _build_landscape() -> void:
 			var h := randf_range(1.3, 3.8)
 			_cylinder(self, p + Vector3(0, h * 0.5, 0), 0.22, h, Color(0.18, 0.31, 0.19), 7)
 			if i % 3 == 0:
-				_cylinder(self, p + Vector3(0.42, h * 0.55, 0), 0.13, h * 0.38, Color(0.18, 0.31, 0.19), 7).rotation.z = -0.8
+				var arm := _cylinder(self, p + Vector3(0.42, h * 0.55, 0), 0.13, h * 0.38, Color(0.18, 0.31, 0.19), 7)
+				arm.rotation.z = -0.8
 func _build_town() -> void:
 	_box(self, Vector3(0, 0.025, 0), Vector3(19, 0.05, 110), Color(0.58, 0.36, 0.22))
 	_build_building(Vector3(-12, 0, -12), "SALOON", Color(0.43, 0.18, 0.12), true)
@@ -120,7 +121,8 @@ func _build_town() -> void:
 	_cylinder(self, Vector3(49, 5.8, -33), 0.42, 1.2, Color(0.15, 0.15, 0.14), 12)
 	for z in [-34, -28]:
 		for x in [46.8, 51.2]:
-			_cylinder(self, Vector3(x, 0.9, z), 0.9, 0.38, Color(0.07, 0.07, 0.07), 16).rotation.x = PI / 2
+			var wheel := _cylinder(self, Vector3(x, 0.9, z), 0.9, 0.38, Color(0.07, 0.07, 0.07), 16)
+			wheel.rotation.x = PI / 2
 func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) -> void:
 	var root := Node3D.new()
 	root.position = pos
