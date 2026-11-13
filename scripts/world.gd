@@ -186,9 +186,10 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	for layer in range(heights.size()):
 		var ring := PackedVector3Array()
 		for segment in range(12):
-			var angle := TAU * float(segment) / 12.0 + rng.randf_range(-0.055, 0.055)
-			var radius := radii[layer] * rng.randf_range(0.88, 1.12)
-			ring.append(Vector3(cos(angle) * radius, heights[layer] + rng.randf_range(-0.22, 0.22), sin(angle) * radius))
+			var angle: float = TAU * float(segment) / 12.0 + rng.randf_range(-0.055, 0.055)
+			var radius: float = float(radii[layer]) * rng.randf_range(0.88, 1.12)
+			var layer_height: float = float(heights[layer])
+			ring.append(Vector3(cos(angle) * radius, layer_height + rng.randf_range(-0.22, 0.22), sin(angle) * radius))
 		rings.append(ring)
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
