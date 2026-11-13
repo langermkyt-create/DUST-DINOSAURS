@@ -1,0 +1,43 @@
+name: Windows Build
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  export-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download Godot
+        shell: bash
+        run: |
+          GODOT_VERSION="4.4.1"
+          curl -L "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o godot.zip
+          unzip godot.zip -d godot-bin
+          chmod +x godot-bin/Godot_v${GODOT_VERSION}-stable_linux.x86_64
+          echo "GODOT_BIN=$PWD/godot-bin/Godot_v${GODOT_VERSION}-stable_linux.x86_64" >> "$GITHUB_ENV"
+      - name: Install export templates
+        shell: bash
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates/4.4.1.stable
+          curl -L "https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz" -o templates.tpz
+          unzip -q templates.tpz -d templates
+          cp -a templates/templates/. ~/.local/share/godot/export_templates/4.4.1.stable/
+      - name: Import project
+        run: '"$GODOT_BIN" --headless --editor --path . --quit'
+      - name: Export Windows executable
+        run: |
+          mkdir -p build
+          "$GODOT_BIN" --headless --path . --export-release "Windows Desktop" "build/DUST & DINOSAURS.exe"
+      - name: Upload game
+        uses: actions/upload-artifact@v4
+        with:
+          name: DUST-DINOSAURS-Windows
+          path: |
+            build/DUST & DINOSAURS.exe
+            build/DUST & DINOSAURS.pck
+          if-no-files-found: error
+          retention-days: 30
