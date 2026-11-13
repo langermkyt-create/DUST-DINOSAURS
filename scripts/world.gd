@@ -9,6 +9,55 @@ func _ready() -> void:
 	_build_dinosaur_herd()
 	_build_player()
 	_build_hud()
+func _terrain_material() -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode diffuse_burley, specular_schlick_ggx;
+varying vec3 world_position;
+float hash21(vec2 p) {
+	p = fract(p * vec2(123.34, 456.21));
+	p += dot(p, p + 45.32);
+	return fract(p.x * p.y);
+}
+float noise2(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), f.x),
+		mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float fbm(vec2 p) {
+	float value = 0.0;
+	float amplitude = 0.5;
+	for (int i = 0; i < 5; i++) {
+		value += noise2(p) * amplitude;
+		p *= 2.03;
+		amplitude *= 0.5;
+	}
+	return value;
+}
+void vertex() {
+	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+void fragment() {
+	float broad = fbm(world_position.xz * 0.035);
+	float grain = noise2(world_position.xz * 2.8);
+	float flecks = noise2(world_position.xz * 18.0);
+	vec3 dust = vec3(0.34, 0.205, 0.125);
+	vec3 ochre = vec3(0.56, 0.355, 0.215);
+	vec3 pale = vec3(0.68, 0.48, 0.30);
+	vec3 ground = mix(dust, ochre, smoothstep(0.22, 0.78, broad));
+	ground = mix(ground, pale, smoothstep(0.68, 0.9, grain) * 0.24);
+	ground *= 0.91 + flecks * 0.16;
+	ALBEDO = ground;
+	ROUGHNESS = 0.96;
+}
+"""
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	return material
+
 func _material(color: Color, roughness := 0.9, metallic := 0.0) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = color
@@ -80,18 +129,18 @@ func _build_landscape() -> void:
 	ground_shape.shape = ground_collision
 	ground_shape.position.y = -0.5
 	terrain.add_child(ground_shape)
-	_mesh(self, ground, _material(Color(0.48, 0.29, 0.16)), Vector3.ZERO)
+	_mesh(self, ground, _terrain_material(), Vector3.ZERO)
 	for i in range(22):
 		var angle := TAU * float(i) / 22.0
 		var radius := randf_range(125.0, 190.0)
 		var p := Vector3(cos(angle) * radius, randf_range(13.0, 25.0), sin(angle) * radius)
 		_sphere(self, p, Vector3(randf_range(22, 42), randf_range(22, 42), randf_range(22, 42)), Color(0.43, 0.22, 0.15))
 		_box(self, p + Vector3(0, 13, 0), Vector3(randf_range(18, 35), 5, randf_range(18, 35)), Color(0.58, 0.31, 0.2))
-	for i in range(95):
+	for i in range(260):
 		var p := Vector3(randf_range(-110, 110), 0.8, randf_range(-110, 110))
 		if Vector2(p.x, p.z).length() > 23:
 			_sphere(self, p, Vector3(randf_range(1, 3.5), randf_range(0.7, 2.0), randf_range(1, 3)), Color(0.45, 0.27, 0.18))
-	for i in range(125):
+	for i in range(190):
 		var p := Vector3(randf_range(-115, 115), 0, randf_range(-115, 115))
 		if Vector2(p.x, p.z).length() > 20:
 			var h := randf_range(1.3, 3.8)
@@ -183,6 +232,7 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 func _build_player() -> void:
 	player = CharacterBody3D.new()
 	player.set_script(PlayerScript)
+	player.interacted.connect(_on_player_interacted)
 	player.position = Vector3(0, 0.2, 38)
 	add_child(player)
 func _build_hud() -> void:
@@ -215,6 +265,5 @@ func _build_hud() -> void:
 	message_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	message_label.position = Vector2(-220, -90)
 	layer.add_child(message_label)
-func _process(_delta: float) -> void:
-	if is_instance_valid(player) and Input.is_action_just_pressed("interact"):
-		message_label.text = "THE OLD WEST IS FULL OF SECRETS. KEEP YOUR EYES OPEN."
+func _on_player_interacted() -> void:
+	message_label.text = "YOU SEARCH THE STREET. THE FRONTIER HOLDS ITS SECRETS."
