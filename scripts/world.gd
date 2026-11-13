@@ -73,10 +73,15 @@ func _mesh(parent: Node3D, mesh: Mesh, material: Material, pos: Vector3, scale :
 	n.rotation = rot
 	parent.add_child(n)
 	return n
-func _box(parent: Node3D, pos: Vector3, size: Vector3, color: Color, rot := Vector3.ZERO) -> MeshInstance3D:
+func _box(parent: Node3D, pos: Vector3, size: Vector3, surface: Variant, rot := Vector3.ZERO) -> MeshInstance3D:
 	var mesh := BoxMesh.new()
 	mesh.size = size
-	return _mesh(parent, mesh, _material(color), pos, Vector3.ONE, rot)
+	var material: Material
+	if surface is Material:
+		material = surface
+	else:
+		material = _material(surface as Color)
+	return _mesh(parent, mesh, material, pos, Vector3.ONE, rot)
 func _sphere(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
 	var mesh := SphereMesh.new()
 	mesh.radial_segments = 32
