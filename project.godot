@@ -1,0 +1,22 @@
+config_version=5
+[application]
+config/name="DUST & DINOSAURS"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.4", "GL Compatibility")
+[display]
+window/size/viewport_width=1600
+window/size/viewport_height=900
+window/size/window_width_override=1600
+window/size/window_height_override=900
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.42, 0.58, 0.72, 1)
+[input]
+move_forward={"deadzone":0.2,"events":[{"physical_keycode":87}]}
+move_back={"deadzone":0.2,"events":[{"physical_keycode":83}]}
+move_left={"deadzone":0.2,"events":[{"physical_keycode":65}]}
+move_right={"deadzone":0.2,"events":[{"physical_keycode":68}]}
+jump={"deadzone":0.2,"events":[{"physical_keycode":32}]}
+sprint={"deadzone":0.2,"events":[{"physical_keycode":_SHIFT}]}
+interact={"deadzone":0.2,"events":[{"physical_keycode":69}]}
