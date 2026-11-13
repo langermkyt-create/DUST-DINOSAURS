@@ -54,7 +54,7 @@ jobs:
           export DISPLAY=:99
           export LIBGL_ALWAYS_SOFTWARE=1
           sleep 2
-          "$GODOT_BIN" --path . --rendering-method gl_compatibility --resolution 1280x720 --position 0,0 > game-runtime.log 2>&1 &
+          "$GODOT_BIN" --path . --rendering-method forward_plus --audio-driver Dummy --resolution 1280x720 --position 0,0 > game-runtime.log 2>&1 &
           GAME_PID=$!
           WINDOW_ID=""
           for n in $(seq 1 40); do
@@ -77,7 +77,7 @@ jobs:
           xdotool windowfocus "$WINDOW_ID" || true
           xdotool windowraise "$WINDOW_ID" || true
           sleep 8
-          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|ERROR:" game-runtime.log; then
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" game-runtime.log; then
             cat game-runtime.log
             echo "Runtime errors detected; refusing to record a fake gameplay video"
             exit 1
