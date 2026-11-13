@@ -177,16 +177,65 @@ func _build_landscape() -> void:
 				arm.rotation.z = -0.8
 
 func _rock_formation(pos: Vector3, factor: float) -> void:
-	var root := Node3D.new()
-	root.position = pos
-	root.scale = Vector3.ONE * factor
-	add_child(root)
-	for layer in range(4):
-		var block := BoxMesh.new()
-		block.size = Vector3(15.0 - float(layer) * 2.2, 3.2, 10.0 - float(layer))
-		_mesh(root, block, _material(Color(0.43 + float(layer % 2) * 0.08, 0.22, 0.15)), Vector3(randf_range(-1.5, 1.5), float(layer) * 2.4, randf_range(-1.0, 1.0)), Vector3.ONE, Vector3(0, randf_range(-0.12, 0.12), 0))
-	for j in range(8):
-		_sphere(root, Vector3(randf_range(-7, 7), randf_range(0, 8), randf_range(-5, 5)), Vector3(randf_range(2, 5), randf_range(2, 5), randf_range(2, 5)), Color(0.38, 0.19, 0.13))
+	# Build one continuous, faceted sandstone outcrop instead of a pile of cubes and spheres.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = abs(hash(Vector2i(roundi(pos.x * 10.0), roundi(pos.z * 10.0))))
+	var heights := [0.0, 2.2, 4.8, 7.1, 8.6]
+	var radii := [8.8, 8.1, 6.9, 5.5, 3.8]
+	var rings := []
+	for layer in range(heights.size()):
+		var ring := PackedVector3Array()
+		for segment in range(12):
+			var angle := TAU * float(segment) / 12.0 + rng.randf_range(-0.055, 0.055)
+			var radius := radii[layer] * rng.randf_range(0.88, 1.12)
+			ring.append(Vector3(cos(angle) * radius, heights[layer] + rng.randf_range(-0.22, 0.22), sin(angle) * radius))
+		rings.append(ring)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var strata := [
+		Color(0.31, 0.145, 0.105),
+		Color(0.43, 0.205, 0.145),
+		Color(0.36, 0.17, 0.125),
+		Color(0.49, 0.255, 0.18)
+	]
+	for layer in range(heights.size() - 1):
+		for segment in range(12):
+			var next_segment := (segment + 1) % 12
+			var lower_a: Vector3 = rings[layer][segment]
+			var lower_b: Vector3 = rings[layer][next_segment]
+			var upper_a: Vector3 = rings[layer + 1][segment]
+			var upper_b: Vector3 = rings[layer + 1][next_segment]
+			var shade: Color = strata[layer % strata.size()] * rng.randf_range(0.88, 1.12)
+			surface.set_color(shade)
+			surface.add_vertex(lower_a)
+			surface.add_vertex(upper_a)
+			surface.add_vertex(lower_b)
+			surface.add_vertex(lower_b)
+			surface.add_vertex(upper_a)
+			surface.add_vertex(upper_b)
+	# Close the crown and buried base so the outcrop has a solid silhouette.
+	var crown: Vector3 = rings[heights.size() - 1][0]
+	for segment in range(1, 11):
+		surface.set_color(Color(0.52, 0.29, 0.21))
+		surface.add_vertex(crown)
+		surface.add_vertex(rings[4][segment + 1])
+		surface.add_vertex(rings[4][segment])
+	surface.generate_normals()
+	var rock_mesh := surface.commit()
+	var rock_material := StandardMaterial3D.new()
+	rock_material.vertex_color_use_as_albedo = true
+	rock_material.roughness = 0.96
+	var rock_body := StaticBody3D.new()
+	rock_body.position = pos
+	rock_body.scale = Vector3.ONE * factor
+	add_child(rock_body)
+	var rock_instance := MeshInstance3D.new()
+	rock_instance.mesh = rock_mesh
+	rock_instance.material_override = rock_material
+	rock_body.add_child(rock_instance)
+	var rock_collision := CollisionShape3D.new()
+	rock_collision.shape = rock_mesh.create_trimesh_shape()
+	rock_body.add_child(rock_collision)
 
 func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
 	var wood := _weathered_wood_material(wall.darkened(0.22))
