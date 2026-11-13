@@ -263,15 +263,64 @@ func _build_town() -> void:
 		for x in [46.8, 51.2]:
 			var wheel := _cylinder(self, Vector3(x, 0.9, z), 0.9, 0.38, Color(0.07, 0.07, 0.07), 16)
 			wheel.rotation.x = PI / 2
+func _weathered_wood_material(base: Color, roof := false) -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode diffuse_burley, specular_schlick_ggx;
+uniform vec4 tint : source_color = vec4(0.32, 0.17, 0.09, 1.0);
+uniform float grain_scale = 5.0;
+varying vec3 world_pos;
+float hash31(vec3 p) {
+	p = fract(p * 0.1031);
+	p += dot(p, p.yxz + 33.33);
+	return fract((p.x + p.y) * p.z);
+}
+float noise3(vec3 p) {
+	vec3 i = floor(p), f = fract(p);
+	f = f*f*(3.0-2.0*f);
+	return mix(mix(mix(hash31(i),hash31(i+vec3(1,0,0)),f.x),
+		mix(hash31(i+vec3(0,1,0)),hash31(i+vec3(1,1,0)),f.x),f.y),
+		mix(mix(hash31(i+vec3(0,0,1)),hash31(i+vec3(1,0,1)),f.x),
+		mix(hash31(i+vec3(0,1,1)),hash31(i+vec3(1,1,1)),f.x),f.y),f.z);
+}
+void vertex() {
+	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+void fragment() {
+	float broad = noise3(world_pos * vec3(0.24, 0.07, 0.24));
+	float fine = noise3(world_pos * vec3(3.2, 0.32, 3.2));
+	float fibers = sin((world_pos.x + world_pos.z * 0.31 + broad * 0.8) * grain_scale * 6.28318);
+	float grain = smoothstep(0.28, 0.82, fibers * 0.5 + 0.5);
+	float knots = smoothstep(0.76, 0.96, noise3(world_pos * 1.7 + vec3(4.2, 0.0, 8.1)));
+	float pores = noise3(world_pos * 18.0);
+	vec3 color = mix(tint.rgb * 0.48, tint.rgb * (1.0 + grain * 0.22), 0.42 + broad * 0.38);
+	color = mix(color, tint.rgb * 0.34, knots * 0.42);
+	color *= 0.88 + fine * 0.18 + pores * 0.055;
+	float bleach = smoothstep(0.48, 0.92, noise3(world_pos * 0.42 + vec3(13.0))) * 0.6;
+	color = mix(color, color * vec3(1.24, 1.12, 0.88), bleach * 0.22);
+	ALBEDO = color;
+	ROUGHNESS = 0.78 + pores * 0.18;
+	SPECULAR = 0.18;
+}
+"""
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	material.set_shader_parameter("tint", base)
+	material.set_shader_parameter("grain_scale", 1.8 if roof else 5.0)
+	return material
+
 func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) -> void:
 	var root := Node3D.new()
 	root.position = pos
 	add_child(root)
-	_box(root, Vector3(0, 2.1, 0), Vector3(10, 4.2, 7), wall)
-	_box(root, Vector3(0, 4.45, 0), Vector3(11, 0.45, 8), Color(0.19, 0.12, 0.1))
+	var wall_surface := _weathered_wood_material(wall)
+	var roof_surface := _weathered_wood_material(Color(0.24, 0.14, 0.11), true)
+	_box(root, Vector3(0, 2.1, 0), Vector3(10, 4.2, 7), wall_surface)
+	_box(root, Vector3(0, 4.45, 0), Vector3(11, 0.45, 8), roof_surface)
 	var roof := PrismMesh.new()
 	roof.size = Vector3(11, 2.7, 8)
-	_mesh(root, roof, _material(Color(0.24, 0.14, 0.11)), Vector3(0, 5.9, 0))
+	_mesh(root, roof, roof_surface, Vector3(0, 5.9, 0))
 	_box(root, Vector3(0, 2.0, 3.57), Vector3(1.45, 2.8, 0.16), Color(0.16, 0.1, 0.07))
 	for x in [-3.3, 3.3]:
 		_box(root, Vector3(x, 2.1, 3.66), Vector3(1.25, 1.7, 0.18), Color(0.16, 0.29, 0.34))
