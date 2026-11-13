@@ -44,14 +44,16 @@ void fragment() {
 	float broad = fbm(world_position.xz * 0.035);
 	float grain = noise2(world_position.xz * 2.8);
 	float flecks = noise2(world_position.xz * 18.0);
-	vec3 dust = vec3(0.34, 0.205, 0.125);
-	vec3 ochre = vec3(0.56, 0.355, 0.215);
-	vec3 pale = vec3(0.68, 0.48, 0.30);
+	float fine_grain = noise2(world_position.xz * 74.0);
+	vec3 dust = vec3(0.19, 0.105, 0.062);
+	vec3 ochre = vec3(0.39, 0.235, 0.135);
+	vec3 pale = vec3(0.55, 0.385, 0.245);
 	vec3 ground = mix(dust, ochre, smoothstep(0.22, 0.78, broad));
 	ground = mix(ground, pale, smoothstep(0.68, 0.9, grain) * 0.24);
-	ground *= 0.91 + flecks * 0.16;
+	ground *= 0.84 + flecks * 0.22 + fine_grain * 0.07;
 	ALBEDO = ground;
-	ROUGHNESS = 0.96;
+	ROUGHNESS = 0.88 + fine_grain * 0.1;
+	SPECULAR = 0.12;
 }
 """
 	var material := ShaderMaterial.new()
@@ -111,33 +113,42 @@ func _build_atmosphere() -> void:
 	e.ambient_light_energy = 0.72
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	e.glow_enabled = true
-	e.glow_intensity = 0.22
+	e.glow_intensity = 0.12
 	e.ssao_enabled = true
-	e.ssao_radius = 2.0
-	e.ssao_intensity = 1.4
+	e.ssao_radius = 1.4
+	e.ssao_intensity = 1.7
+	e.sdfgi_enabled = true
+	e.sdfgi_use_occlusion = true
+	e.sdfgi_bounce_feedback = 0.72
 	e.ssil_enabled = true
 	e.ssil_intensity = 0.65
 	e.fog_enabled = true
 	e.fog_light_color = Color(0.78, 0.57, 0.39)
-	e.fog_density = 0.0018
-	e.fog_sun_scatter = 0.18
+	e.fog_density = 0.0025
+	e.fog_sun_scatter = 0.32
+	e.volumetric_fog_enabled = true
+	e.volumetric_fog_density = 0.018
+	e.volumetric_fog_albedo = Color(0.78, 0.61, 0.43)
+	e.volumetric_fog_length = 220.0
+	e.volumetric_fog_detail_spread = 2.0
 	env.environment = e
 	add_child(env)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-32, -28, 0)
 	sun.light_color = Color(1.0, 0.77, 0.54)
-	sun.light_energy = 1.25
+	sun.light_energy = 1.65
+	sun.light_angular_distance = 0.7
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 	sun.shadow_bias = 0.035
 	sun.shadow_normal_bias = 1.2
 	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 180.0
+	sun.directional_shadow_max_distance = 240.0
 	add_child(sun)
 func _build_landscape() -> void:
 	var ground := PlaneMesh.new()
 	ground.size = Vector2(520, 520)
-	ground.subdivide_width = 80
-	ground.subdivide_depth = 80
+	ground.subdivide_width = 220
+	ground.subdivide_depth = 220
 	var terrain := StaticBody3D.new()
 	add_child(terrain)
 	var ground_shape := CollisionShape3D.new()
