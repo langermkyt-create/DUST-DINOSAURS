@@ -232,7 +232,7 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 func _build_player() -> void:
 	player = CharacterBody3D.new()
 	player.set_script(PlayerScript)
-	player.interacted.connect(_on_player_interacted)
+	player.connect("interacted", Callable(self, "_on_player_interacted"))
 	player.position = Vector3(0, 0.2, 38)
 	add_child(player)
 func _build_hud() -> void:
