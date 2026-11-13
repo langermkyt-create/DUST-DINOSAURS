@@ -26,68 +26,109 @@ jobs:
           curl -L "https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz" -o templates.tpz
           unzip -q templates.tpz -d templates
           cp -a templates/templates/. ~/.local/share/godot/export_templates/4.4.1.stable/
-      - name: Import project
-        run: '"$GODOT_BIN" --headless --editor --path . --quit'
+      - name: Validate project scripts
+        shell: bash
+        run: |
+          set -o pipefail
+          "$GODOT_BIN" --headless --editor --path . --quit 2>&1 | tee godot-import.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" godot-import.log; then
+            echo "Godot script validation failed"
+            exit 1
+          fi
       - name: Record gameplay preview (virtual display)
         shell: bash
-        continue-on-error: true
         run: |
+          set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y xvfb ffmpeg xdotool
           Xvfb :99 -screen 0 1280x720x24 -ac +extension GLX +render -noreset &
           XVFB_PID=$!
+          GAME_PID=""
+          REC_PID=""
+          cleanup() {
+            [ -n "$REC_PID" ] && kill "$REC_PID" 2>/dev/null || true
+            [ -n "$GAME_PID" ] && kill "$GAME_PID" 2>/dev/null || true
+            kill "$XVFB_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
           export DISPLAY=:99
           export LIBGL_ALWAYS_SOFTWARE=1
           sleep 2
-          "$GODOT_BIN" --path . --rendering-method gl_compatibility --resolution 1280x720 > /tmp/dust-dinosaurs-game.log 2>&1 &
+          "$GODOT_BIN" --path . --rendering-method gl_compatibility --resolution 1280x720 --position 0,0 > game-runtime.log 2>&1 &
           GAME_PID=$!
-          # Wait for the actual game window and give the 3D scene time to finish building.
-          for n in $(seq 1 30); do
-            WINDOW_ID=$(xdotool search --onlyvisible --name '.*' 2>/dev/null | tail -n 1 || true)
-            [ -n "$WINDOW_ID" ] && break
+          WINDOW_ID=""
+          for n in $(seq 1 40); do
+            WINDOW_ID=$(xdotool search --onlyvisible --class Godot 2>/dev/null | head -n 1 || true)
+            if [ -n "$WINDOW_ID" ]; then break; fi
+            if ! kill -0 "$GAME_PID" 2>/dev/null; then
+              cat game-runtime.log
+              echo "Godot exited before creating a game window"
+              exit 1
+            fi
             sleep 1
           done
-          sleep 5
-          if [ -n "$WINDOW_ID" ]; then
-            xdotool windowactivate --sync "$WINDOW_ID" || true
-            xdotool windowfocus --sync "$WINDOW_ID" || true
-            xdotool mousemove --sync 640 360
-            xdotool click 1
+          if [ -z "$WINDOW_ID" ]; then
+            cat game-runtime.log
+            xdotool search --onlyvisible --name '.*' getwindowname %@ || true
+            echo "Could not find the Godot game window"
+            exit 1
           fi
-          ffmpeg -y -f x11grab -video_size 1280x720 -framerate 30 -i :99.0 -t 32 -pix_fmt yuv420p build-preview.mp4 >/tmp/ffmpeg-preview.log 2>&1 &
+          xdotool windowmap "$WINDOW_ID"
+          xdotool windowfocus --sync "$WINDOW_ID"
+          sleep 8
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|ERROR:" game-runtime.log; then
+            cat game-runtime.log
+            echo "Runtime errors detected; refusing to record a fake gameplay video"
+            exit 1
+          fi
+          # Start recording only after the scene is loaded and the game window is focused.
+          ffmpeg -y -f x11grab -video_size 1280x720 -framerate 30 -i :99.0 -t 38 -pix_fmt yuv420p build-preview.mp4 >/tmp/ffmpeg-preview.log 2>&1 &
           REC_PID=$!
-          sleep 1
-          # Walk out from the spawn point toward the main street and town.
+          sleep 2
+          # Walk forward into Red Rock, then perform a broad horizontal camera sweep.
           xdotool keydown w
           sleep 5
           xdotool keyup w
-          # Turn the camera left, inspect the street, then sweep right across the town.
-          xdotool mousemove_relative -- 520 0
+          xdotool mousemove 980 360
           sleep 2
-          xdotool mousemove_relative -- 0 140
+          xdotool mousemove 300 360
           sleep 2
-          xdotool mousemove_relative -- -980 -110
-          sleep 3
+          xdotool mousemove 640 360
+          sleep 2
+          # Walk diagonally through the street while looking across the buildings.
           xdotool keydown w
+          xdotool keydown d
+          sleep 3
+          xdotool keyup w
+          xdotool keyup d
+          xdotool mousemove 850 300
+          sleep 2
+          xdotool mousemove 420 420
+          sleep 2
+          # Sprint, jump, interact, and turn back toward the town.
           xdotool keydown shift
+          xdotool keydown w
           sleep 3
           xdotool keyup w
           xdotool keyup shift
-          xdotool mousemove_relative -- 460 0
-          sleep 2
           xdotool key space
           sleep 2
           xdotool key e
           sleep 2
-          xdotool mousemove_relative -- -250 0
+          xdotool mousemove 700 360
           sleep 2
           xdotool keydown s
           sleep 2
           xdotool keyup s
-          wait $REC_PID || true
-          kill $GAME_PID 2>/dev/null || true
-          kill $XVFB_PID 2>/dev/null || true
+          wait "$REC_PID"
+          REC_PID=""
+          kill "$GAME_PID" 2>/dev/null || true
+          GAME_PID=""
           test -s build-preview.mp4
+          SIZE=$(stat -c%s build-preview.mp4)
+          echo "Gameplay video size: $SIZE bytes"
+          [ "$SIZE" -gt 100000 ]
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 build-preview.mp4
       - name: Export Windows executable
         run: |
           mkdir -p build
