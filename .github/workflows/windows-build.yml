@@ -41,23 +41,49 @@ jobs:
           sleep 2
           "$GODOT_BIN" --path . --rendering-method gl_compatibility --resolution 1280x720 > /tmp/dust-dinosaurs-game.log 2>&1 &
           GAME_PID=$!
-          sleep 4
-          ffmpeg -y -f x11grab -video_size 1280x720 -framerate 30 -i :99.0 -t 18 -pix_fmt yuv420p build-preview.mp4 >/tmp/ffmpeg-preview.log 2>&1 &
+          # Wait for the actual game window and give the 3D scene time to finish building.
+          for n in $(seq 1 30); do
+            WINDOW_ID=$(xdotool search --onlyvisible --name '.*' 2>/dev/null | tail -n 1 || true)
+            [ -n "$WINDOW_ID" ] && break
+            sleep 1
+          done
+          sleep 5
+          if [ -n "$WINDOW_ID" ]; then
+            xdotool windowactivate --sync "$WINDOW_ID" || true
+            xdotool windowfocus --sync "$WINDOW_ID" || true
+            xdotool mousemove --sync 640 360
+            xdotool click 1
+          fi
+          ffmpeg -y -f x11grab -video_size 1280x720 -framerate 30 -i :99.0 -t 32 -pix_fmt yuv420p build-preview.mp4 >/tmp/ffmpeg-preview.log 2>&1 &
           REC_PID=$!
-          sleep 2
+          sleep 1
+          # Walk out from the spawn point toward the main street and town.
           xdotool keydown w
+          sleep 5
+          xdotool keyup w
+          # Turn the camera left, inspect the street, then sweep right across the town.
+          xdotool mousemove_relative -- 520 0
+          sleep 2
+          xdotool mousemove_relative -- 0 140
+          sleep 2
+          xdotool mousemove_relative -- -980 -110
+          sleep 3
+          xdotool keydown w
+          xdotool keydown shift
           sleep 3
           xdotool keyup w
-          xdotool keydown shift
-          xdotool keydown d
-          sleep 2
           xdotool keyup shift
-          xdotool keyup d
+          xdotool mousemove_relative -- 460 0
+          sleep 2
           xdotool key space
           sleep 2
           xdotool key e
           sleep 2
-          xdotool key Escape
+          xdotool mousemove_relative -- -250 0
+          sleep 2
+          xdotool keydown s
+          sleep 2
+          xdotool keyup s
           wait $REC_PID || true
           kill $GAME_PID 2>/dev/null || true
           kill $XVFB_PID 2>/dev/null || true
