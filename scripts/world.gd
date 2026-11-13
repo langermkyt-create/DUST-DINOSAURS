@@ -72,6 +72,14 @@ func _build_landscape() -> void:
 	ground.size = Vector2(520, 520)
 	ground.subdivide_width = 80
 	ground.subdivide_depth = 80
+	var terrain := StaticBody3D.new()
+	add_child(terrain)
+	var ground_shape := CollisionShape3D.new()
+	var ground_collision := BoxShape3D.new()
+	ground_collision.size = Vector3(520, 1.0, 520)
+	ground_shape.shape = ground_collision
+	ground_shape.position.y = -0.5
+	terrain.add_child(ground_shape)
 	_mesh(self, ground, _material(Color(0.48, 0.29, 0.16)), Vector3.ZERO)
 	for i in range(22):
 		var angle := TAU * float(i) / 22.0
