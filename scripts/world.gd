@@ -189,9 +189,10 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 		_sphere(root, Vector3(randf_range(-7, 7), randf_range(0, 8), randf_range(-5, 5)), Vector3(randf_range(2, 5), randf_range(2, 5), randf_range(2, 5)), Color(0.38, 0.19, 0.13))
 
 func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
-	var wood := _material(wall.darkened(0.22), 0.94)
-	var trim := _material(Color(0.19, 0.105, 0.065), 0.88)
+	var wood := _weathered_wood_material(wall.darkened(0.22))
+	var trim := _weathered_wood_material(Color(0.19, 0.105, 0.065))
 	var glass := _material(Color(0.12, 0.22, 0.25), 0.22, 0.12)
+	var porch_wood := _weathered_wood_material(Color(0.3, 0.2, 0.13))
 	for y in [0.55, 1.0, 1.45, 1.9, 2.35, 2.8, 3.25]:
 		_box(root, Vector3(0, y, 3.57), Vector3(9.8, 0.055, 0.035), wood)
 	for x in [-4.82, 4.82]:
@@ -209,7 +210,7 @@ func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
 		for x in [-4.7, 0.0, 4.7]:
 			_box(root, Vector3(x, 1.55, 6.18), Vector3(0.2, 3.1, 0.2), trim)
 			_box(root, Vector3(x, 3.12, 6.18), Vector3(0.36, 0.14, 0.36), wood)
-		_box(root, Vector3(0, 0.48, 6.35), Vector3(11, 0.28, 1.0), wood)
+		_box(root, Vector3(0, 0.48, 6.35), Vector3(11, 0.28, 1.0), porch_wood)
 	for x in [-1.35, 1.35]:
 		_sphere(root, Vector3(x, 2.75, 4.0), Vector3(0.18, 0.24, 0.16), Color(1.0, 0.62, 0.22))
 		var light := OmniLight3D.new()
@@ -321,12 +322,12 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 	var roof := PrismMesh.new()
 	roof.size = Vector3(11, 2.7, 8)
 	_mesh(root, roof, roof_surface, Vector3(0, 5.9, 0))
-	_box(root, Vector3(0, 2.0, 3.57), Vector3(1.45, 2.8, 0.16), Color(0.16, 0.1, 0.07))
+	_box(root, Vector3(0, 2.0, 3.57), Vector3(1.45, 2.8, 0.16), _weathered_wood_material(Color(0.16, 0.1, 0.07)))
 	for x in [-3.3, 3.3]:
 		_box(root, Vector3(x, 2.1, 3.66), Vector3(1.25, 1.7, 0.18), Color(0.16, 0.29, 0.34))
-		_box(root, Vector3(x, 2.1, 3.78), Vector3(1.4, 0.12, 0.12), Color(0.24, 0.15, 0.1))
+		_box(root, Vector3(x, 2.1, 3.78), Vector3(1.4, 0.12, 0.12), _weathered_wood_material(Color(0.24, 0.15, 0.1)))
 	if porch:
-		_box(root, Vector3(0, 1.7, 5.0), Vector3(11, 0.25, 3), Color(0.3, 0.2, 0.13))
+		_box(root, Vector3(0, 1.7, 5.0), Vector3(11, 0.25, 3), _weathered_wood_material(Color(0.3, 0.2, 0.13)))
 		for x in [-4.7, 0, 4.7]:
 			_cylinder(root, Vector3(x, 1.5, 6.2), 0.12, 3, Color(0.25, 0.16, 0.1), 8)
 	var sign := Label3D.new()
