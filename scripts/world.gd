@@ -92,11 +92,16 @@ func _box(parent: Node3D, pos: Vector3, size: Vector3, surface: Variant, rot := 
 	else:
 		material = _material(surface as Color)
 	return _mesh(parent, mesh, material, pos, Vector3.ONE, rot)
-func _sphere(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
+func _sphere(parent: Node3D, pos: Vector3, size: Vector3, surface: Variant) -> MeshInstance3D:
 	var mesh := SphereMesh.new()
 	mesh.radial_segments = 32
 	mesh.rings = 20
-	return _mesh(parent, mesh, _material(color), pos, size)
+	var material: Material
+	if surface is Material:
+		material = surface
+	else:
+		material = _material(surface as Color)
+	return _mesh(parent, mesh, material, pos, size)
 func _cylinder(parent: Node3D, pos: Vector3, radius: float, height: float, color: Color, sides := 10) -> MeshInstance3D:
 	var mesh := CylinderMesh.new()
 	mesh.top_radius = radius
