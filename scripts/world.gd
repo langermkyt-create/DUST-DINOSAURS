@@ -581,9 +581,8 @@ func _scatter_boulders() -> void:
 				body.rotation.y = yaw
 				add_child(body)
 				var collision := CollisionShape3D.new()
-				var collision_shape := BoxShape3D.new()
-				collision_shape.size = Vector3(1.55, 0.9, 1.55)
-				collision.shape = collision_shape
+				# Match the large boulder's faceted silhouette instead of using a loose box.
+				collision.shape = rock_mesh.create_convex_shape()
 				collision.scale = scale
 				body.add_child(collision)
 
