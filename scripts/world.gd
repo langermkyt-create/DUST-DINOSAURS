@@ -564,7 +564,26 @@ func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
 		_box(root, Vector3(x, 1.07, 3.92), Vector3(1.75, 0.16, 0.22), trim)
 	for x in range(-4, 5):
 		_box(root, Vector3(float(x), 2.1, 3.62), Vector3(0.045, 4.0, 0.055), wood)
+	# Side elevations receive the same hand-laid board rhythm as the street-facing facade.
+	for side in [-1.0, 1.0]:
+		for y in [0.55, 1.0, 1.45, 1.9, 2.35, 2.8, 3.25]:
+			_box(root, Vector3(side * 5.02, y, 0.0), Vector3(0.035, 0.055, 6.85), wood)
+		_box(root, Vector3(side * 5.06, 2.1, 0.0), Vector3(0.12, 4.0, 7.0), trim)
+		for z in [-3.25, 3.25]:
+			_box(root, Vector3(side * 5.08, 2.1, z), Vector3(0.12, 4.0, 0.12), trim)
+	# Layered fascia and exposed rafter ends break up the single-piece roof silhouette.
+	for z in [-4.02, 4.02]:
+		_box(root, Vector3(0, 5.35, z), Vector3(11.2, 0.22, 0.18), trim)
+	for x in [-4.7, -2.35, 0.0, 2.35, 4.7]:
+		_box(root, Vector3(x, 5.15, 3.88), Vector3(0.16, 0.42, 0.22), wood)
 	if porch:
+		# Porch railings, posts and a worn two-step approach.
+		for x in [-4.7, -2.35, 2.35, 4.7]:
+			_box(root, Vector3(x, 1.02, 5.82), Vector3(0.12, 1.1, 0.12), trim)
+		_box(root, Vector3(0, 1.42, 5.82), Vector3(9.4, 0.12, 0.12), wood)
+		_box(root, Vector3(0, 0.86, 5.82), Vector3(9.4, 0.1, 0.12), wood)
+		_box(root, Vector3(0, 0.24, 7.2), Vector3(3.2, 0.24, 0.8), porch_wood)
+		_box(root, Vector3(0, 0.48, 6.8), Vector3(3.2, 0.24, 0.8), porch_wood)
 		for x in [-4.7, 0.0, 4.7]:
 			_box(root, Vector3(x, 1.55, 6.18), Vector3(0.2, 3.1, 0.2), trim)
 			_box(root, Vector3(x, 3.12, 6.18), Vector3(0.36, 0.14, 0.36), wood)
@@ -769,6 +788,16 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 	var wall_surface := _weathered_wood_material(wall)
 	var roof_surface := _weathered_wood_material(Color(0.24, 0.14, 0.11), true)
 	_box(root, Vector3(0, 2.1, 0), Vector3(10, 4.2, 7), wall_surface)
+	# Solid collision follows the building shell so the player cannot walk through the town.
+	var building_body := StaticBody3D.new()
+	building_body.name = "BuildingCollision"
+	root.add_child(building_body)
+	var building_shape := CollisionShape3D.new()
+	var building_box := BoxShape3D.new()
+	building_box.size = Vector3(10.0, 4.2, 7.0)
+	building_shape.shape = building_box
+	building_shape.position = Vector3(0.0, 2.1, 0.0)
+	building_body.add_child(building_shape)
 	_box(root, Vector3(0, 4.45, 0), Vector3(11, 0.45, 8), roof_surface)
 	var roof := PrismMesh.new()
 	roof.size = Vector3(11, 2.7, 8)
