@@ -211,12 +211,25 @@ func _append_cactus_tube(surface: SurfaceTool, points: PackedVector3Array, radii
 			var d: Vector3 = rings[ring_index + 1][next_segment]
 			surface.set_color(tint)
 			surface.add_vertex(a)
-			surface.add_vertex(c)
 			surface.add_vertex(b)
+			surface.add_vertex(c)
 			surface.set_color(tint)
 			surface.add_vertex(b)
-			surface.add_vertex(c)
 			surface.add_vertex(d)
+			surface.add_vertex(c)
+	# Cap the exposed ends so the cactus does not have hollow cut surfaces.
+	var bottom_center := points[0]
+	var top_center := points[points.size() - 1]
+	for segment in range(16):
+		var next_segment := (segment + 1) % 16
+		surface.set_color(base_color * 0.88)
+		surface.add_vertex(bottom_center)
+		surface.add_vertex(rings[0][next_segment])
+		surface.add_vertex(rings[0][segment])
+		surface.set_color(base_color * 0.96)
+		surface.add_vertex(top_center)
+		surface.add_vertex(rings[rings.size() - 1][segment])
+		surface.add_vertex(rings[rings.size() - 1][next_segment])
 
 func _make_saguaro_mesh(variant: int) -> ArrayMesh:
 	var surface := SurfaceTool.new()
