@@ -517,24 +517,100 @@ func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
 		light.omni_range = 5.0
 		root.add_child(light)
 
+func _make_desert_tuft_mesh() -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var blade_colors := [
+		Color(0.38, 0.34, 0.19),
+		Color(0.49, 0.42, 0.23),
+		Color(0.29, 0.3, 0.17)
+	]
+	for blade in range(5):
+		var angle := TAU * float(blade) / 5.0
+		var direction := Vector3(cos(angle), 0.0, sin(angle))
+		var side := Vector3(-direction.z, 0.0, direction.x) * 0.035
+		var lean := direction * (0.06 + 0.025 * float(blade % 2))
+		var height := 0.24 + 0.075 * float((blade * 3) % 4) / 3.0
+		var root := direction * 0.025
+		var tip := root + lean + Vector3(0.0, height, 0.0)
+		var color := blade_colors[blade % blade_colors.size()]
+		surface.set_color(color.darkened(0.12))
+		surface.add_vertex(root - side)
+		surface.set_color(color.lightened(0.12))
+		surface.add_vertex(tip)
+		surface.set_color(color)
+		surface.add_vertex(root + side)
+		surface.set_color(color.darkened(0.12))
+		surface.add_vertex(root + side)
+		surface.set_color(color.lightened(0.12))
+		surface.add_vertex(tip)
+		surface.set_color(color)
+		surface.add_vertex(root - side)
+	surface.generate_normals()
+	var mesh := surface.commit()
+	var material := StandardMaterial3D.new()
+	material.vertex_color_use_as_albedo = true
+	material.roughness = 1.0
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mesh.surface_set_material(0, material)
+	return mesh
+
 func _scatter_ground_detail() -> void:
-	var grass := _material(Color(0.39, 0.34, 0.19), 1.0)
-	var stone := _material(Color(0.57, 0.43, 0.31), 1.0)
+	# Keep hundreds of small ground accents in a handful of instanced draw calls.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 189711
+	var grass_multimesh := MultiMesh.new()
+	grass_multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	grass_multimesh.mesh = _make_desert_tuft_mesh()
+	grass_multimesh.instance_count = 520
+	grass_multimesh.custom_aabb = AABB(Vector3(-130, -1, -130), Vector3(260, 4, 260))
+	var grass := MultiMeshInstance3D.new()
+	grass.multimesh = grass_multimesh
+	grass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(grass)
 	for i in range(520):
-		var x := randf_range(-115.0, 115.0)
-		var z := randf_range(-115.0, 115.0)
-		if Vector2(x, z).length() < 18.0:
-			continue
-		var h := randf_range(0.12, 0.42)
-		var tuft := _cylinder(self, Vector3(x, h * 0.5, z), randf_range(0.025, 0.06), h, Color(0.39, 0.34, 0.19), 5)
-		tuft.material_override = grass
-	for i in range(340):
-		var x := randf_range(-125.0, 125.0)
-		var z := randf_range(-125.0, 125.0)
-		if Vector2(x, z).length() < 17.0:
-			continue
-		var pebble := _sphere(self, Vector3(x, 0.06, z), Vector3(randf_range(0.08, 0.3), randf_range(0.05, 0.14), randf_range(0.08, 0.25)), Color(0.55, 0.4, 0.28))
-		pebble.material_override = stone
+		var x := 0.0
+		var z := 0.0
+		for attempt in range(80):
+			x = rng.randf_range(-115.0, 115.0)
+			z = rng.randf_range(-115.0, 115.0)
+			if Vector2(x, z).length() > 18.0:
+				break
+		var scale_factor := rng.randf_range(0.55, 1.45)
+		var yaw := rng.randf_range(0.0, TAU)
+		var basis := Basis(Vector3.UP, yaw).scaled(Vector3(scale_factor, scale_factor, scale_factor))
+		grass_multimesh.set_instance_transform(i, Transform3D(basis, Vector3(x, 0.0, z)))
+	var pebble_mesh := SphereMesh.new()
+	pebble_mesh.radial_segments = 16
+	pebble_mesh.rings = 10
+	var stone_material := _material(Color(0.55, 0.42, 0.3), 1.0)
+	for variant in range(2):
+		var stones := MultiMesh.new()
+		stones.transform_format = MultiMesh.TRANSFORM_3D
+		stones.mesh = pebble_mesh
+		stones.instance_count = 170
+		stones.custom_aabb = AABB(Vector3(-130, -1, -130), Vector3(260, 3, 260))
+		var stone_batch := MultiMeshInstance3D.new()
+		stone_batch.multimesh = stones
+		stone_batch.material_override = stone_material
+		stone_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(stone_batch)
+		for i in range(170):
+			var x := 0.0
+			var z := 0.0
+			for attempt in range(80):
+				x = rng.randf_range(-125.0, 125.0)
+				z = rng.randf_range(-125.0, 125.0)
+				if Vector2(x, z).length() > 17.0:
+					break
+			var size_factor := rng.randf_range(0.12, 0.32)
+			var scale := Vector3(
+				size_factor * rng.randf_range(0.8, 1.3),
+				size_factor * rng.randf_range(0.28, 0.52),
+				size_factor * rng.randf_range(0.75, 1.25)
+			)
+			var yaw := rng.randf_range(0.0, TAU)
+			stones.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw).scaled(scale), Vector3(x, 0.035, z)))
 
 func _build_town() -> void:
 	_scatter_ground_detail()
