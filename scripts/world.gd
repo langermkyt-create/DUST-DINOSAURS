@@ -415,20 +415,102 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	d.rotation.y = yaw
 	d.scale = Vector3.ONE * size
 	add_child(d)
-	var hide := Color(0.43, 0.39, 0.25)
-	var dark := Color(0.29, 0.27, 0.18)
-	_sphere(d, Vector3(0, 1.55, 0), Vector3(1.35, 1.05, 2.1), hide)
-	_sphere(d, Vector3(0, 1.45, -1.45), Vector3(1.0, 0.82, 0.95), hide)
-	_sphere(d, Vector3(0, 1.55, -2.05), Vector3(1.12, 0.88, 0.4), dark)
-	_sphere(d, Vector3(0, 2.1, -1.7), Vector3(1.25, 1.0, 0.22), Color(0.5, 0.43, 0.27))
+	var hide := _material(Color(0.36, 0.34, 0.24), 0.94)
+	var flank := _material(Color(0.48, 0.44, 0.31), 0.91)
+	var shadow := _material(Color(0.22, 0.23, 0.17), 0.98)
+	var horn := _material(Color(0.72, 0.62, 0.43), 0.82)
+	var eye := _material(Color(0.035, 0.028, 0.019), 0.25)
+
+	# Heavy barrel torso, shoulders and sloped hindquarters.
+	var torso := CapsuleMesh.new()
+	torso.radius = 0.73
+	torso.height = 2.65
+	torso.radial_segments = 32
+	torso.rings = 12
+	var body := _mesh(d, torso, hide, Vector3(0, 1.48, 0.05), Vector3.ONE, Vector3(PI / 2.0, 0, 0))
+	body.scale = Vector3(1.0, 1.0, 1.32)
+	_sphere(d, Vector3(0, 1.42, 0.92), Vector3(1.28, 1.12, 1.25), hide)
+	_sphere(d, Vector3(0, 1.63, -0.93), Vector3(1.12, 1.12, 1.08), flank)
+	_sphere(d, Vector3(0, 1.2, 0.12), Vector3(1.08, 0.55, 1.65), shadow)
+
+	# Long tapering tail and muscular neck.
+	var tail := CylinderMesh.new()
+	tail.top_radius = 0.025
+	tail.bottom_radius = 0.43
+	tail.height = 2.65
+	tail.radial_segments = 20
+	_mesh(d, tail, hide, Vector3(0, 1.42, 2.05), Vector3.ONE, Vector3(PI / 2.0, 0, 0))
+	_sphere(d, Vector3(0, 1.83, -1.47), Vector3(0.88, 0.9, 0.9), flank)
+	_sphere(d, Vector3(0, 1.93, -1.98), Vector3(0.82, 0.72, 0.92), hide)
+	_sphere(d, Vector3(0, 1.52, -2.23), Vector3(0.7, 0.34, 0.88), shadow)
+	_sphere(d, Vector3(0, 1.47, -2.48), Vector3(0.56, 0.28, 0.58), shadow)
+
+	# Broad scalloped frill, modeled as a custom fan mesh with raised knobs.
+	var fan := SurfaceTool.new()
+	fan.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var center := Vector3(0, 2.12, -1.57)
+	var rim := PackedVector3Array()
+	for i in range(25):
+		var angle := PI * float(i) / 24.0
+		var scallop := 1.0 + 0.055 * sin(float(i) * PI / 3.0)
+		rim.append(Vector3(cos(angle) * 1.02 * scallop, sin(angle) * 1.13 * scallop, -0.12 * sin(angle)))
+	for i in range(24):
+		fan.set_color(Color(0.42 + 0.05 * sin(float(i) * 0.7), 0.39, 0.27))
+		fan.add_vertex(center)
+		fan.add_vertex(center + rim[i])
+		fan.add_vertex(center + rim[i + 1])
+	fan.generate_normals()
+	var fan_material := StandardMaterial3D.new()
+	fan_material.vertex_color_use_as_albedo = true
+	fan_material.roughness = 0.9
+	_mesh(d, fan.commit(), fan_material, Vector3.ZERO)
+	for i in range(0, 25, 3):
+		_sphere(d, center + rim[i], Vector3(0.13, 0.14, 0.13), flank)
+
+	# Two long brow horns and the shorter nasal horn.
 	for x in [-0.48, 0.48]:
-		var horn := _cylinder(d, Vector3(x, 2.45, -2.15), 0.06, 0.85, Color(0.82, 0.72, 0.51), 7)
-		horn.rotation.x = -0.55
-	var nose := _cylinder(d, Vector3(0, 2.1, -2.48), 0.07, 0.55, Color(0.85, 0.77, 0.59), 7)
-	nose.rotation.x = -0.6
-	for x in [-0.82, 0.82]:
-		for z in [-0.72, 0.8]:
-			_cylinder(d, Vector3(x, 0.58, z), 0.24, 1.1, dark, 9)
+		var horn_mesh := CylinderMesh.new()
+		horn_mesh.top_radius = 0.012
+		horn_mesh.bottom_radius = 0.145
+		horn_mesh.height = 0.92
+		horn_mesh.radial_segments = 12
+		_mesh(d, horn_mesh, horn, Vector3(x, 2.52, -2.0), Vector3.ONE, Vector3(-0.48, 0, 0))
+		_sphere(d, Vector3(x * 1.23, 2.18, -2.1), Vector3(0.2, 0.16, 0.2), shadow)
+	var nose := CylinderMesh.new()
+	nose.top_radius = 0.01
+	nose.bottom_radius = 0.11
+	nose.height = 0.52
+	nose.radial_segments = 12
+	_mesh(d, nose, horn, Vector3(0, 2.0, -2.72), Vector3.ONE, Vector3(-0.45, 0, 0))
+	for x in [-0.69, 0.69]:
+		_sphere(d, Vector3(x, 2.03, -2.06), Vector3(0.095, 0.105, 0.075), eye)
+		_sphere(d, Vector3(x * 0.76, 1.67, -2.64), Vector3(0.055, 0.04, 0.035), shadow)
+
+	# Four weight-bearing legs, articulated at the hip and animated in a slow gait.
+	for x in [-0.78, 0.78]:
+		for z in [-0.86, 0.98]:
+			var pivot := Node3D.new()
+			pivot.position = Vector3(x, 1.18, z)
+			d.add_child(pivot)
+			var upper := CylinderMesh.new()
+			upper.top_radius = 0.24
+			upper.bottom_radius = 0.34
+			upper.height = 0.82
+			upper.radial_segments = 18
+			_mesh(pivot, upper, hide, Vector3(0, -0.39, 0))
+			var lower := CylinderMesh.new()
+			lower.top_radius = 0.2
+			lower.bottom_radius = 0.27
+			lower.height = 0.66
+			lower.radial_segments = 18
+			_mesh(pivot, lower, shadow, Vector3(0, -1.02, -0.025))
+			_sphere(pivot, Vector3(0, -1.34, -0.14), Vector3(0.43, 0.22, 0.48), shadow)
+			for toe in [-0.2, 0.0, 0.2]:
+				_sphere(pivot, Vector3(toe, -1.37, -0.43), Vector3(0.12, 0.1, 0.18), horn)
+			var gait := create_tween().set_loops()
+			gait.tween_property(pivot, "rotation:x", 0.13 if z < 0.0 else -0.13, 0.85).set_trans(Tween.TRANS_SINE)
+			gait.tween_property(pivot, "rotation:x", -0.13 if z < 0.0 else 0.13, 0.85).set_trans(Tween.TRANS_SINE)
+
 func _build_player() -> void:
 	player = CharacterBody3D.new()
 	player.set_script(PlayerScript)
