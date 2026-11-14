@@ -551,8 +551,10 @@ func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
 	var trim := _weathered_wood_material(Color(0.19, 0.105, 0.065))
 	var glass := _material(Color(0.12, 0.22, 0.25), 0.22, 0.12)
 	var porch_wood := _weathered_wood_material(Color(0.3, 0.2, 0.13))
+	# Horizontal siding stops at the doorway, keeping the open entrance readable.
 	for y in [0.55, 1.0, 1.45, 1.9, 2.35, 2.8, 3.25]:
-		_box(root, Vector3(0, y, 3.57), Vector3(9.8, 0.055, 0.035), wood)
+		for side in [-1.0, 1.0]:
+			_box(root, Vector3(side * 2.9, y, 3.57), Vector3(4.15, 0.055, 0.035), wood)
 	for x in [-4.82, 4.82]:
 		_box(root, Vector3(x, 2.1, 3.62), Vector3(0.16, 4.0, 0.12), trim)
 	for x in [-3.3, 3.3]:
@@ -562,8 +564,8 @@ func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
 		_box(root, Vector3(x, 2.1, 4.03), Vector3(1.3, 0.09, 0.045), wood)
 		_box(root, Vector3(x, 3.13, 3.92), Vector3(1.75, 0.16, 0.22), trim)
 		_box(root, Vector3(x, 1.07, 3.92), Vector3(1.75, 0.16, 0.22), trim)
-	for x in range(-4, 5):
-		_box(root, Vector3(float(x), 2.1, 3.62), Vector3(0.045, 4.0, 0.055), wood)
+	for x in [-4.0, -2.0, -1.0, 1.0, 2.0, 4.0]:
+		_box(root, Vector3(x, 2.1, 3.62), Vector3(0.045, 4.0, 0.055), wood)
 	# Side elevations receive the same hand-laid board rhythm as the street-facing facade.
 	for side in [-1.0, 1.0]:
 		for y in [0.55, 1.0, 1.45, 1.9, 2.35, 2.8, 3.25]:
@@ -1003,9 +1005,9 @@ func _build_building_interior(root: Node3D, sign_text: String, wall: Color) -> v
 			_cylinder(root, Vector3(-3.15, 1.2, z), 0.045, 2.4, iron, 8)
 		_interior_solid_box(root, Vector3(-3.8, 0.9, 1.4), Vector3(1.0, 1.8, 1.8), dark_wood, "JailBench")
 	elif sign_text == "STABLES":
-		for x in [-3.1, 0.0, 3.1]:
+		for x in [-3.1, 3.1]:
 			_interior_solid_box(root, Vector3(x, 1.15, -1.1), Vector3(0.12, 2.3, 4.2), furniture, "StallDivider")
-			_interior_solid_box(root, Vector3(x, 1.0, -2.8), Vector3(2.8, 1.0, 0.12), dark_wood, "FeedTrough")
+			_interior_solid_box(root, Vector3(x * 0.5, 1.0, -2.8), Vector3(2.8, 1.0, 0.12), dark_wood, "FeedTrough")
 	elif sign_text == "HOTEL":
 		for x in [-2.6, 2.6]:
 			_interior_solid_box(root, Vector3(x, 0.52, -1.0), Vector3(2.0, 0.55, 3.0), furniture, "BedFrame")
