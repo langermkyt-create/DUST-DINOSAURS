@@ -396,13 +396,17 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 			surface.add_vertex(lower_b)
 			surface.add_vertex(upper_a)
 			surface.add_vertex(upper_b)
-	# Close the crown and buried base so the outcrop has a solid silhouette.
-	var crown: Vector3 = rings[heights.size() - 1][0]
-	for segment in range(1, 11):
+	# Fan-triangulate the complete crown; every ring edge is covered exactly once.
+	var crown := Vector3.ZERO
+	for point in rings[heights.size() - 1]:
+		crown += point
+	crown /= float(rings[heights.size() - 1].size())
+	for segment in range(rings[heights.size() - 1].size()):
+		var next_segment := (segment + 1) % rings[heights.size() - 1].size()
 		surface.set_color(Color(0.52, 0.29, 0.21))
 		surface.add_vertex(crown)
-		surface.add_vertex(rings[4][segment + 1])
-		surface.add_vertex(rings[4][segment])
+		surface.add_vertex(rings[heights.size() - 1][next_segment])
+		surface.add_vertex(rings[heights.size() - 1][segment])
 	surface.generate_normals()
 	var rock_mesh := surface.commit()
 	var rock_shader := Shader.new()
