@@ -531,7 +531,7 @@ func _scatter_boulders() -> void:
 				size_factor * rng.randf_range(0.78, 1.2)
 			)
 			var yaw := rng.randf_range(0.0, TAU)
-			var position := Vector3(x, scale.y * 0.42, z)
+			var position := Vector3(x, _terrain_height(Vector2(x, z)) + scale.y * 0.42, z)
 			var basis := Basis(Vector3.UP, yaw).scaled(scale)
 			multimesh.set_instance_transform(i, Transform3D(basis, position))
 			if i < 12:
@@ -692,7 +692,7 @@ func _scatter_ground_detail() -> void:
 
 func _build_town() -> void:
 	_scatter_ground_detail()
-	_box(self, Vector3(0, 0.025, 0), Vector3(19, 0.05, 110), Color(0.58, 0.36, 0.22))
+	_box(self, Vector3(0, _terrain_height(Vector2.ZERO) + 0.025, 0), Vector3(19, 0.05, 110), Color(0.58, 0.36, 0.22))
 	_build_building(Vector3(-12, 0, -12), "SALOON", Color(0.43, 0.18, 0.12), true)
 	_build_building(Vector3(12, 0, -8), "GENERAL STORE", Color(0.55, 0.38, 0.22), false)
 	_build_building(Vector3(-13, 0, 12), "SHERIFF", Color(0.36, 0.27, 0.19), false)
@@ -764,7 +764,7 @@ void fragment() {
 
 func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) -> void:
 	var root := Node3D.new()
-	root.position = pos
+	root.position = pos + Vector3(0.0, _terrain_height(Vector2(pos.x, pos.z)), 0.0)
 	add_child(root)
 	var wall_surface := _weathered_wood_material(wall)
 	var roof_surface := _weathered_wood_material(Color(0.24, 0.14, 0.11), true)
@@ -791,10 +791,10 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 	root.add_child(sign)
 	_add_building_details(root, wall, porch)
 func _build_dinosaur_herd() -> void:
-	_make_triceratops(Vector3(-31, 0, -52), 1.0, 0.0)
-	_make_triceratops(Vector3(-39, 0, -59), 0.78, 0.45)
-	_make_triceratops(Vector3(-23, 0, -62), 0.66, -0.3)
-	_build_tyrannosaur(Vector3(70, 0, -112), 2.3)
+	_make_triceratops(Vector3(-31, _terrain_height(Vector2(-31, -52)), -52), 1.0, 0.0)
+	_make_triceratops(Vector3(-39, _terrain_height(Vector2(-39, -59)), -59), 0.78, 0.45)
+	_make_triceratops(Vector3(-23, _terrain_height(Vector2(-23, -62)), -62), 0.66, -0.3)
+	_build_tyrannosaur(Vector3(70, _terrain_height(Vector2(70, -112)), -112), 2.3)
 
 func _build_tyrannosaur(pos: Vector3, size: float) -> void:
 	var rex := Node3D.new()
@@ -995,7 +995,7 @@ func _build_player() -> void:
 	player = CharacterBody3D.new()
 	player.set_script(PlayerScript)
 	player.connect("interacted", Callable(self, "_on_player_interacted"))
-	player.position = Vector3(0, 0.2, 38)
+	player.position = Vector3(0, _terrain_height(Vector2(0, 38)) + 0.2, 38)
 	add_child(player)
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
