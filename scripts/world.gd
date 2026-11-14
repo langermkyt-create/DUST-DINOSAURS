@@ -358,6 +358,48 @@ func _scatter_saguaros() -> void:
 			))
 			multimesh.set_instance_transform(i, Transform3D(basis, position))
 
+func _rock_surface_material() -> ShaderMaterial:
+	var rock_shader := Shader.new()
+	rock_shader.code = """
+shader_type spatial;
+render_mode diffuse_burley, specular_schlick_ggx;
+varying vec3 rock_world_pos;
+float rock_hash(vec3 p) {
+	p = fract(p * 0.1031);
+	p += dot(p, p.yxz + 33.33);
+	return fract((p.x + p.y) * p.z);
+}
+float rock_noise(vec3 p) {
+	vec3 i = floor(p);
+	vec3 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(
+		mix(mix(rock_hash(i), rock_hash(i + vec3(1,0,0)), f.x),
+			mix(rock_hash(i + vec3(0,1,0)), rock_hash(i + vec3(1,1,0)), f.x), f.y),
+		mix(mix(rock_hash(i + vec3(0,0,1)), rock_hash(i + vec3(1,0,1)), f.x),
+			mix(rock_hash(i + vec3(0,1,1)), rock_hash(i + vec3(1,1,1)), f.x), f.y), f.z);
+}
+void vertex() {
+	rock_world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+void fragment() {
+	float broad = rock_noise(rock_world_pos * vec3(0.42, 0.19, 0.42));
+	float grain = rock_noise(rock_world_pos * vec3(5.8, 3.2, 5.8));
+	float pores = rock_noise(rock_world_pos * vec3(24.0, 15.0, 24.0));
+	float bedding = sin((rock_world_pos.y * 3.4 + broad * 0.7) * 6.28318) * 0.5 + 0.5;
+	float erosion = smoothstep(0.58, 0.88, pores);
+	vec3 stone = COLOR.rgb * (0.84 + broad * 0.2 + grain * 0.08);
+	stone = mix(stone, stone * vec3(0.68, 0.62, 0.55), smoothstep(0.68, 0.96, bedding) * 0.22);
+	stone *= 1.0 - erosion * 0.12;
+	ALBEDO = stone;
+	ROUGHNESS = 0.91 + pores * 0.08;
+	SPECULAR = 0.12;
+}
+"""
+	var rock_material := ShaderMaterial.new()
+	rock_material.shader = rock_shader
+	return rock_material
+
 func _rock_formation(pos: Vector3, factor: float) -> void:
 	# Build one continuous, faceted sandstone outcrop instead of a pile of cubes and spheres.
 	var rng := RandomNumberGenerator.new()
@@ -409,45 +451,7 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 		surface.add_vertex(rings[heights.size() - 1][segment])
 	surface.generate_normals()
 	var rock_mesh := surface.commit()
-	var rock_shader := Shader.new()
-	rock_shader.code = """
-shader_type spatial;
-render_mode diffuse_burley, specular_schlick_ggx;
-varying vec3 rock_world_pos;
-float rock_hash(vec3 p) {
-	p = fract(p * 0.1031);
-	p += dot(p, p.yxz + 33.33);
-	return fract((p.x + p.y) * p.z);
-}
-float rock_noise(vec3 p) {
-	vec3 i = floor(p);
-	vec3 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	return mix(
-		mix(mix(rock_hash(i), rock_hash(i + vec3(1,0,0)), f.x),
-			mix(rock_hash(i + vec3(0,1,0)), rock_hash(i + vec3(1,1,0)), f.x), f.y),
-		mix(mix(rock_hash(i + vec3(0,0,1)), rock_hash(i + vec3(1,0,1)), f.x),
-			mix(rock_hash(i + vec3(0,1,1)), rock_hash(i + vec3(1,1,1)), f.x), f.y), f.z);
-}
-void vertex() {
-	rock_world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-}
-void fragment() {
-	float broad = rock_noise(rock_world_pos * vec3(0.42, 0.19, 0.42));
-	float grain = rock_noise(rock_world_pos * vec3(5.8, 3.2, 5.8));
-	float pores = rock_noise(rock_world_pos * vec3(24.0, 15.0, 24.0));
-	float bedding = sin((rock_world_pos.y * 3.4 + broad * 0.7) * 6.28318) * 0.5 + 0.5;
-	float erosion = smoothstep(0.58, 0.88, pores);
-	vec3 stone = COLOR.rgb * (0.84 + broad * 0.2 + grain * 0.08);
-	stone = mix(stone, stone * vec3(0.68, 0.62, 0.55), smoothstep(0.68, 0.96, bedding) * 0.22);
-	stone *= 1.0 - erosion * 0.12;
-	ALBEDO = stone;
-	ROUGHNESS = 0.91 + pores * 0.08;
-	SPECULAR = 0.12;
-}
-"""
-	var rock_material := ShaderMaterial.new()
-	rock_material.shader = rock_shader
+	var rock_material := _rock_surface_material()
 	var rock_body := StaticBody3D.new()
 	rock_body.position = pos
 	rock_body.scale = Vector3.ONE * factor
@@ -540,10 +544,7 @@ func _scatter_boulders() -> void:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = 20261114 + variant * 7919
 		var rock_mesh := _make_rock_mesh(8401 + variant * 101, variant)
-		var rock_material := StandardMaterial3D.new()
-		rock_material.vertex_color_use_as_albedo = true
-		rock_material.roughness = 0.97
-		rock_material.metallic = 0.0
+		var rock_material := _rock_surface_material()
 		var multimesh := MultiMesh.new()
 		multimesh.transform_format = MultiMesh.TRANSFORM_3D
 		multimesh.mesh = rock_mesh
