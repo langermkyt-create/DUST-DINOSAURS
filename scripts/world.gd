@@ -176,10 +176,7 @@ func _build_landscape() -> void:
 		var radius := randf_range(125.0, 190.0)
 		var p := Vector3(cos(angle) * radius, randf_range(13.0, 25.0), sin(angle) * radius)
 		_rock_formation(p, randf_range(0.8, 1.5))
-	for i in range(420):
-		var p := Vector3(randf_range(-110, 110), 0.8, randf_range(-110, 110))
-		if Vector2(p.x, p.z).length() > 23:
-			_sphere(self, p, Vector3(randf_range(1, 3.5), randf_range(0.7, 2.0), randf_range(1, 3)), Color(0.45, 0.27, 0.18))
+	_scatter_boulders()
 	for i in range(260):
 		var p := Vector3(randf_range(-115, 115), 0, randf_range(-115, 115))
 		if Vector2(p.x, p.z).length() > 20:
@@ -250,6 +247,132 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	var rock_collision := CollisionShape3D.new()
 	rock_collision.shape = rock_mesh.create_trimesh_shape()
 	rock_body.add_child(rock_collision)
+
+func _make_rock_mesh(seed_value: int, variant: int) -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var phi := (1.0 + sqrt(5.0)) * 0.5
+	var vertices := PackedVector3Array([
+		Vector3(-1, phi, 0), Vector3(1, phi, 0), Vector3(-1, -phi, 0), Vector3(1, -phi, 0),
+		Vector3(0, -1, phi), Vector3(0, 1, phi), Vector3(0, -1, -phi), Vector3(0, 1, -phi),
+		Vector3(phi, 0, -1), Vector3(phi, 0, 1), Vector3(-phi, 0, -1), Vector3(-phi, 0, 1)
+	])
+	var faces := PackedInt32Array([
+		0,11,5, 0,5,1, 0,1,7, 0,7,10, 0,10,11,
+		1,5,9, 5,11,4, 11,10,2, 10,7,6, 7,1,8,
+		3,9,4, 3,4,2, 3,2,6, 3,6,8, 3,8,9,
+		4,9,5, 2,4,11, 6,2,10, 8,6,7, 9,8,1
+	])
+	for i in range(vertices.size()):
+		vertices[i] = vertices[i].normalized()
+	for subdivision in range(2):
+		var refined := PackedInt32Array()
+		var midpoint_cache: Dictionary = {}
+		for face_index in range(0, faces.size(), 3):
+			var a: int = faces[face_index]
+			var b: int = faces[face_index + 1]
+			var c: int = faces[face_index + 2]
+			var key_ab := mini(a, b) * 10000 + maxi(a, b)
+			var key_bc := mini(b, c) * 10000 + maxi(b, c)
+			var key_ca := mini(c, a) * 10000 + maxi(c, a)
+			var ab: int
+			var bc: int
+			var ca: int
+			if midpoint_cache.has(key_ab):
+				ab = midpoint_cache[key_ab]
+			else:
+				vertices.append((vertices[a] + vertices[b]).normalized())
+				ab = vertices.size() - 1
+				midpoint_cache[key_ab] = ab
+			if midpoint_cache.has(key_bc):
+				bc = midpoint_cache[key_bc]
+			else:
+				vertices.append((vertices[b] + vertices[c]).normalized())
+				bc = vertices.size() - 1
+				midpoint_cache[key_bc] = bc
+			if midpoint_cache.has(key_ca):
+				ca = midpoint_cache[key_ca]
+			else:
+				vertices.append((vertices[c] + vertices[a]).normalized())
+				ca = vertices.size() - 1
+				midpoint_cache[key_ca] = ca
+			refined.append_array(PackedInt32Array([a, ab, ca, b, bc, ab, c, ca, bc, ab, bc, ca]))
+		faces = refined
+	var proportions := [
+		Vector3(1.0, 0.62, 0.86),
+		Vector3(0.92, 0.38, 1.0),
+		Vector3(0.78, 0.72, 0.88)
+	]
+	var shape: Vector3 = proportions[variant]
+	for i in range(vertices.size()):
+		var direction: Vector3 = vertices[i].normalized()
+		var fracture := sin(direction.x * 13.0 + direction.z * 8.0) * 0.045
+		var weathering := rng.randf_range(-0.12, 0.12)
+		vertices[i] = Vector3(direction.x * shape.x, direction.y * shape.y, direction.z * shape.z) * (1.0 + fracture + weathering)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for face_index in range(0, faces.size(), 3):
+		for corner in range(3):
+			var p: Vector3 = vertices[faces[face_index + corner]]
+			var elevation := clampf((p.y / shape.y + 1.0) * 0.5, 0.0, 1.0)
+			var mottling := rng.randf_range(-0.055, 0.055)
+			var band := clampf(elevation * 0.58 + mottling + 0.12, 0.0, 1.0)
+			var color := Color(0.22, 0.115, 0.078).lerp(Color(0.58, 0.36, 0.235), band)
+			surface.set_color(color)
+			surface.add_vertex(p)
+	surface.generate_normals()
+	return surface.commit()
+
+func _scatter_boulders() -> void:
+	for variant in range(3):
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 20261114 + variant * 7919
+		var rock_mesh := _make_rock_mesh(8401 + variant * 101, variant)
+		var rock_material := StandardMaterial3D.new()
+		rock_material.vertex_color_use_as_albedo = true
+		rock_material.roughness = 0.97
+		rock_material.metallic = 0.0
+		var multimesh := MultiMesh.new()
+		multimesh.transform_format = MultiMesh.TRANSFORM_3D
+		multimesh.mesh = rock_mesh
+		multimesh.instance_count = 140
+		multimesh.custom_aabb = AABB(Vector3(-125, -2, -125), Vector3(250, 35, 250))
+		var rocks := MultiMeshInstance3D.new()
+		rocks.multimesh = multimesh
+		rocks.material_override = rock_material
+		rocks.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		add_child(rocks)
+		for i in range(140):
+			var x := 0.0
+			var z := 0.0
+			for attempt in range(80):
+				x = rng.randf_range(-115.0, 115.0)
+				z = rng.randf_range(-115.0, 115.0)
+				if Vector2(x, z).length() > 29.0:
+					break
+			var size_factor := rng.randf_range(0.72, 1.45)
+			if i < 12:
+				size_factor = rng.randf_range(1.35, 1.72)
+			var scale := Vector3(
+				size_factor * rng.randf_range(0.82, 1.18),
+				size_factor * rng.randf_range(0.42, 0.72),
+				size_factor * rng.randf_range(0.78, 1.2)
+			)
+			var yaw := rng.randf_range(0.0, TAU)
+			var position := Vector3(x, scale.y * 0.42, z)
+			var basis := Basis(Vector3.UP, yaw).scaled(scale)
+			multimesh.set_instance_transform(i, Transform3D(basis, position))
+			if i < 12:
+				var body := StaticBody3D.new()
+				body.position = position
+				body.rotation.y = yaw
+				add_child(body)
+				var collision := CollisionShape3D.new()
+				var collision_shape := BoxShape3D.new()
+				collision_shape.size = Vector3(1.55, 0.9, 1.55)
+				collision.shape = collision_shape
+				collision.scale = scale
+				body.add_child(collision)
 
 func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
 	var wood := _weathered_wood_material(wall.darkened(0.22))
