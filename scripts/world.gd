@@ -39,21 +39,29 @@ float fbm(vec2 p) {
 }
 void vertex() {
 	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	float dune_shape = fbm(world_position.xz * 0.018);
+	float wind_ripple = sin(dot(world_position.xz, vec2(0.72, 0.69)) * 1.35
+		+ fbm(world_position.xz * 0.045) * 5.0);
+	VERTEX.y += (dune_shape - 0.5) * 1.15 + wind_ripple * 0.035;
+	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 void fragment() {
-	float broad = fbm(world_position.xz * 0.035);
-	float grain = noise2(world_position.xz * 2.8);
-	float flecks = noise2(world_position.xz * 18.0);
-	float fine_grain = noise2(world_position.xz * 74.0);
-	vec3 dust = vec3(0.19, 0.105, 0.062);
-	vec3 ochre = vec3(0.39, 0.235, 0.135);
-	vec3 pale = vec3(0.55, 0.385, 0.245);
-	vec3 ground = mix(dust, ochre, smoothstep(0.22, 0.78, broad));
-	ground = mix(ground, pale, smoothstep(0.68, 0.9, grain) * 0.24);
-	ground *= 0.84 + flecks * 0.22 + fine_grain * 0.07;
+	float broad = fbm(world_position.xz * 0.026);
+	float grain = noise2(world_position.xz * 1.35);
+	float flecks = noise2(world_position.xz * 8.5);
+	float fine_grain = noise2(world_position.xz * 31.0);
+	float wind_streak = sin(dot(world_position.xz, vec2(0.72, 0.69)) * 2.2
+		+ noise2(world_position.xz * 0.12) * 3.0) * 0.5 + 0.5;
+	vec3 dust = vec3(0.17, 0.095, 0.055);
+	vec3 ochre = vec3(0.36, 0.205, 0.115);
+	vec3 pale = vec3(0.52, 0.355, 0.22);
+	vec3 ground = mix(dust, ochre, smoothstep(0.2, 0.8, broad));
+	ground = mix(ground, pale, smoothstep(0.66, 0.92, grain) * 0.19);
+	ground *= 0.91 + flecks * 0.14 + fine_grain * 0.045;
+	ground *= 0.97 + wind_streak * 0.035;
 	ALBEDO = ground;
-	ROUGHNESS = 0.88 + fine_grain * 0.1;
-	SPECULAR = 0.12;
+	ROUGHNESS = 0.94 + fine_grain * 0.05;
+	SPECULAR = 0.08;
 }
 """
 	var material := ShaderMaterial.new()
