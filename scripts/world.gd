@@ -177,14 +177,112 @@ func _build_landscape() -> void:
 		var p := Vector3(cos(angle) * radius, randf_range(13.0, 25.0), sin(angle) * radius)
 		_rock_formation(p, randf_range(0.8, 1.5))
 	_scatter_boulders()
-	for i in range(260):
-		var p := Vector3(randf_range(-115, 115), 0, randf_range(-115, 115))
-		if Vector2(p.x, p.z).length() > 20:
-			var h := randf_range(1.3, 3.8)
-			_cylinder(self, p + Vector3(0, h * 0.5, 0), 0.22, h, Color(0.18, 0.31, 0.19), 7)
-			if i % 3 == 0:
-				var arm := _cylinder(self, p + Vector3(0.42, h * 0.55, 0), 0.13, h * 0.38, Color(0.18, 0.31, 0.19), 7)
-				arm.rotation.z = -0.8
+	_scatter_saguaros()
+
+func _append_cactus_tube(surface: SurfaceTool, points: PackedVector3Array, radii: PackedFloat32Array, base_color: Color) -> void:
+	var rings: Array[PackedVector3Array] = []
+	for ring_index in range(points.size()):
+		var tangent: Vector3
+		if ring_index == 0:
+			tangent = (points[1] - points[0]).normalized()
+		elif ring_index == points.size() - 1:
+			tangent = (points[ring_index] - points[ring_index - 1]).normalized()
+		else:
+			tangent = (points[ring_index + 1] - points[ring_index - 1]).normalized()
+		var reference := Vector3.UP if absf(tangent.dot(Vector3.UP)) < 0.92 else Vector3.FORWARD
+		var axis_x := tangent.cross(reference).normalized()
+		var axis_z := tangent.cross(axis_x).normalized()
+		var ring := PackedVector3Array()
+		for segment in range(16):
+			var angle := TAU * float(segment) / 16.0
+			var rib := 1.0 + 0.075 * cos(angle * 8.0)
+			var radial := (axis_x * cos(angle) + axis_z * sin(angle)) * radii[ring_index] * rib
+			ring.append(points[ring_index] + radial)
+		rings.append(ring)
+	for ring_index in range(rings.size() - 1):
+		for segment in range(16):
+			var next_segment := (segment + 1) % 16
+			var height_tint := 0.94 + 0.08 * float(ring_index) / float(maxi(1, rings.size() - 1))
+			var rib_tint := 0.94 + 0.06 * cos(TAU * float(segment) / 16.0 * 8.0)
+			var tint := base_color * height_tint * rib_tint
+			var a: Vector3 = rings[ring_index][segment]
+			var b: Vector3 = rings[ring_index][next_segment]
+			var c: Vector3 = rings[ring_index + 1][segment]
+			var d: Vector3 = rings[ring_index + 1][next_segment]
+			surface.set_color(tint)
+			surface.add_vertex(a)
+			surface.add_vertex(c)
+			surface.add_vertex(b)
+			surface.set_color(tint)
+			surface.add_vertex(b)
+			surface.add_vertex(c)
+			surface.add_vertex(d)
+
+func _make_saguaro_mesh(variant: int) -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var green := [Color(0.19, 0.32, 0.19), Color(0.23, 0.34, 0.19), Color(0.17, 0.29, 0.17)][variant]
+	var trunk_points := PackedVector3Array([
+		Vector3(0.0, 0.0, 0.0), Vector3(0.025, 0.08, 0.0),
+		Vector3(0.04, 0.38, 0.0), Vector3(0.015, 0.9, 0.0),
+		Vector3(-0.025, 1.65, 0.0), Vector3(-0.045, 2.45, 0.0),
+		Vector3(-0.02, 3.25, 0.0), Vector3(0.0, 3.55, 0.0)
+	])
+	var trunk_radii := PackedFloat32Array([0.23, 0.26, 0.27, 0.255, 0.235, 0.205, 0.17, 0.12])
+	_append_cactus_tube(surface, trunk_points, trunk_radii, green)
+	if variant != 2:
+		var side := -1.0 if variant == 0 else 1.0
+		var branch_points := PackedVector3Array([
+			Vector3(side * 0.19, 1.05, 0.0), Vector3(side * 0.43, 1.09, 0.0),
+			Vector3(side * 0.66, 1.28, 0.0), Vector3(side * 0.68, 1.58, 0.0),
+			Vector3(side * 0.68, 1.92, 0.0), Vector3(side * 0.68, 2.12, 0.0)
+		])
+		_append_cactus_tube(surface, branch_points, PackedFloat32Array([0.17, 0.15, 0.13, 0.115, 0.095, 0.07]), green)
+		if variant == 0:
+			var other_points := PackedVector3Array([
+				Vector3(-0.19, 1.58, 0.0), Vector3(-0.4, 1.61, 0.0),
+				Vector3(-0.57, 1.79, 0.0), Vector3(-0.57, 2.06, 0.0),
+				Vector3(-0.57, 2.34, 0.0)
+			])
+			_append_cactus_tube(surface, other_points, PackedFloat32Array([0.15, 0.13, 0.115, 0.09, 0.065]), green * 1.035)
+	surface.generate_normals()
+	var mesh := surface.commit()
+	var material := StandardMaterial3D.new()
+	material.vertex_color_use_as_albedo = true
+	material.roughness = 0.92
+	mesh.surface_set_material(0, material)
+	return mesh
+
+func _scatter_saguaros() -> void:
+	for variant in range(3):
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 1897 + variant * 421
+		var multimesh := MultiMesh.new()
+		multimesh.transform_format = MultiMesh.TRANSFORM_3D
+		multimesh.mesh = _make_saguaro_mesh(variant)
+		multimesh.instance_count = 74
+		multimesh.custom_aabb = AABB(Vector3(-125, -1, -125), Vector3(250, 8, 250))
+		var plants := MultiMeshInstance3D.new()
+		plants.multimesh = multimesh
+		plants.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		add_child(plants)
+		for i in range(74):
+			var x := 0.0
+			var z := 0.0
+			for attempt in range(80):
+				x = rng.randf_range(-115.0, 115.0)
+				z = rng.randf_range(-115.0, 115.0)
+				if Vector2(x, z).length() > 23.0:
+					break
+			var scale_factor := rng.randf_range(0.72, 1.28)
+			var yaw := rng.randf_range(0.0, TAU)
+			var position := Vector3(x, 0.0, z)
+			var basis := Basis(Vector3.UP, yaw).scaled(Vector3(
+				scale_factor * rng.randf_range(0.9, 1.1),
+				scale_factor,
+				scale_factor * rng.randf_range(0.9, 1.1)
+			))
+			multimesh.set_instance_transform(i, Transform3D(basis, position))
 
 func _rock_formation(pos: Vector3, factor: float) -> void:
 	# Build one continuous, faceted sandstone outcrop instead of a pile of cubes and spheres.
