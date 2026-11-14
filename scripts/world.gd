@@ -734,9 +734,9 @@ void fragment() {
 	float dust = noise2(world_position.xz * 2.7);
 	float gravel = noise2(world_position.xz * 13.0);
 	float fine = noise2(world_position.xz * 47.0);
-	float rut_left = exp(-pow((abs(world_position.x - 3.0) - 2.2) * 1.7, 2.0));
-	float rut_right = exp(-pow((abs(world_position.x - 3.0) - 2.2) * 1.7, 2.0));
-	float ruts = max(rut_left, rut_right);
+	float wheel_ruts = exp(-pow((abs(world_position.x) - 2.2) * 1.7, 2.0));
+	float hoof_wear = exp(-pow(world_position.x * 0.55, 2.0)) * 0.22;
+	float ruts = max(wheel_ruts, hoof_wear);
 	vec3 base = mix(vec3(0.19, 0.105, 0.06), vec3(0.34, 0.21, 0.13), dust);
 	base *= 0.82 + gravel * 0.23 + fine * 0.08;
 	base *= 1.0 - ruts * 0.13;
