@@ -39,11 +39,6 @@ float fbm(vec2 p) {
 }
 void vertex() {
 	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	float dune_shape = fbm(world_position.xz * 0.018);
-	float wind_ripple = sin(dot(world_position.xz, vec2(0.72, 0.69)) * 1.35
-		+ fbm(world_position.xz * 0.045) * 5.0);
-	VERTEX.y += (dune_shape - 0.5) * 1.15 + wind_ripple * 0.035;
-	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 void fragment() {
 	float broad = fbm(world_position.xz * 0.026);
@@ -157,20 +152,86 @@ func _build_atmosphere() -> void:
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 240.0
 	add_child(sun)
+func _terrain_hash(point: Vector2) -> float:
+	var p := Vector2(
+		fposmod(point.x * 123.34, 1.0),
+		fposmod(point.y * 456.21, 1.0)
+	)
+	var offset := p.dot(p + Vector2.ONE * 45.32)
+	p += Vector2.ONE * offset
+	return fposmod(p.x * p.y, 1.0)
+
+func _terrain_noise(point: Vector2) -> float:
+	var cell := Vector2(floor(point.x), floor(point.y))
+	var blend := point - cell
+	blend = blend * blend * (Vector2.ONE * 3.0 - blend * 2.0)
+	var a := _terrain_hash(cell)
+	var b := _terrain_hash(cell + Vector2.RIGHT)
+	var c := _terrain_hash(cell + Vector2.DOWN)
+	var d := _terrain_hash(cell + Vector2.ONE)
+	return lerpf(lerpf(a, b, blend.x), lerpf(c, d, blend.x), blend.y)
+
+func _terrain_fbm(point: Vector2) -> float:
+	var p := point
+	var value := 0.0
+	var amplitude := 0.5
+	for octave in range(5):
+		value += _terrain_noise(p) * amplitude
+		p *= 2.03
+		amplitude *= 0.5
+	return value
+
+func _terrain_height(world_xz: Vector2) -> float:
+	var dune := _terrain_fbm(world_xz * 0.018)
+	var ripple := sin(world_xz.dot(Vector2(0.72, 0.69)) * 1.35
+		+ _terrain_fbm(world_xz * 0.045) * 5.0)
+	return (dune - 0.5) * 1.15 + ripple * 0.035
+
+func _make_terrain_mesh(segments: int) -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var half_extent := 260.0
+	var step := 520.0 / float(segments)
+	for z in range(segments):
+		for x in range(segments):
+			var x0 := -half_extent + float(x) * step
+			var x1 := x0 + step
+			var z0 := -half_extent + float(z) * step
+			var z1 := z0 + step
+			var a := Vector3(x0, _terrain_height(Vector2(x0, z0)), z0)
+			var b := Vector3(x1, _terrain_height(Vector2(x1, z0)), z0)
+			var c := Vector3(x0, _terrain_height(Vector2(x0, z1)), z1)
+			var d := Vector3(x1, _terrain_height(Vector2(x1, z1)), z1)
+			surface.set_uv(Vector2(float(x) / segments, float(z) / segments))
+			surface.add_vertex(a)
+			surface.set_uv(Vector2(float(x) / segments, float(z + 1) / segments))
+			surface.add_vertex(c)
+			surface.set_uv(Vector2(float(x + 1) / segments, float(z) / segments))
+			surface.add_vertex(b)
+			surface.set_uv(Vector2(float(x + 1) / segments, float(z) / segments))
+			surface.add_vertex(b)
+			surface.set_uv(Vector2(float(x) / segments, float(z + 1) / segments))
+			surface.add_vertex(c)
+			surface.set_uv(Vector2(float(x + 1) / segments, float(z + 1) / segments))
+			surface.add_vertex(d)
+	surface.generate_normals()
+	return surface.commit()
+
 func _build_landscape() -> void:
-	var ground := PlaneMesh.new()
-	ground.size = Vector2(520, 520)
-	ground.subdivide_width = 220
-	ground.subdivide_depth = 220
+	# The visible dunes and the collision surface are generated from the same height function.
+	# This removes the old mismatch where feet and rocks floated above a flat collision plane.
+	var ground := _make_terrain_mesh(180)
+	ground.surface_set_material(0, _terrain_material())
 	var terrain := StaticBody3D.new()
+	terrain.name = "ProceduralTerrain"
 	add_child(terrain)
 	var ground_shape := CollisionShape3D.new()
-	var ground_collision := BoxShape3D.new()
-	ground_collision.size = Vector3(520, 1.0, 520)
-	ground_shape.shape = ground_collision
-	ground_shape.position.y = -0.5
+	ground_shape.shape = ground.create_trimesh_shape()
 	terrain.add_child(ground_shape)
-	_mesh(self, ground, _terrain_material(), Vector3.ZERO)
+	var ground_instance := MeshInstance3D.new()
+	ground_instance.name = "DuneSurface"
+	ground_instance.mesh = ground
+	terrain.add_child(ground_instance)
 	for i in range(34):
 		var angle := TAU * float(i) / 34.0
 		var radius := randf_range(125.0, 190.0)
@@ -289,7 +350,7 @@ func _scatter_saguaros() -> void:
 					break
 			var scale_factor := rng.randf_range(0.72, 1.28)
 			var yaw := rng.randf_range(0.0, TAU)
-			var position := Vector3(x, 0.0, z)
+			var position := Vector3(x, _terrain_height(Vector2(x, z)), z)
 			var basis := Basis(Vector3.UP, yaw).scaled(Vector3(
 				scale_factor * rng.randf_range(0.9, 1.1),
 				scale_factor,
@@ -579,7 +640,7 @@ func _scatter_ground_detail() -> void:
 		var scale_factor := rng.randf_range(0.55, 1.45)
 		var yaw := rng.randf_range(0.0, TAU)
 		var basis := Basis(Vector3.UP, yaw).scaled(Vector3(scale_factor, scale_factor, scale_factor))
-		grass_multimesh.set_instance_transform(i, Transform3D(basis, Vector3(x, 0.0, z)))
+		grass_multimesh.set_instance_transform(i, Transform3D(basis, Vector3(x, _terrain_height(Vector2(x, z)), z)))
 	var pebble_mesh := SphereMesh.new()
 	pebble_mesh.radial_segments = 16
 	pebble_mesh.rings = 10
@@ -610,7 +671,7 @@ func _scatter_ground_detail() -> void:
 				size_factor * rng.randf_range(0.75, 1.25)
 			)
 			var yaw := rng.randf_range(0.0, TAU)
-			stones.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw).scaled(scale), Vector3(x, 0.035, z)))
+			stones.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw).scaled(scale), Vector3(x, _terrain_height(Vector2(x, z)) + 0.035, z)))
 
 func _build_town() -> void:
 	_scatter_ground_detail()
