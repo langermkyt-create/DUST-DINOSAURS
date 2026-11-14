@@ -609,10 +609,27 @@ func _make_desert_tuft_mesh() -> ArrayMesh:
 		surface.add_vertex(root - side)
 	surface.generate_normals()
 	var mesh := surface.commit()
-	var material := StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.roughness = 1.0
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var grass_shader := Shader.new()
+	grass_shader.code = """
+shader_type spatial;
+render_mode cull_disabled, diffuse_burley, specular_schlick_ggx;
+varying vec3 world_position;
+void vertex() {
+	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	float phase = TIME * 1.25 + world_position.x * 0.16 + world_position.z * 0.11;
+	float bend = cos(phase) * 0.065;
+	VERTEX.x += sin(phase) * 0.065 * VERTEX.y;
+	NORMAL = normalize(vec3(NORMAL.x - bend * NORMAL.y, NORMAL.y, NORMAL.z));
+}
+void fragment() {
+	float sun_bleach = clamp(world_position.y * 0.8, 0.0, 0.12);
+	ALBEDO = COLOR.rgb + vec3(sun_bleach, sun_bleach * 0.82, sun_bleach * 0.5);
+	ROUGHNESS = 1.0;
+	SPECULAR = 0.04;
+}
+"""
+	var material := ShaderMaterial.new()
+	material.shader = grass_shader
 	mesh.surface_set_material(0, material)
 	return mesh
 
