@@ -716,14 +716,101 @@ func _build_dinosaur_herd() -> void:
 	_make_triceratops(Vector3(-31, 0, -52), 1.0, 0.0)
 	_make_triceratops(Vector3(-39, 0, -59), 0.78, 0.45)
 	_make_triceratops(Vector3(-23, 0, -62), 0.66, -0.3)
+	_build_tyrannosaur(Vector3(70, 0, -112), 2.3)
+
+func _build_tyrannosaur(pos: Vector3, size: float) -> void:
 	var rex := Node3D.new()
-	rex.position = Vector3(70, 0, -112)
-	rex.scale = Vector3(2.3, 2.3, 2.3)
+	rex.position = pos
+	rex.scale = Vector3.ONE * size
 	add_child(rex)
-	_sphere(rex, Vector3(0, 2.5, 0), Vector3(1.4, 1.6, 2.6), Color(0.25, 0.19, 0.14))
-	_sphere(rex, Vector3(0, 3.5, -1.8), Vector3(1.0, 0.9, 1.0), Color(0.25, 0.19, 0.14))
-	for x in [-0.55, 0.55]:
-		_cylinder(rex, Vector3(x, 0.9, 0.6), 0.22, 1.8, Color(0.22, 0.17, 0.13), 8)
+	var hide := _material(Color(0.27, 0.22, 0.16), 0.93)
+	var flank := _material(Color(0.38, 0.3, 0.2), 0.91)
+	var underside := _material(Color(0.48, 0.39, 0.27), 0.96)
+	var dark := _material(Color(0.12, 0.105, 0.075), 0.96)
+	var teeth := _material(Color(0.82, 0.75, 0.58), 0.72)
+	var eye := _material(Color(0.78, 0.48, 0.13), 0.28)
+	# Deep rib cage, heavy hips and a raised shoulder line.
+	_sphere(rex, Vector3(0, 2.55, 0.15), Vector3(1.42, 1.55, 2.35), hide)
+	_sphere(rex, Vector3(0, 2.48, 0.92), Vector3(1.3, 1.35, 1.18), flank)
+	_sphere(rex, Vector3(0, 1.98, -0.08), Vector3(1.1, 0.48, 1.72), underside)
+	_sphere(rex, Vector3(0, 2.82, -1.15), Vector3(0.98, 1.02, 1.15), flank)
+	# Forward neck, broad skull, hinged lower jaw and visible teeth.
+	_sphere(rex, Vector3(0, 3.05, -1.65), Vector3(0.86, 0.78, 0.92), hide)
+	_sphere(rex, Vector3(0, 3.42, -2.22), Vector3(0.92, 0.76, 0.88), hide)
+	_sphere(rex, Vector3(0, 3.12, -2.72), Vector3(0.73, 0.4, 0.9), flank)
+	_sphere(rex, Vector3(0, 2.84, -2.62), Vector3(0.69, 0.2, 0.82), dark)
+	_sphere(rex, Vector3(0, 2.77, -2.56), Vector3(0.62, 0.12, 0.73), underside)
+	for side in [-1.0, 1.0]:
+		_sphere(rex, Vector3(side * 0.69, 3.49, -2.42), Vector3(0.105, 0.12, 0.1), eye)
+		_sphere(rex, Vector3(side * 0.73, 3.51, -2.44), Vector3(0.045, 0.07, 0.045), dark)
+		_sphere(rex, Vector3(side * 0.38, 3.23, -2.94), Vector3(0.065, 0.055, 0.045), dark)
+		for tooth_index in range(5):
+			var tooth := CylinderMesh.new()
+			tooth.top_radius = 0.008
+			tooth.bottom_radius = 0.045
+			tooth.height = 0.17
+			tooth.radial_segments = 8
+			_mesh(rex, tooth, teeth, Vector3(side * (0.2 + float(tooth_index) * 0.095), 2.91, -2.85 + float(tooth_index % 2) * 0.19), Vector3.ONE, Vector3(PI, 0, 0))
+	# Long counterbalancing tail, tapered from the pelvis to a narrow tip.
+	var tail_pivot := Node3D.new()
+	tail_pivot.position = Vector3(0, 2.55, 0.95)
+	rex.add_child(tail_pivot)
+	var tail := CylinderMesh.new()
+	tail.top_radius = 0.035
+	tail.bottom_radius = 0.58
+	tail.height = 3.9
+	tail.radial_segments = 20
+	_mesh(tail_pivot, tail, hide, Vector3(0, 0, 1.95), Vector3.ONE, Vector3(PI / 2.0, 0, 0))
+	_sphere(tail_pivot, Vector3(0, 0, 0.38), Vector3(0.92, 0.68, 0.9), flank)
+	var tail_sway := create_tween().set_loops()
+	tail_sway.tween_property(tail_pivot, "rotation:y", 0.11, 1.7).set_trans(Tween.TRANS_SINE)
+	tail_sway.tween_property(tail_pivot, "rotation:y", -0.11, 1.7).set_trans(Tween.TRANS_SINE)
+	# Small, two-fingered forelimbs tucked close to the chest.
+	for side in [-1.0, 1.0]:
+		var arm := Node3D.new()
+		arm.position = Vector3(side * 0.7, 2.48, -1.08)
+		rex.add_child(arm)
+		var upper_arm := CylinderMesh.new()
+		upper_arm.top_radius = 0.105
+		upper_arm.bottom_radius = 0.15
+		upper_arm.height = 0.42
+		_mesh(arm, upper_arm, flank, Vector3(0, -0.16, -0.08), Vector3.ONE, Vector3(-0.55, 0, side * 0.15))
+		var forearm := CylinderMesh.new()
+		forearm.top_radius = 0.07
+		forearm.bottom_radius = 0.11
+		forearm.height = 0.32
+		_mesh(arm, forearm, hide, Vector3(0, -0.38, -0.19), Vector3.ONE, Vector3(-0.7, 0, side * 0.15))
+		for claw in range(2):
+			_sphere(arm, Vector3((float(claw) - 0.5) * 0.13, -0.52, -0.34), Vector3(0.045, 0.045, 0.12), teeth)
+	# Muscular hind legs with separate thighs, shins and broad three-toed feet.
+	for side in [-1.0, 1.0]:
+		var leg := Node3D.new()
+		leg.position = Vector3(side * 0.63, 1.7, 0.56)
+		rex.add_child(leg)
+		var thigh := CapsuleMesh.new()
+		thigh.radius = 0.34
+		thigh.height = 1.05
+		thigh.radial_segments = 20
+		thigh.rings = 8
+		_mesh(leg, thigh, flank, Vector3(0, -0.28, 0.03), Vector3(1.0, 1.0, 1.25), Vector3(-0.2, 0, side * -0.08))
+		var shin := CylinderMesh.new()
+		shin.top_radius = 0.2
+		shin.bottom_radius = 0.27
+		shin.height = 0.86
+		shin.radial_segments = 16
+		_mesh(leg, shin, hide, Vector3(0, -0.94, -0.08), Vector3.ONE, Vector3(-0.12, 0, 0))
+		_sphere(leg, Vector3(0, -1.43, -0.34), Vector3(0.42, 0.2, 0.56), dark)
+		for toe in [-0.22, 0.0, 0.22]:
+			_sphere(leg, Vector3(toe, -1.45, -0.66), Vector3(0.15, 0.12, 0.25), flank)
+			var claw := CylinderMesh.new()
+			claw.top_radius = 0.008
+			claw.bottom_radius = 0.075
+			claw.height = 0.2
+			claw.radial_segments = 8
+			_mesh(leg, claw, teeth, Vector3(toe, -1.43, -0.84), Vector3.ONE, Vector3(PI / 2.0, 0, 0))
+		var gait := create_tween().set_loops()
+		gait.tween_property(leg, "rotation:x", 0.12 if side < 0.0 else -0.12, 1.1).set_trans(Tween.TRANS_SINE)
+		gait.tween_property(leg, "rotation:x", -0.12 if side < 0.0 else 0.12, 1.1).set_trans(Tween.TRANS_SINE)
 func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	var d := Node3D.new()
 	d.position = pos
