@@ -781,23 +781,45 @@ void fragment() {
 	material.set_shader_parameter("grain_scale", 1.8 if roof else 5.0)
 	return material
 
+func _add_building_wall_piece(root: Node3D, body: StaticBody3D, center: Vector3, size: Vector3, surface: Material) -> void:
+	_box(root, center, size, surface)
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	collision.position = center
+	body.add_child(collision)
+
 func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) -> void:
 	var root := Node3D.new()
 	root.position = pos + Vector3(0.0, _terrain_height(Vector2(pos.x, pos.z)), 0.0)
 	add_child(root)
 	var wall_surface := _weathered_wood_material(wall)
 	var roof_surface := _weathered_wood_material(Color(0.24, 0.14, 0.11), true)
-	_box(root, Vector3(0, 2.1, 0), Vector3(10, 4.2, 7), wall_surface)
-	# Solid collision follows the building shell so the player cannot walk through the town.
+	# Build the shell from separate wall panels. The street facade has real door and
+	# window apertures instead of a solid box hidden behind decorative overlays.
 	var building_body := StaticBody3D.new()
 	building_body.name = "BuildingCollision"
 	root.add_child(building_body)
-	var building_shape := CollisionShape3D.new()
-	var building_box := BoxShape3D.new()
-	building_box.size = Vector3(10.0, 4.2, 7.0)
-	building_shape.shape = building_box
-	building_shape.position = Vector3(0.0, 2.1, 0.0)
-	building_body.add_child(building_shape)
+	var thickness := 0.22
+	_add_building_wall_piece(root, building_body, Vector3(0, 2.1, -3.5), Vector3(10, 4.2, thickness), wall_surface)
+	_add_building_wall_piece(root, building_body, Vector3(-4.89, 2.1, 0), Vector3(thickness, 4.2, 7), wall_surface)
+	_add_building_wall_piece(root, building_body, Vector3(4.89, 2.1, 0), Vector3(thickness, 4.2, 7), wall_surface)
+	# Front wall: full-height piers, lower/upper window panels and a door lintel.
+	for x_range in [Vector2(-5.0, -3.95), Vector2(-2.65, -0.82), Vector2(0.82, 2.65), Vector2(3.95, 5.0)]:
+		var width := x_range.y - x_range.x
+		_add_building_wall_piece(root, building_body,
+			Vector3((x_range.x + x_range.y) * 0.5, 2.1, 3.5),
+			Vector3(width, 4.2, thickness), wall_surface)
+	for window_x in [-3.3, 3.3]:
+		_add_building_wall_piece(root, building_body, Vector3(window_x, 0.56, 3.5),
+			Vector3(1.3, 1.12, thickness), wall_surface)
+		_add_building_wall_piece(root, building_body, Vector3(window_x, 3.64, 3.5),
+			Vector3(1.3, 1.12, thickness), wall_surface)
+	_add_building_wall_piece(root, building_body, Vector3(0, 3.5, 3.5),
+		Vector3(1.64, 1.4, thickness), wall_surface)
+	# Dark interior backing gives the openings depth until full room interiors are built.
+	_box(root, Vector3(0, 2.1, -3.34), Vector3(9.5, 4.0, 0.08), Color(0.12, 0.095, 0.07))
 	_box(root, Vector3(0, 4.45, 0), Vector3(11, 0.45, 8), roof_surface)
 	var roof := PrismMesh.new()
 	roof.size = Vector3(11, 2.7, 8)
