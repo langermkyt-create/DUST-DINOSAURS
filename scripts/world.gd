@@ -949,7 +949,7 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 	root.add_child(door_pivot)
 	var door_surface := _weathered_wood_material(Color(0.16, 0.1, 0.07))
 	_box(door_pivot, Vector3(0.72, 2.0, 0.0), Vector3(1.45, 2.8, 0.14), door_surface)
-	var door_handle := _sphere(door_pivot, Vector3(1.27, 1.45, -0.1), Vector3(0.07, 0.1, 0.07), _material(Color(0.58, 0.39, 0.14), 0.28, 0.72))
+	_sphere(door_pivot, Vector3(1.27, 1.45, -0.1), Vector3(0.07, 0.1, 0.07), _material(Color(0.58, 0.39, 0.14), 0.28, 0.72))
 	
 	for x in [-3.3, 3.3]:
 		_box(root, Vector3(x, 2.1, 3.66), Vector3(1.25, 1.7, 0.18), Color(0.16, 0.29, 0.34))
@@ -1040,9 +1040,10 @@ func _build_building_interior(root: Node3D, sign_text: String, wall: Color) -> v
 		_interior_solid_box(root, Vector3(0, 1.0, -1.25), Vector3(3.2, 1.5, 0.7), furniture, "ShopCounter")
 	elif sign_text == "SHERIFF":
 		_interior_table(root, Vector3(0, 0, -1.35), 2.4, 1.2, furniture)
-		_interior_solid_box(root, Vector3(-3.15, 1.2, -1.5), Vector3(0.12, 2.4, 3.5), iron, "CellBars")
-		for z in [-2.8, -2.1, -1.4, -0.7, 0.0]:
-			_cylinder(root, Vector3(-3.15, 1.2, z), 0.045, 2.4, iron, 8)
+		_interior_solid_box(root, Vector3(-3.15, 2.35, -1.5), Vector3(0.12, 0.12, 3.5), iron, "CellTopRail")
+		_interior_solid_box(root, Vector3(-3.15, 0.18, -1.5), Vector3(0.12, 0.12, 3.5), iron, "CellBottomRail")
+		for z in [-3.0, -2.4, -1.8, -1.2, -0.6, 0.0]:
+			_cylinder(root, Vector3(-3.15, 1.25, z), 0.045, 2.2, iron, 8)
 		_interior_solid_box(root, Vector3(-3.8, 0.9, 1.4), Vector3(1.0, 1.8, 1.8), dark_wood, "JailBench")
 	elif sign_text == "STABLES":
 		for x in [-3.1, 3.1]:
