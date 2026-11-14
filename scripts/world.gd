@@ -915,7 +915,99 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 	sign.rotation_degrees.y = 0
 	sign.modulate = Color(1.0, 0.79, 0.48)
 	root.add_child(sign)
+	_build_building_interior(root, sign_text, wall)
 	_add_building_details(root, wall, porch)
+
+func _interior_solid_box(root: Node3D, center: Vector3, size: Vector3, material: Material, node_name: String = "InteriorProp") -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = node_name
+	body.position = center
+	root.add_child(body)
+	var visual := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	visual.mesh = mesh
+	visual.material_override = material
+	body.add_child(visual)
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	body.add_child(collision)
+	return body
+
+func _interior_table(root: Node3D, center: Vector3, width: float, depth: float, wood: Material) -> void:
+	_interior_solid_box(root, center + Vector3(0, 0.82, 0), Vector3(width, 0.16, depth), wood, "TableTop")
+	for x in [-1.0, 1.0]:
+		for z in [-1.0, 1.0]:
+			_interior_solid_box(root, center + Vector3(x * (width * 0.5 - 0.12), 0.4, z * (depth * 0.5 - 0.12)), Vector3(0.16, 0.8, 0.16), wood, "TableLeg")
+
+func _interior_lantern(root: Node3D, position: Vector3) -> void:
+	var iron := _material(Color(0.075, 0.065, 0.05), 0.58, 0.62)
+	var glass := _material(Color(0.95, 0.55, 0.2), 0.25)
+	_cylinder(root, position, 0.12, 0.28, Color(0.08, 0.065, 0.045), 12)
+	_sphere(root, position + Vector3(0, -0.22, 0), Vector3(0.14, 0.24, 0.14), glass)
+	var light := OmniLight3D.new()
+	light.position = position + Vector3(0, -0.28, 0)
+	light.light_color = Color(1.0, 0.58, 0.29)
+	light.light_energy = 0.65
+	light.omni_range = 8.0
+	light.shadow_enabled = true
+	root.add_child(light)
+
+func _build_building_interior(root: Node3D, sign_text: String, wall: Color) -> void:
+	var floor_wood := _weathered_wood_material(wall.darkened(0.38))
+	var furniture := _weathered_wood_material(Color(0.24, 0.135, 0.075))
+	var dark_wood := _weathered_wood_material(Color(0.12, 0.075, 0.045))
+	var iron := _material(Color(0.075, 0.07, 0.06), 0.62, 0.68)
+	# A walkable plank floor replaces the dark placeholder void; one hidden collider
+	# supports the entire room while individual furniture pieces have their own collision.
+	_interior_solid_box(root, Vector3(0, -0.06, 0), Vector3(9.55, 0.2, 6.65), floor_wood, "InteriorFloor")
+	for plank in range(15):
+		var z := -3.0 + float(plank) * 0.43
+		_box(root, Vector3(0, 0.052, z), Vector3(9.45, 0.018, 0.39), floor_wood)
+	_interior_lantern(root, Vector3(0, 3.65, -0.65))
+	if sign_text == "SALOON":
+		# Long service bar, brass foot rail, bottle shelves and card tables.
+		_interior_solid_box(root, Vector3(0, 1.15, -1.65), Vector3(6.0, 1.9, 0.72), furniture, "SaloonBar")
+		_interior_solid_box(root, Vector3(0, 2.15, -1.65), Vector3(6.2, 0.16, 0.86), dark_wood, "BarTop")
+		for x in [-2.2, -1.1, 0.0, 1.1, 2.2]:
+			_cylinder(root, Vector3(x, 2.42, -1.65), 0.075, 0.42, iron, 10)
+			_sphere(root, Vector3(x, 2.65, -1.65), Vector3(0.16, 0.2, 0.16), _material(Color(0.32, 0.12, 0.06), 0.22))
+		for x in [-2.3, 2.3]:
+			_interior_table(root, Vector3(x, 0, 1.05), 1.45, 1.05, furniture)
+			for side in [-1.0, 1.0]:
+				_cylinder(root, Vector3(x + side * 0.95, 0.42, 1.05), 0.24, 0.82, dark_wood, 12)
+	elif sign_text == "GENERAL STORE":
+		# Deep merchandise shelving with crates and a central sales counter.
+		for side in [-1.0, 1.0]:
+			_interior_solid_box(root, Vector3(side * 4.05, 1.55, -0.1), Vector3(0.52, 3.0, 5.8), dark_wood, "StoreShelf")
+			for level in [0.55, 1.35, 2.15, 2.85]:
+				_interior_solid_box(root, Vector3(side * 3.68, level, -0.1), Vector3(0.72, 0.12, 5.5), furniture, "ShelfBoard")
+			for z in [-2.0, -0.7, 0.7, 2.0]:
+				_box(root, Vector3(side * 3.62, 0.86, z), Vector3(0.38, 0.48, 0.42), _material(Color(0.42, 0.25, 0.12)))
+		_interior_solid_box(root, Vector3(0, 1.0, -1.25), Vector3(3.2, 1.5, 0.7), furniture, "ShopCounter")
+	elif sign_text == "SHERIFF":
+		_interior_table(root, Vector3(0, 0, -1.35), 2.4, 1.2, furniture)
+		_interior_solid_box(root, Vector3(-3.15, 1.2, -1.5), Vector3(0.12, 2.4, 3.5), iron, "CellBars")
+		for z in [-2.8, -2.1, -1.4, -0.7, 0.0]:
+			_cylinder(root, Vector3(-3.15, 1.2, z), 0.045, 2.4, iron, 8)
+		_interior_solid_box(root, Vector3(-3.8, 0.9, 1.4), Vector3(1.0, 1.8, 1.8), dark_wood, "JailBench")
+	elif sign_text == "STABLES":
+		for x in [-3.1, 0.0, 3.1]:
+			_interior_solid_box(root, Vector3(x, 1.15, -1.1), Vector3(0.12, 2.3, 4.2), furniture, "StallDivider")
+			_interior_solid_box(root, Vector3(x, 1.0, -2.8), Vector3(2.8, 1.0, 0.12), dark_wood, "FeedTrough")
+	elif sign_text == "HOTEL":
+		for x in [-2.6, 2.6]:
+			_interior_solid_box(root, Vector3(x, 0.52, -1.0), Vector3(2.0, 0.55, 3.0), furniture, "BedFrame")
+			_interior_solid_box(root, Vector3(x, 0.92, -1.0), Vector3(1.9, 0.28, 2.9), _material(Color(0.48, 0.35, 0.25)), "Mattress")
+			_interior_solid_box(root, Vector3(x, 1.28, -2.25), Vector3(1.9, 0.45, 0.48), _material(Color(0.72, 0.62, 0.46)), "Pillow")
+			_interior_solid_box(root, Vector3(x, 0.55, 2.1), Vector3(0.9, 1.1, 0.9), dark_wood, "BedsideChest")
+	else:
+		_interior_table(root, Vector3(0, 0, -1.1), 2.8, 1.3, furniture)
+		_interior_solid_box(root, Vector3(-3.6, 1.15, -1.8), Vector3(1.1, 2.3, 0.7), dark_wood, "FilingCabinet")
+		_interior_solid_box(root, Vector3(3.4, 1.1, -1.8), Vector3(1.2, 2.2, 0.6), furniture, "MapCabinet")
+
 func _build_dinosaur_herd() -> void:
 	_make_triceratops(Vector3(-31, _terrain_height(Vector2(-31, -52)), -52), 1.0, 0.0)
 	_make_triceratops(Vector3(-39, _terrain_height(Vector2(-39, -59)), -59), 0.78, 0.45)
