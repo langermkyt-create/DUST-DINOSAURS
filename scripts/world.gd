@@ -709,9 +709,84 @@ func _scatter_ground_detail() -> void:
 			var yaw := rng.randf_range(0.0, TAU)
 			stones.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw).scaled(scale), Vector3(x, _terrain_height(Vector2(x, z)) + 0.035, z)))
 
+func _road_material() -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode diffuse_burley, specular_schlick_ggx;
+varying vec3 world_position;
+float hash21(vec2 p) {
+	p = fract(p * vec2(123.34, 456.21));
+	p += dot(p, p + 45.32);
+	return fract(p.x * p.y);
+}
+float noise2(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), f.x),
+		mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+void vertex() {
+	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+void fragment() {
+	float dust = noise2(world_position.xz * 2.7);
+	float gravel = noise2(world_position.xz * 13.0);
+	float fine = noise2(world_position.xz * 47.0);
+	float rut_left = exp(-pow((abs(world_position.x - 3.0) - 2.2) * 1.7, 2.0));
+	float rut_right = exp(-pow((abs(world_position.x - 3.0) - 2.2) * 1.7, 2.0));
+	float ruts = max(rut_left, rut_right);
+	vec3 base = mix(vec3(0.19, 0.105, 0.06), vec3(0.34, 0.21, 0.13), dust);
+	base *= 0.82 + gravel * 0.23 + fine * 0.08;
+	base *= 1.0 - ruts * 0.13;
+	ALBEDO = base;
+	ROUGHNESS = 0.99;
+	SPECULAR = 0.025;
+}
+"""
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	return material
+
+func _make_town_road_mesh() -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var width_segments := 32
+	var length_segments := 180
+	for z_index in range(length_segments):
+		for x_index in range(width_segments):
+			var x0 := -9.5 + 19.0 * float(x_index) / float(width_segments)
+			var x1 := -9.5 + 19.0 * float(x_index + 1) / float(width_segments)
+			var z0 := -55.0 + 110.0 * float(z_index) / float(length_segments)
+			var z1 := -55.0 + 110.0 * float(z_index + 1) / float(length_segments)
+			var a := Vector3(x0, _terrain_height(Vector2(x0, z0)) + 0.045, z0)
+			var b := Vector3(x1, _terrain_height(Vector2(x1, z0)) + 0.045, z0)
+			var c := Vector3(x0, _terrain_height(Vector2(x0, z1)) + 0.045, z1)
+			var d := Vector3(x1, _terrain_height(Vector2(x1, z1)) + 0.045, z1)
+			surface.set_uv(Vector2(float(x_index) / width_segments, float(z_index) / length_segments))
+			surface.add_vertex(a)
+			surface.set_uv(Vector2(float(x_index) / width_segments, float(z_index + 1) / length_segments))
+			surface.add_vertex(c)
+			surface.set_uv(Vector2(float(x_index + 1) / width_segments, float(z_index) / length_segments))
+			surface.add_vertex(b)
+			surface.set_uv(Vector2(float(x_index + 1) / width_segments, float(z_index) / length_segments))
+			surface.add_vertex(b)
+			surface.set_uv(Vector2(float(x_index) / width_segments, float(z_index + 1) / length_segments))
+			surface.add_vertex(c)
+			surface.set_uv(Vector2(float(x_index + 1) / width_segments, float(z_index + 1) / length_segments))
+			surface.add_vertex(d)
+	surface.generate_normals()
+	var mesh := surface.commit()
+	mesh.surface_set_material(0, _road_material())
+	return mesh
+
 func _build_town() -> void:
 	_scatter_ground_detail()
-	_box(self, Vector3(0, _terrain_height(Vector2.ZERO) + 0.025, 0), Vector3(19, 0.05, 110), Color(0.58, 0.36, 0.22))
+	var road_instance := MeshInstance3D.new()
+	road_instance.name = "WornDirtStreet"
+	road_instance.mesh = _make_town_road_mesh()
+	add_child(road_instance)
 	_build_building(Vector3(-12, 0, -12), "SALOON", Color(0.43, 0.18, 0.12), true)
 	_build_building(Vector3(12, 0, -8), "GENERAL STORE", Color(0.55, 0.38, 0.22), false)
 	_build_building(Vector3(-13, 0, 12), "SHERIFF", Color(0.36, 0.27, 0.19), false)
