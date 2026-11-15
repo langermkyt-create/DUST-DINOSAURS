@@ -74,8 +74,11 @@ jobs:
             exit 1
           fi
           xdotool windowmap "$WINDOW_ID"
-          xdotool windowfocus "$WINDOW_ID" || true
           xdotool windowraise "$WINDOW_ID" || true
+          xdotool windowfocus --sync "$WINDOW_ID" || true
+          xdotool windowactivate --sync "$WINDOW_ID" || true
+          xdotool mousemove --sync --window "$WINDOW_ID" 640 360 || true
+          xdotool click --window "$WINDOW_ID" 1 || true
           sleep 8
           if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" game-runtime.log; then
             cat game-runtime.log
@@ -87,31 +90,31 @@ jobs:
           REC_PID=$!
           sleep 2
           # Walk forward into Red Rock, then perform a broad horizontal camera sweep.
-          xdotool keydown w
+          xdotool keydown --window "$WINDOW_ID" --clearmodifiers w
           sleep 5
-          xdotool keyup w
-          xdotool mousemove 980 360
+          xdotool keyup --window "$WINDOW_ID" w
+          xdotool mousemove --sync --window "$WINDOW_ID" 980 360
           sleep 2
-          xdotool mousemove 300 360
+          xdotool mousemove --sync --window "$WINDOW_ID" 300 360
           sleep 2
-          xdotool mousemove 640 360
+          xdotool mousemove --sync --window "$WINDOW_ID" 640 360
           sleep 2
           # Walk diagonally through the street while looking across the buildings.
-          xdotool keydown w
-          xdotool keydown d
+          xdotool keydown --window "$WINDOW_ID" --clearmodifiers w
+          xdotool keydown --window "$WINDOW_ID" --clearmodifiers d
           sleep 3
-          xdotool keyup w
-          xdotool keyup d
-          xdotool mousemove 850 300
+          xdotool keyup --window "$WINDOW_ID" w
+          xdotool keyup --window "$WINDOW_ID" d
+          xdotool mousemove --sync --window "$WINDOW_ID" 850 300
           sleep 2
-          xdotool mousemove 420 420
+          xdotool mousemove --sync --window "$WINDOW_ID" 420 420
           sleep 2
           # Sprint, jump, interact, and turn back toward the town.
-          xdotool keydown shift
-          xdotool keydown w
+          xdotool keydown --window "$WINDOW_ID" --clearmodifiers shift
+          xdotool keydown --window "$WINDOW_ID" --clearmodifiers w
           sleep 3
-          xdotool keyup w
-          xdotool keyup shift
+          xdotool keyup --window "$WINDOW_ID" w
+          xdotool keyup --window "$WINDOW_ID" shift
           xdotool key space
           sleep 2
           xdotool key e
