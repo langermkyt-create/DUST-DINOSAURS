@@ -9,6 +9,8 @@ func _ready() -> void:
 	_build_dinosaur_herd()
 	_build_player()
 	_build_hud()
+	if OS.get_cmdline_user_args().has("--preview"):
+		_start_preview_flythrough()
 func _terrain_material() -> ShaderMaterial:
 	var shader := Shader.new()
 	shader.code = """
@@ -135,11 +137,11 @@ func _build_atmosphere() -> void:
 	e.sdfgi_bounce_feedback = 0.72
 	e.ssil_enabled = true
 	e.ssil_intensity = 0.65
-	e.fog_enabled = true
+	e.fog_enabled = false
 	e.fog_light_color = Color(0.72, 0.56, 0.42)
 	e.fog_density = 0.0009
 	e.fog_sun_scatter = 0.2
-	e.volumetric_fog_enabled = true
+	e.volumetric_fog_enabled = false
 	e.volumetric_fog_density = 0.0035
 	e.volumetric_fog_albedo = Color(0.78, 0.68, 0.56)
 	e.volumetric_fog_length = 180.0
@@ -1353,6 +1355,27 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	var breathing := create_tween().set_loops()
 	breathing.tween_property(body, "scale:y", 1.025, 2.1).set_trans(Tween.TRANS_SINE)
 	breathing.tween_property(body, "scale:y", 1.0, 2.1).set_trans(Tween.TRANS_SINE)
+
+func _start_preview_flythrough() -> void:
+	# A deterministic camera route makes CI captures reproducible without synthetic keyboard input.
+	player.set_physics_process(false)
+	player.set_process_input(false)
+	message_label.text = "AUTOMATED PREVIEW ROUTE — RED ROCK, ARIZONA 1897"
+	var route := [
+		{"position": Vector3(0.0, _terrain_height(Vector2(0.0, 8.0)) + 0.2, 8.0), "yaw": -0.12, "duration": 6.0},
+		{"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -10.0)) + 0.2, -10.0), "yaw": -0.45, "duration": 7.0},
+		{"position": Vector3(-27.0, _terrain_height(Vector2(-27.0, -39.0)) + 0.2, -39.0), "yaw": 0.28, "duration": 7.0},
+		{"position": Vector3(-34.0, _terrain_height(Vector2(-34.0, -57.0)) + 0.2, -57.0), "yaw": 0.6, "duration": 7.0},
+		{"position": Vector3(-8.0, _terrain_height(Vector2(-8.0, -25.0)) + 0.2, -25.0), "yaw": -0.8, "duration": 7.0},
+		{"position": Vector3(0.0, _terrain_height(Vector2(0.0, 38.0)) + 0.2, 38.0), "yaw": 0.0, "duration": 4.0}
+	]
+	var route_tween := create_tween()
+	for waypoint in route:
+		var destination: Vector3 = waypoint["position"]
+		var target_yaw: float = waypoint["yaw"]
+		var travel_time: float = waypoint["duration"]
+		route_tween.tween_property(player, "position", destination, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		route_tween.parallel().tween_property(player, "rotation:y", target_yaw, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 func _build_player() -> void:
 	player = CharacterBody3D.new()
