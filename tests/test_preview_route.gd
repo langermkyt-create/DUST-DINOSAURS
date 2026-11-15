@@ -6,7 +6,7 @@ func _initialize() -> void:
 	world_under_test = Node3D.new()
 	world_under_test.set_script(load("res://scripts/world.gd"))
 	var route: Array = world_under_test.call("_preview_route")
-	if route.size() < 6:
+	if route.size() < 9:
 		_fail("Preview route must cover the town, herd, and distant predator.")
 		return
 
@@ -43,10 +43,21 @@ func _initialize() -> void:
 		waypoints[waypoint_id] = waypoint
 		total_duration += duration
 
-	for required_id in ["town_establishing", "main_street", "herd_close", "tyrannosaur_vista", "town_return"]:
+	for required_id in ["town_establishing", "main_street", "town_north_exit", "west_ridge_approach", "herd_close", "tyrannosaur_vista", "town_return"]:
 		if not waypoints.has(required_id):
 			_fail("Preview route is missing required landmark: " + required_id)
 			return
+
+	if not _route_avoids_buildings(route):
+		_fail("Preview camera route must not pass through authored building footprints.")
+		return
+	var predator_bearing := Vector2(70.0, -112.0).angle()
+	if not bool(world_under_test.call("_is_predator_sightline", predator_bearing)):
+		_fail("Predator vista must reserve an open sector through the distant mesa ring.")
+		return
+	if bool(world_under_test.call("_is_predator_sightline", predator_bearing + 0.6)):
+		_fail("Predator sightline opening must remain a focused corridor, not remove the whole mesa ring.")
+		return
 
 	var herd_target: Vector3 = waypoints["herd_close"]["target"]
 	if herd_target.distance_to(Vector3(-31.0, 2.2, -58.0)) > 0.1:
@@ -66,6 +77,28 @@ func _initialize() -> void:
 	world_under_test.free()
 	world_under_test = null
 	quit(0)
+
+
+func _route_avoids_buildings(route: Array) -> bool:
+	var footprints: Array[Dictionary] = [
+		{"center": Vector2(-12.0, -12.0), "half_size": Vector2(6.0, 5.0)},
+		{"center": Vector2(12.0, -8.0), "half_size": Vector2(6.0, 5.0)},
+		{"center": Vector2(-13.0, 12.0), "half_size": Vector2(6.0, 5.0)},
+		{"center": Vector2(13.0, 16.0), "half_size": Vector2(6.0, 7.0)},
+		{"center": Vector2(-30.0, -3.0), "half_size": Vector2(6.0, 5.0)},
+		{"center": Vector2(31.0, 7.0), "half_size": Vector2(6.0, 5.0)}
+	]
+	for segment_index in range(route.size() - 1):
+		var start: Vector3 = route[segment_index]["position"]
+		var finish: Vector3 = route[segment_index + 1]["position"]
+		for sample_index in range(21):
+			var sample := start.lerp(finish, float(sample_index) / 20.0)
+			for footprint in footprints:
+				var center: Vector2 = footprint["center"]
+				var half_size: Vector2 = footprint["half_size"]
+				if absf(sample.x - center.x) < half_size.x and absf(sample.z - center.y) < half_size.y:
+					return false
+	return true
 
 func _fail(message: String) -> void:
 	if is_instance_valid(world_under_test):
