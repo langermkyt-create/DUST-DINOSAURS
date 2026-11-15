@@ -28,6 +28,9 @@ jobs:
       - name: Import project and parse scripts
         run: godot --headless --editor --path . --quit
 
+      - name: Test sandstone rock LOD and collision
+        run: godot --headless --path . --script tests/test_rock_lod.gd
+
       - name: Launch main scene headlessly
         run: godot --headless --path . --quit-after 8
 
