@@ -1,5 +1,7 @@
 extends Node3D
 const PlayerScript = preload("res://scripts/player.gd")
+const PREVIEW_TWEEN_SPEED_SCALE := 2.5
+const PREVIEW_WAYPOINT_HOLD_SECONDS := 3.0
 var player: CharacterBody3D
 var message_label: Label
 func _ready() -> void:
@@ -1560,11 +1562,15 @@ func _run_preview_route() -> void:
 		segment.tween_property(player, "position", destination, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		segment.parallel().tween_property(player, "rotation:y", target_yaw, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		segment.parallel().tween_property(player.camera_pivot, "rotation:x", aim.y, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		# Software-rendered CI can clamp large frame deltas. Accelerate only this
+		# deterministic preview tween and hold each composition long enough to inspect.
+		segment.set_speed_scale(PREVIEW_TWEEN_SPEED_SCALE)
 		await segment.finished
 		_log_preview_waypoint(str(waypoint["id"]))
+		await get_tree().create_timer(PREVIEW_WAYPOINT_HOLD_SECONDS).timeout
 
 func _log_preview_waypoint(waypoint_id: String) -> void:
-	print("PREVIEW_WAYPOINT_COMPLETE:", waypoint_id, " position=", player.global_position)
+	print("PREVIEW_WAYPOINT_COMPLETE: " + waypoint_id + " position=" + str(player.global_position))
 
 func _build_player() -> void:
 	player = CharacterBody3D.new()
