@@ -1,19 +1,20 @@
 extends SceneTree
 
+var world_under_test: Node3D
+
 func _initialize() -> void:
 	var world_script: Script = load("res://scripts/world.gd")
-	var world := Node3D.new()
-	world.set_script(world_script)
-	world.call("_rock_formation", Vector3.ZERO, 1.0)
+	world_under_test = Node3D.new()
+	world_under_test.set_script(world_script)
+	world_under_test.call("_rock_formation", Vector3.ZERO, 1.0)
 
-	if world.get_child_count() != 1:
+	if world_under_test.get_child_count() != 1:
 		_fail("Rock builder did not create exactly one static body.")
 		return
-	var rock_body := world.get_child(0) as StaticBody3D
+	var rock_body := world_under_test.get_child(0) as StaticBody3D
 	var high := rock_body.get_node_or_null("RockHighDetail") as MeshInstance3D
 	var low := rock_body.get_node_or_null("RockDistantLOD") as MeshInstance3D
 	var collision := rock_body.get_node_or_null("RockCollision") as CollisionShape3D
-	print("Rock children: ", rock_body.get_children().map(func(node: Node) -> String: return node.name + " (" + node.get_class() + ")"))
 	if high == null or low == null or collision == null:
 		_fail("Rock must contain high-detail, distant LOD, and collision nodes.")
 		return
@@ -42,8 +43,13 @@ func _initialize() -> void:
 
 	print("Rock LOD regression passed: high=", high_vertices.size() / 3,
 		" triangles, low=", low_vertices.size() / 3, " triangles, detailed collision present.")
+	world_under_test.free()
+	world_under_test = null
 	quit(0)
 
 func _fail(message: String) -> void:
+	if is_instance_valid(world_under_test):
+		world_under_test.free()
+		world_under_test = null
 	push_error(message)
 	quit(1)
