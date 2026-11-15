@@ -1359,6 +1359,8 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	breathing.tween_property(body, "scale:y", 1.0, 2.1).set_trans(Tween.TRANS_SINE)
 
 func _start_preview_flythrough() -> void:
+	# The CI recorder waits for this title so it never captures the Godot startup splash.
+	DisplayServer.window_set_title("DUST & DINOSAURS — PREVIEW READY")
 	# A deterministic camera route makes CI captures reproducible without synthetic keyboard input.
 	player.set_physics_process(false)
 	player.set_process_input(false)
