@@ -75,8 +75,7 @@ jobs:
           fi
           xdotool windowmap "$WINDOW_ID"
           xdotool windowraise "$WINDOW_ID" || true
-          xdotool windowfocus --sync "$WINDOW_ID" || true
-          xdotool windowactivate --sync "$WINDOW_ID" || true
+          # No window manager is installed under Xvfb, so avoid blocking activation waits.
           sleep 1
           if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" game-runtime.log; then
             cat game-runtime.log
