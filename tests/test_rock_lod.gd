@@ -12,7 +12,8 @@ func _initialize() -> void:
 	var rock_body := world.get_child(0) as StaticBody3D
 	var high := rock_body.get_node_or_null("RockHighDetail") as MeshInstance3D
 	var low := rock_body.get_node_or_null("RockDistantLOD") as MeshInstance3D
-	var collision := rock_body.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	var collision := rock_body.get_node_or_null("RockCollision") as CollisionShape3D
+	print("Rock children: ", rock_body.get_children().map(func(node: Node) -> String: return node.name + " (" + node.get_class() + ")"))
 	if high == null or low == null or collision == null:
 		_fail("Rock must contain high-detail, distant LOD, and collision nodes.")
 		return
