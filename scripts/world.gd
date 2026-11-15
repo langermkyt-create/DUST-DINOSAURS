@@ -1413,30 +1413,32 @@ func _preview_aim(origin: Vector3, target: Vector3) -> Vector2:
 	return Vector2(yaw, pitch)
 
 func _start_preview_flythrough() -> void:
-	# The CI recorder waits for this title so it never captures the Godot startup splash.
+	# Wait for a rendered game frame before CI starts recording.
 	DisplayServer.window_set_title("DUST & DINOSAURS — PREVIEW READY")
-	# A deterministic camera route makes CI captures reproducible without synthetic keyboard input.
 	player.set_physics_process(false)
 	player.set_process_input(false)
 	message_label.text = "AUTOMATED PREVIEW ROUTE — RED ROCK, ARIZONA 1897"
-	var route := _preview_route()
-	var route_tween := create_tween()
-	route_tween.tween_interval(6.0)
-	for waypoint_index in range(route.size()):
-		if waypoint_index > 0:
-			route_tween.chain()
-		var waypoint: Dictionary = route[waypoint_index]
+	await RenderingServer.frame_post_draw
+	await get_tree().create_timer(1.5).timeout
+	print("PREVIEW_READY")
+	_run_preview_route()
+
+func _run_preview_route() -> void:
+	# Use one awaited tween per stop; this keeps the route strictly sequential.
+	await get_tree().create_timer(1.0).timeout
+	for waypoint in _preview_route():
 		var destination: Vector3 = waypoint["position"]
 		var target: Vector3 = waypoint["target"]
 		var travel_time: float = waypoint["duration"]
 		var camera_origin: Vector3 = destination + Vector3.UP * player.camera_pivot.position.y
 		var aim := _preview_aim(camera_origin, target)
 		var target_yaw := player.rotation.y + wrapf(aim.x - player.rotation.y, -PI, PI)
-		route_tween.tween_property(player, "position", destination, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-		route_tween.parallel().tween_property(player, "rotation:y", target_yaw, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-		route_tween.parallel().tween_property(player.camera_pivot, "rotation:x", aim.y, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-		route_tween.tween_callback(Callable(self, "_log_preview_waypoint").bind(str(waypoint["id"])))
-	print("PREVIEW_READY")
+		var segment := create_tween()
+		segment.tween_property(player, "position", destination, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		segment.parallel().tween_property(player, "rotation:y", target_yaw, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		segment.parallel().tween_property(player.camera_pivot, "rotation:x", aim.y, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		await segment.finished
+		_log_preview_waypoint(str(waypoint["id"]))
 
 func _log_preview_waypoint(waypoint_id: String) -> void:
 	print("PREVIEW_WAYPOINT_COMPLETE:", waypoint_id, " position=", player.global_position)
