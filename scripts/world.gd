@@ -1,7 +1,7 @@
 extends Node3D
 const PlayerScript = preload("res://scripts/player.gd")
-const PREVIEW_TWEEN_SPEED_SCALE := 2.5
-const PREVIEW_WAYPOINT_HOLD_SECONDS := 3.0
+const PREVIEW_TWEEN_SPEED_SCALE := 3.0
+const PREVIEW_WAYPOINT_HOLD_SECONDS := 0.35
 var player: CharacterBody3D
 var message_label: Label
 func _ready() -> void:
