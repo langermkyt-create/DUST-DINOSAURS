@@ -1435,7 +1435,11 @@ func _start_preview_flythrough() -> void:
 		route_tween.tween_property(player, "position", destination, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		route_tween.parallel().tween_property(player, "rotation:y", target_yaw, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		route_tween.parallel().tween_property(player.camera_pivot, "rotation:x", aim.y, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		route_tween.tween_callback(Callable(self, "_log_preview_waypoint").bind(str(waypoint["id"])))
 	print("PREVIEW_READY")
+
+func _log_preview_waypoint(waypoint_id: String) -> void:
+	print("PREVIEW_WAYPOINT_COMPLETE:", waypoint_id, " position=", player.global_position)
 
 func _build_player() -> void:
 	player = CharacterBody3D.new()
