@@ -1370,6 +1370,7 @@ func _start_preview_flythrough() -> void:
 		{"position": Vector3(0.0, _terrain_height(Vector2(0.0, 38.0)) + 0.2, 38.0), "yaw": 0.0, "duration": 4.0}
 	]
 	var route_tween := create_tween()
+	route_tween.tween_interval(2.0)
 	for waypoint in route:
 		var destination: Vector3 = waypoint["position"]
 		var target_yaw: float = waypoint["yaw"]
