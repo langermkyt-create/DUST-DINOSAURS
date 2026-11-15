@@ -93,7 +93,20 @@ jobs:
           SIZE=$(stat -c%s build-preview.mp4)
           echo "Gameplay video size: $SIZE bytes"
           [ "$SIZE" -gt 100000 ]
-          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 build-preview.mp4
+          DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 build-preview.mp4)
+          echo "Gameplay preview duration: $DURATION seconds"
+          awk -v duration="$DURATION" 'BEGIN { exit !(duration >= 39.0) }'
+          ffmpeg -y -ss 16 -i build-preview.mp4 -frames:v 1 preview-start.png >/dev/null 2>&1
+          ffmpeg -y -ss 32 -i build-preview.mp4 -frames:v 1 preview-end.png >/dev/null 2>&1
+          if cmp -s preview-start.png preview-end.png; then
+            echo "Automated preview camera did not visibly move"
+            exit 1
+          fi
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" game-runtime.log; then
+            cat game-runtime.log
+            echo "Runtime errors detected during gameplay preview"
+            exit 1
+          fi
       - name: Export Windows executable
         run: |
           mkdir -p build
