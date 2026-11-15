@@ -1358,6 +1358,60 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	breathing.tween_property(body, "scale:y", 1.025, 2.1).set_trans(Tween.TRANS_SINE)
 	breathing.tween_property(body, "scale:y", 1.0, 2.1).set_trans(Tween.TRANS_SINE)
 
+func _preview_route() -> Array[Dictionary]:
+	# Each camera stop explicitly aims at a gameplay landmark, not a hand-tuned yaw.
+	return [
+		{
+			"id": "town_establishing",
+			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 38.0)) + 0.2, 38.0),
+			"target": Vector3(-12.0, 2.6, -12.0),
+			"duration": 5.0
+		},
+		{
+			"id": "main_street",
+			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 8.0)) + 0.2, 8.0),
+			"target": Vector3(12.0, 2.5, -8.0),
+			"duration": 5.0
+		},
+		{
+			"id": "herd_approach",
+			"position": Vector3(-42.0, _terrain_height(Vector2(-42.0, -30.0)) + 0.2, -30.0),
+			"target": Vector3(-31.0, 2.2, -57.0),
+			"duration": 7.0
+		},
+		{
+			"id": "herd_close",
+			"position": Vector3(-52.0, _terrain_height(Vector2(-52.0, -55.0)) + 0.2, -55.0),
+			"target": Vector3(-31.0, 2.2, -58.0),
+			"duration": 6.0
+		},
+		{
+			"id": "tyrannosaur_vista",
+			"position": Vector3(22.0, _terrain_height(Vector2(22.0, -78.0)) + 1.2, -78.0),
+			"target": Vector3(70.0, 5.2, -112.0),
+			"duration": 7.0
+		},
+		{
+			"id": "return_overlook",
+			"position": Vector3(8.0, _terrain_height(Vector2(8.0, -38.0)) + 0.2, -38.0),
+			"target": Vector3(-12.0, 2.6, -12.0),
+			"duration": 5.0
+		},
+		{
+			"id": "town_return",
+			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 38.0)) + 0.2, 38.0),
+			"target": Vector3(-12.0, 2.6, -12.0),
+			"duration": 3.0
+		}
+	]
+
+func _preview_aim(origin: Vector3, target: Vector3) -> Vector2:
+	var direction := (target - origin).normalized()
+	var horizontal_distance := Vector2(direction.x, direction.z).length()
+	var yaw := atan2(-direction.x, -direction.z)
+	var pitch := clampf(atan2(direction.y, horizontal_distance), -1.2, 1.2)
+	return Vector2(yaw, pitch)
+
 func _start_preview_flythrough() -> void:
 	# The CI recorder waits for this title so it never captures the Godot startup splash.
 	DisplayServer.window_set_title("DUST & DINOSAURS — PREVIEW READY")
@@ -1365,14 +1419,7 @@ func _start_preview_flythrough() -> void:
 	player.set_physics_process(false)
 	player.set_process_input(false)
 	message_label.text = "AUTOMATED PREVIEW ROUTE — RED ROCK, ARIZONA 1897"
-	var route := [
-		{"position": Vector3(0.0, _terrain_height(Vector2(0.0, 8.0)) + 0.2, 8.0), "yaw": -0.12, "duration": 6.0},
-		{"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -10.0)) + 0.2, -10.0), "yaw": -0.45, "duration": 7.0},
-		{"position": Vector3(-27.0, _terrain_height(Vector2(-27.0, -39.0)) + 0.2, -39.0), "yaw": 0.28, "duration": 7.0},
-		{"position": Vector3(-44.0, _terrain_height(Vector2(-44.0, -52.0)) + 0.2, -52.0), "yaw": -1.57, "duration": 7.0},
-		{"position": Vector3(-8.0, _terrain_height(Vector2(-8.0, -25.0)) + 0.2, -25.0), "yaw": -2.8, "duration": 7.0},
-		{"position": Vector3(0.0, _terrain_height(Vector2(0.0, 38.0)) + 0.2, 38.0), "yaw": 0.0, "duration": 4.0}
-	]
+	var route := _preview_route()
 	var route_tween := create_tween()
 	route_tween.tween_interval(2.0)
 	for waypoint_index in range(route.size()):
@@ -1380,10 +1427,14 @@ func _start_preview_flythrough() -> void:
 			route_tween.chain()
 		var waypoint: Dictionary = route[waypoint_index]
 		var destination: Vector3 = waypoint["position"]
-		var target_yaw: float = waypoint["yaw"]
+		var target: Vector3 = waypoint["target"]
 		var travel_time: float = waypoint["duration"]
+		var camera_origin := destination + Vector3.UP * player.camera_pivot.position.y
+		var aim := _preview_aim(camera_origin, target)
+		var target_yaw := player.rotation.y + wrapf(aim.x - player.rotation.y, -PI, PI)
 		route_tween.tween_property(player, "position", destination, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		route_tween.parallel().tween_property(player, "rotation:y", target_yaw, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		route_tween.parallel().tween_property(player.camera_pivot, "rotation:x", aim.y, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 func _build_player() -> void:
 	player = CharacterBody3D.new()
