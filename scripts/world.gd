@@ -123,9 +123,9 @@ func _build_atmosphere() -> void:
 	sky_mat.ground_horizon_color = Color(0.78, 0.47, 0.28)
 	sky.sky_material = sky_mat
 	e.sky = sky
-	e.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	e.ambient_light_color = Color(0.72, 0.63, 0.52)
-	e.ambient_light_energy = 0.95
+	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	e.ambient_light_color = Color(0.62, 0.52, 0.42)
+	e.ambient_light_energy = 0.75
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	e.glow_enabled = true
 	e.glow_intensity = 0.12
@@ -242,7 +242,9 @@ func _build_landscape() -> void:
 	for i in range(34):
 		var angle := TAU * float(i) / 34.0
 		var radius := randf_range(125.0, 190.0)
-		var p := Vector3(cos(angle) * radius, randf_range(13.0, 25.0), sin(angle) * radius)
+		var rock_x := cos(angle) * radius
+		var rock_z := sin(angle) * radius
+		var p := Vector3(rock_x, _terrain_height(Vector2(rock_x, rock_z)), rock_z)
 		_rock_formation(p, randf_range(0.8, 1.5))
 	_scatter_boulders()
 	_scatter_saguaros()
