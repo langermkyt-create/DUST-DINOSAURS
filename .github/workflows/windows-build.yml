@@ -54,7 +54,7 @@ jobs:
           export DISPLAY=:99
           export LIBGL_ALWAYS_SOFTWARE=1
           sleep 2
-          "$GODOT_BIN" --path . --rendering-method forward_plus --audio-driver Dummy --resolution 1280x720 --position 0,0 > game-runtime.log 2>&1 &
+          "$GODOT_BIN" --path . --rendering-method forward_plus --audio-driver Dummy --resolution 1280x720 --position 0,0 -- --preview > game-runtime.log 2>&1 &
           GAME_PID=$!
           WINDOW_ID=""
           for n in $(seq 1 40); do
@@ -77,53 +77,15 @@ jobs:
           xdotool windowraise "$WINDOW_ID" || true
           xdotool windowfocus --sync "$WINDOW_ID" || true
           xdotool windowactivate --sync "$WINDOW_ID" || true
-          xdotool mousemove --sync --window "$WINDOW_ID" 640 360 || true
-          xdotool click --window "$WINDOW_ID" 1 || true
-          sleep 8
+          sleep 1
           if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" game-runtime.log; then
             cat game-runtime.log
             echo "Runtime errors detected; refusing to record a fake gameplay video"
             exit 1
           fi
-          # Start recording only after the scene is loaded and the game window is focused.
-          ffmpeg -y -f x11grab -video_size 1280x720 -framerate 30 -i :99.0 -t 38 -pix_fmt yuv420p build-preview.mp4 >/tmp/ffmpeg-preview.log 2>&1 &
+          # The in-game --preview route drives a deterministic camera path; no fake input is injected.
+          ffmpeg -y -f x11grab -video_size 1280x720 -framerate 30 -i :99.0 -t 40 -pix_fmt yuv420p build-preview.mp4 >/tmp/ffmpeg-preview.log 2>&1 &
           REC_PID=$!
-          sleep 2
-          # Walk forward into Red Rock, then perform a broad horizontal camera sweep.
-          xdotool keydown --window "$WINDOW_ID" --clearmodifiers w
-          sleep 5
-          xdotool keyup --window "$WINDOW_ID" w
-          xdotool mousemove --sync --window "$WINDOW_ID" 980 360
-          sleep 2
-          xdotool mousemove --sync --window "$WINDOW_ID" 300 360
-          sleep 2
-          xdotool mousemove --sync --window "$WINDOW_ID" 640 360
-          sleep 2
-          # Walk diagonally through the street while looking across the buildings.
-          xdotool keydown --window "$WINDOW_ID" --clearmodifiers w
-          xdotool keydown --window "$WINDOW_ID" --clearmodifiers d
-          sleep 3
-          xdotool keyup --window "$WINDOW_ID" w
-          xdotool keyup --window "$WINDOW_ID" d
-          xdotool mousemove --sync --window "$WINDOW_ID" 850 300
-          sleep 2
-          xdotool mousemove --sync --window "$WINDOW_ID" 420 420
-          sleep 2
-          # Sprint, jump, interact, and turn back toward the town.
-          xdotool keydown --window "$WINDOW_ID" --clearmodifiers shift
-          xdotool keydown --window "$WINDOW_ID" --clearmodifiers w
-          sleep 3
-          xdotool keyup --window "$WINDOW_ID" w
-          xdotool keyup --window "$WINDOW_ID" shift
-          xdotool key space
-          sleep 2
-          xdotool key e
-          sleep 2
-          xdotool mousemove 700 360
-          sleep 2
-          xdotool keydown s
-          sleep 2
-          xdotool keyup s
           wait "$REC_PID"
           REC_PID=""
           kill "$GAME_PID" 2>/dev/null || true
