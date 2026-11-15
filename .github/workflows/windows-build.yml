@@ -57,11 +57,13 @@ jobs:
           sleep 2
           "$GODOT_BIN" --path . --rendering-method forward_plus --audio-driver Dummy --resolution 1280x720 --position 0,0 -- --preview > game-runtime.log 2>&1 &
           GAME_PID=$!
-          WINDOW_ID=""
-          # Wait for the in-game readiness title, not the Godot splash window.
+          READY=0
+          # The game emits this marker only after the scene, HUD, and camera route are built.
           for n in $(seq 1 60); do
-            WINDOW_ID=$(xdotool search --name "PREVIEW READY" 2>/dev/null | head -n 1 || true)
-            if [ -n "$WINDOW_ID" ]; then break; fi
+            if grep -Fq "PREVIEW_READY" game-runtime.log; then
+              READY=1
+              break
+            fi
             if ! kill -0 "$GAME_PID" 2>/dev/null; then
               cat game-runtime.log
               echo "Godot exited before the gameplay scene became ready"
@@ -69,15 +71,21 @@ jobs:
             fi
             sleep 1
           done
+          if [ "$READY" -ne 1 ]; then
+            cat game-runtime.log
+            xwininfo -root -tree || true
+            echo "Gameplay preview readiness marker was not emitted"
+            exit 1
+          fi
+          WINDOW_ID=$(xdotool search --name "DUST" 2>/dev/null | head -n 1 || true)
           if [ -z "$WINDOW_ID" ]; then
             cat game-runtime.log
             xwininfo -root -tree || true
-            echo "Gameplay preview readiness title was not found"
+            echo "Gameplay window was not found after the ready marker"
             exit 1
           fi
           WINDOW_TITLE=$(xdotool getwindowname "$WINDOW_ID")
-          echo "Gameplay window ready: $WINDOW_TITLE"
-          echo "$WINDOW_TITLE" | grep -F "PREVIEW READY"
+          echo "Gameplay scene ready in window: $WINDOW_TITLE"
           xdotool windowmap "$WINDOW_ID"
           xdotool windowraise "$WINDOW_ID" || true
           # Allow the first fully rendered gameplay frame to settle before recording.
