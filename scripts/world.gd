@@ -1367,8 +1367,8 @@ func _start_preview_flythrough() -> void:
 		{"position": Vector3(0.0, _terrain_height(Vector2(0.0, 8.0)) + 0.2, 8.0), "yaw": -0.12, "duration": 6.0},
 		{"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -10.0)) + 0.2, -10.0), "yaw": -0.45, "duration": 7.0},
 		{"position": Vector3(-27.0, _terrain_height(Vector2(-27.0, -39.0)) + 0.2, -39.0), "yaw": 0.28, "duration": 7.0},
-		{"position": Vector3(-34.0, _terrain_height(Vector2(-34.0, -57.0)) + 0.2, -57.0), "yaw": 0.6, "duration": 7.0},
-		{"position": Vector3(-8.0, _terrain_height(Vector2(-8.0, -25.0)) + 0.2, -25.0), "yaw": -0.8, "duration": 7.0},
+		{"position": Vector3(-44.0, _terrain_height(Vector2(-44.0, -52.0)) + 0.2, -52.0), "yaw": -1.57, "duration": 7.0},
+		{"position": Vector3(-8.0, _terrain_height(Vector2(-8.0, -25.0)) + 0.2, -25.0), "yaw": -2.8, "duration": 7.0},
 		{"position": Vector3(0.0, _terrain_height(Vector2(0.0, 38.0)) + 0.2, 38.0), "yaw": 0.0, "duration": 4.0}
 	]
 	var route_tween := create_tween()
