@@ -49,13 +49,13 @@ void fragment() {
 	float fine_grain = noise2(world_position.xz * 31.0);
 	float wind_streak = sin(dot(world_position.xz, vec2(0.72, 0.69)) * 2.2
 		+ noise2(world_position.xz * 0.12) * 3.0) * 0.5 + 0.5;
-	vec3 dust = vec3(0.17, 0.095, 0.055);
-	vec3 ochre = vec3(0.36, 0.205, 0.115);
-	vec3 pale = vec3(0.52, 0.355, 0.22);
+	vec3 dust = vec3(0.21, 0.125, 0.075);
+	vec3 ochre = vec3(0.39, 0.245, 0.15);
+	vec3 pale = vec3(0.56, 0.405, 0.275);
 	vec3 ground = mix(dust, ochre, smoothstep(0.2, 0.8, broad));
 	ground = mix(ground, pale, smoothstep(0.64, 0.9, grain) * 0.24);
-	ground *= 0.82 + flecks * 0.25 + fine_grain * 0.10;
-	ground *= 0.96 + wind_streak * 0.06;
+	ground *= 0.88 + flecks * 0.18 + fine_grain * 0.08;
+	ground *= 0.97 + wind_streak * 0.04;
 	ALBEDO = ground;
 	ROUGHNESS = 0.94 + fine_grain * 0.05;
 	SPECULAR = 0.08;
@@ -864,8 +864,8 @@ void fragment() {
 	float wheel_ruts = exp(-pow((abs(world_position.x) - 2.2) * 1.7, 2.0));
 	float hoof_wear = exp(-pow(world_position.x * 0.55, 2.0)) * 0.22;
 	float ruts = max(wheel_ruts, hoof_wear);
-	vec3 base = mix(vec3(0.19, 0.105, 0.06), vec3(0.34, 0.21, 0.13), dust);
-	base *= 0.82 + gravel * 0.23 + fine * 0.08;
+	vec3 base = mix(vec3(0.24, 0.15, 0.095), vec3(0.42, 0.28, 0.18), dust);
+	base *= 0.88 + gravel * 0.18 + fine * 0.07;
 	base *= 1.0 - ruts * 0.13;
 	ALBEDO = base;
 	ROUGHNESS = 0.99;
