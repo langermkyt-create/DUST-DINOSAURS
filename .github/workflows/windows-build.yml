@@ -88,8 +88,8 @@ jobs:
           echo "Gameplay scene ready in window: $WINDOW_TITLE"
           xdotool windowmap "$WINDOW_ID"
           xdotool windowraise "$WINDOW_ID" || true
-          # The software-rendered splash can linger after scene setup; start after it clears.
-          sleep 6
+          # The game signals readiness after its first rendered frame.
+          sleep 1
           if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" game-runtime.log; then
             cat game-runtime.log
             echo "Runtime errors detected; refusing to record a fake gameplay video"
@@ -121,7 +121,9 @@ jobs:
             exit 1
           fi
           echo "Gameplay preview waypoint trace:"
-          grep -F "PREVIEW_WAYPOINT_COMPLETE:" game-runtime.log
+          for waypoint in town_establishing main_street herd_approach herd_close tyrannosaur_vista return_overlook town_return; do
+            grep -F "PREVIEW_WAYPOINT_COMPLETE: $waypoint" game-runtime.log
+          done
       - name: Export Windows executable
         run: |
           mkdir -p build
