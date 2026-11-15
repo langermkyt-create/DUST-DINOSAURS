@@ -1406,10 +1406,10 @@ func _preview_route() -> Array[Dictionary]:
 	]
 
 func _preview_aim(origin: Vector3, target: Vector3) -> Vector2:
-	var direction := (target - origin).normalized()
-	var horizontal_distance := Vector2(direction.x, direction.z).length()
-	var yaw := atan2(-direction.x, -direction.z)
-	var pitch := clampf(atan2(direction.y, horizontal_distance), -1.2, 1.2)
+	var look_basis := Basis.looking_at(target - origin, Vector3.UP)
+	var euler := look_basis.get_euler()
+	var yaw := euler.y
+	var pitch := clampf(euler.x, -1.2, 1.2)
 	return Vector2(yaw, pitch)
 
 func _start_preview_flythrough() -> void:
@@ -1421,7 +1421,7 @@ func _start_preview_flythrough() -> void:
 	message_label.text = "AUTOMATED PREVIEW ROUTE — RED ROCK, ARIZONA 1897"
 	var route := _preview_route()
 	var route_tween := create_tween()
-	route_tween.tween_interval(2.0)
+	route_tween.tween_interval(6.0)
 	for waypoint_index in range(route.size()):
 		if waypoint_index > 0:
 			route_tween.chain()
