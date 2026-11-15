@@ -96,7 +96,7 @@ jobs:
             exit 1
           fi
           # The in-game --preview route drives a deterministic camera path; no fake input is injected.
-          ffmpeg -y -f x11grab -video_size 1280x720 -framerate 30 -i :99.0 -t 42 -pix_fmt yuv420p build-preview.mp4 >/tmp/ffmpeg-preview.log 2>&1 &
+          ffmpeg -y -f x11grab -video_size 1280x720 -framerate 30 -i :99.0 -t 48 -pix_fmt yuv420p build-preview.mp4 >/tmp/ffmpeg-preview.log 2>&1 &
           REC_PID=$!
           wait "$REC_PID"
           REC_PID=""
@@ -108,9 +108,9 @@ jobs:
           [ "$SIZE" -gt 100000 ]
           DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 build-preview.mp4)
           echo "Gameplay preview duration: $DURATION seconds"
-          awk -v duration="$DURATION" 'BEGIN { exit !(duration >= 41.0) }'
+          awk -v duration="$DURATION" 'BEGIN { exit !(duration >= 47.0) }'
           ffmpeg -y -ss 16 -i build-preview.mp4 -frames:v 1 preview-start.png >/dev/null 2>&1
-          ffmpeg -y -ss 32 -i build-preview.mp4 -frames:v 1 preview-end.png >/dev/null 2>&1
+          ffmpeg -y -ss 44 -i build-preview.mp4 -frames:v 1 preview-end.png >/dev/null 2>&1
           if cmp -s preview-start.png preview-end.png; then
             echo "Automated preview camera did not visibly move"
             exit 1
@@ -121,8 +121,14 @@ jobs:
             exit 1
           fi
           echo "Gameplay preview waypoint trace:"
+          grep -F "PREVIEW_WAYPOINT_COMPLETE:" game-runtime.log > preview-waypoints.log || true
           for waypoint in town_establishing main_street herd_approach herd_close tyrannosaur_vista return_overlook town_return; do
-            grep -F "PREVIEW_WAYPOINT_COMPLETE: $waypoint" game-runtime.log
+            if ! grep -Fq "$waypoint" preview-waypoints.log; then
+              echo "Missing completed preview waypoint: $waypoint"
+              cat game-runtime.log
+              exit 1
+            fi
+            grep -F "$waypoint" preview-waypoints.log
           done
       - name: Export Windows executable
         run: |
@@ -134,6 +140,18 @@ jobs:
         with:
           name: DUST-DINOSAURS-Gameplay-Preview
           path: build-preview.mp4
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Upload preview diagnostics
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: DUST-DINOSAURS-Preview-Diagnostics
+          path: |
+            game-runtime.log
+            preview-waypoints.log
+            preview-start.png
+            preview-end.png
           if-no-files-found: ignore
           retention-days: 7
       - name: Upload game
