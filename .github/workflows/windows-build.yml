@@ -57,12 +57,13 @@ jobs:
           "$GODOT_BIN" --path . --rendering-method forward_plus --audio-driver Dummy --resolution 1280x720 --position 0,0 -- --preview > game-runtime.log 2>&1 &
           GAME_PID=$!
           WINDOW_ID=""
-          for n in $(seq 1 40); do
-            WINDOW_ID=$(xdotool search --name "DUST" 2>/dev/null | head -n 1 || true)
+          # Wait for the in-game readiness title, not the Godot splash window.
+          for n in $(seq 1 60); do
+            WINDOW_ID=$(xdotool search --name "PREVIEW READY" 2>/dev/null | head -n 1 || true)
             if [ -n "$WINDOW_ID" ]; then break; fi
             if ! kill -0 "$GAME_PID" 2>/dev/null; then
               cat game-runtime.log
-              echo "Godot exited before creating a game window"
+              echo "Godot exited before the gameplay scene became ready"
               exit 1
             fi
             sleep 1
@@ -70,20 +71,23 @@ jobs:
           if [ -z "$WINDOW_ID" ]; then
             cat game-runtime.log
             xwininfo -root -tree || true
-            echo "Could not find the Godot game window"
+            echo "Gameplay preview readiness title was not found"
             exit 1
           fi
+          WINDOW_TITLE=$(xdotool getwindowname "$WINDOW_ID")
+          echo "Gameplay window ready: $WINDOW_TITLE"
+          echo "$WINDOW_TITLE" | grep -F "PREVIEW READY"
           xdotool windowmap "$WINDOW_ID"
           xdotool windowraise "$WINDOW_ID" || true
-          # No window manager is installed under Xvfb, so avoid blocking activation waits.
-          sleep 1
+          # Allow the first fully rendered gameplay frame to settle before recording.
+          sleep 2
           if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" game-runtime.log; then
             cat game-runtime.log
             echo "Runtime errors detected; refusing to record a fake gameplay video"
             exit 1
           fi
           # The in-game --preview route drives a deterministic camera path; no fake input is injected.
-          ffmpeg -y -f x11grab -video_size 1280x720 -framerate 30 -i :99.0 -t 40 -pix_fmt yuv420p build-preview.mp4 >/tmp/ffmpeg-preview.log 2>&1 &
+          ffmpeg -y -f x11grab -video_size 1280x720 -framerate 30 -i :99.0 -t 42 -pix_fmt yuv420p build-preview.mp4 >/tmp/ffmpeg-preview.log 2>&1 &
           REC_PID=$!
           wait "$REC_PID"
           REC_PID=""
@@ -95,7 +99,7 @@ jobs:
           [ "$SIZE" -gt 100000 ]
           DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 build-preview.mp4)
           echo "Gameplay preview duration: $DURATION seconds"
-          awk -v duration="$DURATION" 'BEGIN { exit !(duration >= 39.0) }'
+          awk -v duration="$DURATION" 'BEGIN { exit !(duration >= 41.0) }'
           ffmpeg -y -ss 16 -i build-preview.mp4 -frames:v 1 preview-start.png >/dev/null 2>&1
           ffmpeg -y -ss 32 -i build-preview.mp4 -frames:v 1 preview-end.png >/dev/null 2>&1
           if cmp -s preview-start.png preview-end.png; then
