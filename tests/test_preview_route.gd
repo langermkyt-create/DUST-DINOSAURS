@@ -30,9 +30,13 @@ func _initialize() -> void:
 			return
 		var position: Vector3 = waypoint["position"]
 		var target: Vector3 = waypoint["target"]
-		var aim: Vector2 = world_under_test.call(
-			"_preview_aim", position + Vector3.UP * 1.58, target
-		)
+		var camera_origin := position + Vector3.UP * 1.58
+		var aim: Vector2 = world_under_test.call("_preview_aim", camera_origin, target)
+		var desired_horizontal := Vector3(target.x - camera_origin.x, 0.0, target.z - camera_origin.z).normalized()
+		var camera_forward := Vector3.FORWARD.rotated(Vector3.UP, aim.x)
+		if camera_forward.dot(desired_horizontal) < 0.995:
+			_fail("Preview yaw must point toward each waypoint's authored landmark.")
+			return
 		if absf(aim.x) > PI + 0.001 or absf(aim.y) > 1.2:
 			_fail("Preview aim angles must remain within the camera's valid range.")
 			return
