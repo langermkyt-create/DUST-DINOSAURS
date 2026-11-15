@@ -1529,19 +1529,25 @@ func _preview_route() -> Array[Dictionary]:
 			"id": "herd_close",
 			"position": Vector3(-52.0, _terrain_height(Vector2(-52.0, -55.0)) + 0.2, -55.0),
 			"target": Vector3(-31.0, 2.2, -58.0),
-			"duration": 5.0
+			"duration": 4.0
+		},
+		{
+			"id": "south_detour",
+			"position": Vector3(-52.0, _terrain_height(Vector2(-52.0, -95.0)) + 0.2, -95.0),
+			"target": Vector3(70.0, 5.2, -112.0),
+			"duration": 3.0
 		},
 		{
 			"id": "tyrannosaur_vista",
 			"position": Vector3(22.0, _terrain_height(Vector2(22.0, -78.0)) + 1.2, -78.0),
 			"target": Vector3(70.0, 5.2, -112.0),
-			"duration": 6.0
+			"duration": 5.0
 		},
 		{
 			"id": "return_overlook",
 			"position": Vector3(8.0, _terrain_height(Vector2(8.0, -38.0)) + 0.2, -38.0),
 			"target": Vector3(-12.0, 2.6, -12.0),
-			"duration": 3.0
+			"duration": 2.0
 		},
 		{
 			"id": "town_return",
