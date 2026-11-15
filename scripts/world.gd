@@ -992,6 +992,62 @@ func _add_building_wall_piece(root: Node3D, body: StaticBody3D, center: Vector3,
 	collision.position = center
 	body.add_child(collision)
 
+func _make_roof_shingle_mesh(seed_value: int) -> ArrayMesh:
+	# Individual overlapping cedar courses follow both gable planes. The staggered
+	# joints and restrained color variation break the roof's single-flat-surface look.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var row_count := 7
+	var column_count := 11
+	var row_step := 0.75
+	var tile_length := 0.9
+	var column_step := 0.76
+	var tile_width := 0.70
+	for side in [-1.0, 1.0]:
+		for row in range(row_count):
+			var inner_x := 0.05 + float(row) * row_step
+			var outer_x := minf(inner_x + tile_length, 5.45)
+			var stagger := 0.38 if row % 2 == 1 else 0.0
+			for column in range(column_count):
+				var z0 := -4.0 + float(column) * column_step + stagger
+				if z0 >= 4.05:
+					continue
+				var z1 := minf(z0 + tile_width, 4.05)
+				z0 = maxf(z0, -4.05)
+				var inner_y := 7.25 - inner_x * 0.49 + 0.035
+				var outer_y := 7.25 - outer_x * 0.49 + 0.035
+				var warp := rng.randf_range(-0.012, 0.012)
+				var a := Vector3(side * inner_x, inner_y + warp, z0)
+				var b := Vector3(side * outer_x, outer_y + warp, z0)
+				var c := Vector3(side * inner_x, inner_y + warp, z1)
+				var d := Vector3(side * outer_x, outer_y + warp, z1)
+				var weathering := rng.randf_range(0.78, 1.12)
+				var sun_bleach := 1.0 + rng.randf_range(0.0, 0.08) * float(row) / float(row_count)
+				var tile_color := Color(0.34, 0.185, 0.13) * weathering * sun_bleach
+				# Reverse winding on the opposite roof plane so both sides face outward.
+				if side > 0.0:
+					surface.set_color(tile_color)
+					surface.add_vertex(a)
+					surface.add_vertex(c)
+					surface.add_vertex(b)
+					surface.set_color(tile_color)
+					surface.add_vertex(c)
+					surface.add_vertex(d)
+					surface.add_vertex(b)
+				else:
+					surface.set_color(tile_color)
+					surface.add_vertex(a)
+					surface.add_vertex(b)
+					surface.add_vertex(c)
+					surface.set_color(tile_color)
+					surface.add_vertex(c)
+					surface.add_vertex(b)
+					surface.add_vertex(d)
+	surface.generate_normals()
+	return surface.commit()
+
 func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) -> void:
 	var root := Node3D.new()
 	root.position = pos + Vector3(0.0, _terrain_height(Vector2(pos.x, pos.z)), 0.0)
@@ -1026,6 +1082,16 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 	var roof := PrismMesh.new()
 	roof.size = Vector3(11, 2.7, 8)
 	_mesh(root, roof, roof_surface, Vector3(0, 5.9, 0))
+	var shingles := MeshInstance3D.new()
+	shingles.name = "RoofShingles"
+	shingles.mesh = _make_roof_shingle_mesh(1897 + abs(sign_text.hash()))
+	var shingle_material := StandardMaterial3D.new()
+	shingle_material.vertex_color_use_as_albedo = true
+	shingle_material.roughness = 0.94
+	shingle_material.metallic = 0.0
+	shingles.material_override = shingle_material
+	shingles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	root.add_child(shingles)
 	# Leave the entrance visibly traversable: the door is hinged and held open,
 	# rather than a flat decorative panel sealing the doorway.
 	var door_pivot := Node3D.new()
