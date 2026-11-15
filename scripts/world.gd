@@ -1429,12 +1429,13 @@ func _start_preview_flythrough() -> void:
 		var destination: Vector3 = waypoint["position"]
 		var target: Vector3 = waypoint["target"]
 		var travel_time: float = waypoint["duration"]
-		var camera_origin := destination + Vector3.UP * player.camera_pivot.position.y
+		var camera_origin: Vector3 = destination + Vector3.UP * player.camera_pivot.position.y
 		var aim := _preview_aim(camera_origin, target)
 		var target_yaw := player.rotation.y + wrapf(aim.x - player.rotation.y, -PI, PI)
 		route_tween.tween_property(player, "position", destination, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		route_tween.parallel().tween_property(player, "rotation:y", target_yaw, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		route_tween.parallel().tween_property(player.camera_pivot, "rotation:x", aim.y, travel_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	print("PREVIEW_READY")
 
 func _build_player() -> void:
 	player = CharacterBody3D.new()
