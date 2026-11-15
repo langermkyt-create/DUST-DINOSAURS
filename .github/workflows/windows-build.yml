@@ -88,8 +88,8 @@ jobs:
           echo "Gameplay scene ready in window: $WINDOW_TITLE"
           xdotool windowmap "$WINDOW_ID"
           xdotool windowraise "$WINDOW_ID" || true
-          # Allow the first fully rendered gameplay frame to settle before recording.
-          sleep 2
+          # The software-rendered splash can linger after scene setup; start after it clears.
+          sleep 6
           if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" game-runtime.log; then
             cat game-runtime.log
             echo "Runtime errors detected; refusing to record a fake gameplay video"
