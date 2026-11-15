@@ -1262,13 +1262,19 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	_sphere(d, Vector3(0, 1.63, -0.93), Vector3(1.12, 1.12, 1.08), flank)
 	_sphere(d, Vector3(0, 1.2, 0.12), Vector3(1.08, 0.55, 1.65), shadow)
 
-	# Long tapering tail and muscular neck.
+	# Long tapering tail on a dedicated pivot; the slow sway balances the animal's gait.
 	var tail := CylinderMesh.new()
 	tail.top_radius = 0.025
 	tail.bottom_radius = 0.43
 	tail.height = 2.65
 	tail.radial_segments = 20
-	_mesh(d, tail, hide, Vector3(0, 1.42, 2.05), Vector3.ONE, Vector3(PI / 2.0, 0, 0))
+	var tail_pivot := Node3D.new()
+	tail_pivot.position = Vector3(0, 1.42, 2.05)
+	d.add_child(tail_pivot)
+	_mesh(tail_pivot, tail, hide, Vector3.ZERO, Vector3.ONE, Vector3(PI / 2.0, 0, 0))
+	var tail_sway := create_tween().set_loops()
+	tail_sway.tween_property(tail_pivot, "rotation:y", 0.085, 2.4).set_trans(Tween.TRANS_SINE)
+	tail_sway.tween_property(tail_pivot, "rotation:y", -0.085, 2.4).set_trans(Tween.TRANS_SINE)
 	_sphere(d, Vector3(0, 1.83, -1.47), Vector3(0.88, 0.9, 0.9), flank)
 	_sphere(d, Vector3(0, 1.93, -1.98), Vector3(0.82, 0.72, 0.92), hide)
 	_sphere(d, Vector3(0, 1.52, -2.23), Vector3(0.7, 0.34, 0.88), shadow)
@@ -1336,9 +1342,15 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 			_sphere(pivot, Vector3(0, -1.34, -0.14), Vector3(0.43, 0.22, 0.48), shadow)
 			for toe in [-0.2, 0.0, 0.2]:
 				_sphere(pivot, Vector3(toe, -1.37, -0.43), Vector3(0.12, 0.1, 0.18), horn)
+			# Opposite diagonal pairs alternate, avoiding the old same-phase four-leg shuffle.
+			var gait_direction: float = 1.0 if x * z > 0.0 else -1.0
 			var gait := create_tween().set_loops()
-			gait.tween_property(pivot, "rotation:x", 0.13 if z < 0.0 else -0.13, 0.85).set_trans(Tween.TRANS_SINE)
-			gait.tween_property(pivot, "rotation:x", -0.13 if z < 0.0 else 0.13, 0.85).set_trans(Tween.TRANS_SINE)
+			gait.tween_property(pivot, "rotation:x", gait_direction * 0.13, 0.85).set_trans(Tween.TRANS_SINE)
+			gait.tween_property(pivot, "rotation:x", gait_direction * -0.13, 0.85).set_trans(Tween.TRANS_SINE)
+	# Subtle torso breathing gives the herd a resting idle instead of a frozen pose.
+	var breathing := create_tween().set_loops()
+	breathing.tween_property(body, "scale:y", 1.025, 2.1).set_trans(Tween.TRANS_SINE)
+	breathing.tween_property(body, "scale:y", 1.0, 2.1).set_trans(Tween.TRANS_SINE)
 
 func _build_player() -> void:
 	player = CharacterBody3D.new()
