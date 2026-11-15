@@ -31,6 +31,9 @@ jobs:
       - name: Test sandstone rock LOD and collision
         run: godot --headless --path . --script tests/test_rock_lod.gd
 
+      - name: Test preview route landmark framing
+        run: godot --headless --path . --script tests/test_preview_route.gd
+
       - name: Launch main scene headlessly
         run: godot --headless --path . --quit-after 8
 
