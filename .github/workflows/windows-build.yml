@@ -35,6 +35,7 @@ jobs:
             echo "Godot script validation failed"
             exit 1
           fi
+          "$GODOT_BIN" --headless --path . --script tests/test_preview_route.gd
       - name: Record gameplay preview (virtual display)
         shell: bash
         run: |
