@@ -6,7 +6,7 @@ func _initialize() -> void:
 	world_under_test = Node3D.new()
 	world_under_test.set_script(load("res://scripts/world.gd"))
 	var route: Array = world_under_test.call("_preview_route")
-	if route.size() < 9:
+	if route.size() < 10:
 		_fail("Preview route must cover the town, herd, and distant predator.")
 		return
 
@@ -43,13 +43,16 @@ func _initialize() -> void:
 		waypoints[waypoint_id] = waypoint
 		total_duration += duration
 
-	for required_id in ["town_establishing", "main_street", "town_north_exit", "west_ridge_approach", "herd_close", "tyrannosaur_vista", "town_return"]:
+	for required_id in ["town_establishing", "main_street", "town_north_exit", "west_ridge_approach", "herd_close", "south_detour", "tyrannosaur_vista", "town_return"]:
 		if not waypoints.has(required_id):
 			_fail("Preview route is missing required landmark: " + required_id)
 			return
 
 	if not _route_avoids_buildings(route):
 		_fail("Preview camera route must not pass through authored building footprints.")
+		return
+	if not _route_avoids_herd_after_close(route):
+		_fail("Preview camera route must detour around the herd before moving to the tyrannosaur.")
 		return
 	var predator_bearing := Vector2(70.0, -112.0).angle()
 	if not bool(world_under_test.call("_is_predator_sightline", predator_bearing)):
@@ -77,6 +80,34 @@ func _initialize() -> void:
 	world_under_test.free()
 	world_under_test = null
 	quit(0)
+
+
+func _route_avoids_herd_after_close(route: Array) -> bool:
+	var close_index := -1
+	var predator_index := -1
+	for index in range(route.size()):
+		var waypoint_id := str(route[index]["id"])
+		if waypoint_id == "herd_close":
+			close_index = index
+		elif waypoint_id == "tyrannosaur_vista":
+			predator_index = index
+	if close_index < 0 or predator_index <= close_index:
+		return false
+	var herd_centers: Array[Vector2] = [
+		Vector2(-31.0, -52.0),
+		Vector2(-39.0, -59.0),
+		Vector2(-23.0, -62.0)
+	]
+	for segment_index in range(close_index, predator_index):
+		var start: Vector3 = route[segment_index]["position"]
+		var finish: Vector3 = route[segment_index + 1]["position"]
+		for sample_index in range(21):
+			var sample := start.lerp(finish, float(sample_index) / 20.0)
+			var sample_xz := Vector2(sample.x, sample.z)
+			for herd_center in herd_centers:
+				if sample_xz.distance_to(herd_center) < 8.0:
+					return false
+	return true
 
 
 func _route_avoids_buildings(route: Array) -> bool:
