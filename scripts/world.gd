@@ -1373,7 +1373,10 @@ func _start_preview_flythrough() -> void:
 	]
 	var route_tween := create_tween()
 	route_tween.tween_interval(2.0)
-	for waypoint in route:
+	for waypoint_index in range(route.size()):
+		if waypoint_index > 0:
+			route_tween.chain()
+		var waypoint: Dictionary = route[waypoint_index]
 		var destination: Vector3 = waypoint["position"]
 		var target_yaw: float = waypoint["yaw"]
 		var travel_time: float = waypoint["duration"]
