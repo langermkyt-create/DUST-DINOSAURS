@@ -31,6 +31,9 @@ jobs:
       - name: Test sandstone rock LOD and collision
         run: godot --headless --path . --script tests/test_rock_lod.gd
 
+      - name: Test deterministic roof shingle geometry
+        run: godot --headless --path . --script tests/test_roof_shingles.gd
+
       - name: Test preview route landmark framing
         run: godot --headless --path . --script tests/test_preview_route.gd
 
