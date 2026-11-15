@@ -97,13 +97,18 @@ func _sphere(parent: Node3D, pos: Vector3, size: Vector3, surface: Variant) -> M
 	else:
 		material = _material(surface as Color)
 	return _mesh(parent, mesh, material, pos, size)
-func _cylinder(parent: Node3D, pos: Vector3, radius: float, height: float, color: Color, sides := 10) -> MeshInstance3D:
+func _cylinder(parent: Node3D, pos: Vector3, radius: float, height: float, surface: Variant, sides := 10) -> MeshInstance3D:
 	var mesh := CylinderMesh.new()
 	mesh.top_radius = radius
 	mesh.bottom_radius = radius * 1.08
 	mesh.height = height
 	mesh.radial_segments = maxi(sides, 16)
-	return _mesh(parent, mesh, _material(color), pos)
+	var cylinder_material: Material
+	if surface is Material:
+		cylinder_material = surface
+	else:
+		cylinder_material = _material(surface as Color)
+	return _mesh(parent, mesh, cylinder_material, pos)
 func _build_atmosphere() -> void:
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
@@ -295,7 +300,7 @@ func _append_cactus_tube(surface: SurfaceTool, points: PackedVector3Array, radii
 func _make_saguaro_mesh(variant: int) -> ArrayMesh:
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var green := [Color(0.19, 0.32, 0.19), Color(0.23, 0.34, 0.19), Color(0.17, 0.29, 0.17)][variant]
+	var green: Color = [Color(0.19, 0.32, 0.19), Color(0.23, 0.34, 0.19), Color(0.17, 0.29, 0.17)][variant]
 	var trunk_points := PackedVector3Array([
 		Vector3(0.0, 0.0, 0.0), Vector3(0.025, 0.08, 0.0),
 		Vector3(0.04, 0.38, 0.0), Vector3(0.015, 0.9, 0.0),
@@ -444,7 +449,7 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 		crown += point
 	crown /= float(rings[heights.size() - 1].size())
 	for segment in range(rings[heights.size() - 1].size()):
-		var next_segment := (segment + 1) % rings[heights.size() - 1].size()
+		var next_segment: int = (segment + 1) % rings[heights.size() - 1].size()
 		surface.set_color(Color(0.52, 0.29, 0.21))
 		surface.add_vertex(crown)
 		surface.add_vertex(rings[heights.size() - 1][next_segment])
@@ -655,7 +660,7 @@ func _make_desert_tuft_mesh() -> ArrayMesh:
 		var height := 0.24 + 0.075 * float((blade * 3) % 4) / 3.0
 		var root := direction * 0.025
 		var tip := root + lean + Vector3(0.0, height, 0.0)
-		var color := blade_colors[blade % blade_colors.size()]
+		var color: Color = blade_colors[blade % blade_colors.size()]
 		surface.set_color(color.darkened(0.12))
 		surface.add_vertex(root - side)
 		surface.set_color(color.lightened(0.12))
@@ -924,7 +929,7 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 	_add_building_wall_piece(root, building_body, Vector3(4.89, 2.1, 0), Vector3(thickness, 4.2, 7), wall_surface)
 	# Front wall: full-height piers, lower/upper window panels and a door lintel.
 	for x_range in [Vector2(-5.0, -3.95), Vector2(-2.65, -0.82), Vector2(0.82, 2.65), Vector2(3.95, 5.0)]:
-		var width := x_range.y - x_range.x
+		var width: float = x_range.y - x_range.x
 		_add_building_wall_piece(root, building_body,
 			Vector3((x_range.x + x_range.y) * 0.5, 2.1, 3.5),
 			Vector3(width, 4.2, thickness), wall_surface)
