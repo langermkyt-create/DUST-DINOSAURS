@@ -518,6 +518,7 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	var rock_mesh := surface.commit()
 	var rock_material := _rock_surface_material()
 	var rock_body := StaticBody3D.new()
+	rock_body.name = "RockFormation"
 	rock_body.position = pos
 	rock_body.scale = Vector3.ONE * factor
 	add_child(rock_body)
@@ -540,6 +541,7 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	lod_instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	rock_body.add_child(lod_instance)
 	var rock_collision := CollisionShape3D.new()
+	rock_collision.name = "RockCollision"
 	rock_collision.shape = rock_mesh.create_trimesh_shape()
 	rock_body.add_child(rock_collision)
 
