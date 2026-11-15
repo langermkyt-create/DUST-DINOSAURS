@@ -71,6 +71,63 @@ func _material(color: Color, roughness := 0.9, metallic := 0.0) -> StandardMater
 	m.roughness = roughness
 	m.metallic = metallic
 	return m
+func _dinosaur_skin_material(base: Color, detail_scale: float = 1.0) -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode diffuse_burley, specular_schlick_ggx;
+uniform vec4 skin_tint : source_color = vec4(0.36, 0.34, 0.24, 1.0);
+uniform float detail_scale = 1.0;
+varying vec3 skin_world_pos;
+float skin_hash(vec3 p) {
+	p = fract(p * 0.1031);
+	p += dot(p, p.yxz + 33.33);
+	return fract((p.x + p.y) * p.z);
+}
+float skin_noise(vec3 p) {
+	vec3 cell = floor(p);
+	vec3 blend = fract(p);
+	blend = blend * blend * (3.0 - 2.0 * blend);
+	float a = skin_hash(cell);
+	float b = skin_hash(cell + vec3(1.0, 0.0, 0.0));
+	float c = skin_hash(cell + vec3(0.0, 1.0, 0.0));
+	float d = skin_hash(cell + vec3(1.0, 1.0, 0.0));
+	float e = skin_hash(cell + vec3(0.0, 0.0, 1.0));
+	float f = skin_hash(cell + vec3(1.0, 0.0, 1.0));
+	float g = skin_hash(cell + vec3(0.0, 1.0, 1.0));
+	float h = skin_hash(cell + vec3(1.0, 1.0, 1.0));
+	return mix(
+		mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y),
+		mix(mix(e, f, blend.x), mix(g, h, blend.x), blend.y),
+		blend.z
+	);
+}
+void vertex() {
+	skin_world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz * detail_scale;
+}
+void fragment() {
+	float broad_mottle = skin_noise(skin_world_pos * 1.4);
+	float fine_mottle = skin_noise(skin_world_pos * 7.5);
+	float pebble = skin_noise(skin_world_pos * 24.0);
+	float pore = skin_noise(skin_world_pos * 61.0);
+	float scale_rhythm = sin(skin_world_pos.x * 17.0
+		+ skin_world_pos.z * 13.0
+		+ sin(skin_world_pos.y * 9.0) * 0.7) * 0.5 + 0.5;
+	float scale_edges = smoothstep(0.52, 0.94, scale_rhythm);
+	vec3 skin = skin_tint.rgb * (0.78 + broad_mottle * 0.24 + fine_mottle * 0.12);
+	skin = mix(skin, skin * vec3(1.12, 1.05, 0.88), scale_edges * 0.12);
+	skin *= 0.97 + pebble * 0.07 + pore * 0.035;
+	ALBEDO = skin;
+	ROUGHNESS = 0.84 + pebble * 0.13;
+	SPECULAR = 0.13;
+}
+"""
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	material.set_shader_parameter("skin_tint", base)
+	material.set_shader_parameter("detail_scale", detail_scale)
+	return material
+
 func _mesh(parent: Node3D, mesh: Mesh, material: Material, pos: Vector3, scale := Vector3.ONE, rot := Vector3.ZERO) -> MeshInstance3D:
 	var n := MeshInstance3D.new()
 	n.mesh = mesh
@@ -1222,8 +1279,8 @@ func _build_tyrannosaur(pos: Vector3, size: float) -> void:
 	rex.position = pos
 	rex.scale = Vector3.ONE * size
 	add_child(rex)
-	var hide := _material(Color(0.27, 0.22, 0.16), 0.93)
-	var flank := _material(Color(0.38, 0.3, 0.2), 0.91)
+	var hide := _dinosaur_skin_material(Color(0.27, 0.22, 0.16), 0.92)
+	var flank := _dinosaur_skin_material(Color(0.38, 0.3, 0.2), 0.92)
 	var underside := _material(Color(0.48, 0.39, 0.27), 0.96)
 	var dark := _material(Color(0.12, 0.105, 0.075), 0.96)
 	var teeth := _material(Color(0.82, 0.75, 0.58), 0.72)
@@ -1316,8 +1373,8 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	d.rotation.y = yaw
 	d.scale = Vector3.ONE * size
 	add_child(d)
-	var hide := _material(Color(0.36, 0.34, 0.24), 0.94)
-	var flank := _material(Color(0.48, 0.44, 0.31), 0.91)
+	var hide := _dinosaur_skin_material(Color(0.36, 0.34, 0.24), 1.0)
+	var flank := _dinosaur_skin_material(Color(0.48, 0.44, 0.31), 1.0)
 	var shadow := _material(Color(0.22, 0.23, 0.17), 0.98)
 	var horn := _material(Color(0.72, 0.62, 0.43), 0.82)
 	var eye := _material(Color(0.035, 0.028, 0.019), 0.25)
