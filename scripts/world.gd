@@ -253,6 +253,10 @@ func _terrain_height(world_xz: Vector2) -> float:
 		+ _terrain_fbm(world_xz * 0.045) * 5.0)
 	return (dune - 0.5) * 1.15 + ripple * 0.035
 
+func _is_predator_sightline(angle: float) -> bool:
+	var predator_bearing := Vector2(70.0, -112.0).angle()
+	return absf(wrapf(angle - predator_bearing, -PI, PI)) < 0.28
+
 func _make_terrain_mesh(segments: int) -> ArrayMesh:
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -300,6 +304,10 @@ func _build_landscape() -> void:
 	terrain.add_child(ground_instance)
 	for i in range(34):
 		var angle := TAU * float(i) / 34.0
+		# Leave a natural open break in the distant mesa ring so the predator
+		# silhouette has an unobstructed line from the authored preview overlook.
+		if _is_predator_sightline(angle):
+			continue
 		var radius := randf_range(125.0, 190.0)
 		var rock_x := cos(angle) * radius
 		var rock_z := sin(angle) * radius
@@ -1484,49 +1492,62 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	breathing.tween_property(body, "scale:y", 1.0, 2.1).set_trans(Tween.TRANS_SINE)
 
 func _preview_route() -> Array[Dictionary]:
-	# Each camera stop explicitly aims at a gameplay landmark, not a hand-tuned yaw.
+	# The north-and-west exit keeps the camera outside building collision volumes.
+	# Each stop frames a distinct town, herd, or predator landmark.
 	return [
 		{
 			"id": "town_establishing",
 			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 38.0)) + 0.2, 38.0),
 			"target": Vector3(-12.0, 2.6, -12.0),
-			"duration": 5.0
+			"duration": 4.0
 		},
 		{
 			"id": "main_street",
 			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 8.0)) + 0.2, 8.0),
 			"target": Vector3(12.0, 2.5, -8.0),
+			"duration": 4.0
+		},
+		{
+			"id": "town_north_exit",
+			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 42.0)) + 0.2, 42.0),
+			"target": Vector3(-12.0, 2.6, -12.0),
+			"duration": 4.0
+		},
+		{
+			"id": "west_ridge_approach",
+			"position": Vector3(-48.0, _terrain_height(Vector2(-48.0, 42.0)) + 0.2, 42.0),
+			"target": Vector3(-31.0, 2.2, -58.0),
 			"duration": 5.0
 		},
 		{
 			"id": "herd_approach",
 			"position": Vector3(-42.0, _terrain_height(Vector2(-42.0, -30.0)) + 0.2, -30.0),
 			"target": Vector3(-31.0, 2.2, -57.0),
-			"duration": 7.0
+			"duration": 5.0
 		},
 		{
 			"id": "herd_close",
 			"position": Vector3(-52.0, _terrain_height(Vector2(-52.0, -55.0)) + 0.2, -55.0),
 			"target": Vector3(-31.0, 2.2, -58.0),
-			"duration": 6.0
+			"duration": 5.0
 		},
 		{
 			"id": "tyrannosaur_vista",
 			"position": Vector3(22.0, _terrain_height(Vector2(22.0, -78.0)) + 1.2, -78.0),
 			"target": Vector3(70.0, 5.2, -112.0),
-			"duration": 7.0
+			"duration": 6.0
 		},
 		{
 			"id": "return_overlook",
 			"position": Vector3(8.0, _terrain_height(Vector2(8.0, -38.0)) + 0.2, -38.0),
 			"target": Vector3(-12.0, 2.6, -12.0),
-			"duration": 5.0
+			"duration": 3.0
 		},
 		{
 			"id": "town_return",
 			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 38.0)) + 0.2, 38.0),
 			"target": Vector3(-12.0, 2.6, -12.0),
-			"duration": 3.0
+			"duration": 2.0
 		}
 	]
 
