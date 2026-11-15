@@ -120,6 +120,8 @@ jobs:
             echo "Runtime errors detected during gameplay preview"
             exit 1
           fi
+          echo "Gameplay preview waypoint trace:"
+          grep -F "PREVIEW_WAYPOINT_COMPLETE:" game-runtime.log
       - name: Export Windows executable
         run: |
           mkdir -p build
