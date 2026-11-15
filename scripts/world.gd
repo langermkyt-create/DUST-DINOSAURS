@@ -405,13 +405,63 @@ void fragment() {
 	rock_material.shader = rock_shader
 	return rock_material
 
+func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
+	# The distant silhouette keeps the same seeded profile but uses 6 sides and 3 tiers.
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var layer_indices := [0, 2, 4]
+	var lod_strata := [
+		Color(0.31, 0.145, 0.105),
+		Color(0.39, 0.19, 0.135)
+	]
+	for layer in range(layer_indices.size() - 1):
+		var lower_ring: PackedVector3Array = rings[layer_indices[layer]]
+		var upper_ring: PackedVector3Array = rings[layer_indices[layer + 1]]
+		for segment in range(6):
+			var next_segment: int = (segment + 1) % 6
+			var lower_a: Vector3 = lower_ring[segment * 2]
+			var lower_b: Vector3 = lower_ring[next_segment * 2]
+			var upper_a: Vector3 = upper_ring[segment * 2]
+			var upper_b: Vector3 = upper_ring[next_segment * 2]
+			surface.set_color(lod_strata[layer])
+			surface.add_vertex(lower_a)
+			surface.add_vertex(upper_a)
+			surface.add_vertex(lower_b)
+			surface.add_vertex(lower_b)
+			surface.add_vertex(upper_a)
+			surface.add_vertex(upper_b)
+	var top_ring: PackedVector3Array = rings[4]
+	var crown := Vector3.ZERO
+	for point in top_ring:
+		crown += point
+	crown /= float(top_ring.size())
+	for segment in range(6):
+		var next_segment: int = (segment + 1) % 6
+		surface.set_color(Color(0.52, 0.29, 0.21))
+		surface.add_vertex(crown)
+		surface.add_vertex(top_ring[next_segment * 2])
+		surface.add_vertex(top_ring[segment * 2])
+	var base_ring: PackedVector3Array = rings[0]
+	var base_center := Vector3.ZERO
+	for point in base_ring:
+		base_center += point
+	base_center /= float(base_ring.size())
+	for segment in range(6):
+		var next_segment: int = (segment + 1) % 6
+		surface.set_color(Color(0.27, 0.12, 0.09))
+		surface.add_vertex(base_center)
+		surface.add_vertex(base_ring[segment * 2])
+		surface.add_vertex(base_ring[next_segment * 2])
+	surface.generate_normals()
+	return surface.commit()
+
 func _rock_formation(pos: Vector3, factor: float) -> void:
-	# Build one continuous, faceted sandstone outcrop instead of a pile of cubes and spheres.
+	# One continuous, faceted sandstone outcrop with a matching low-poly distance mesh.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = abs(hash(Vector2i(roundi(pos.x * 10.0), roundi(pos.z * 10.0))))
 	var heights := [0.0, 2.2, 4.8, 7.1, 8.6]
 	var radii := [8.8, 8.1, 6.9, 5.5, 3.8]
-	var rings := []
+	var rings: Array = []
 	for layer in range(heights.size()):
 		var ring := PackedVector3Array()
 		for segment in range(12):
@@ -430,7 +480,7 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	]
 	for layer in range(heights.size() - 1):
 		for segment in range(12):
-			var next_segment := (segment + 1) % 12
+			var next_segment: int = (segment + 1) % 12
 			var lower_a: Vector3 = rings[layer][segment]
 			var lower_b: Vector3 = rings[layer][next_segment]
 			var upper_a: Vector3 = rings[layer + 1][segment]
@@ -443,7 +493,7 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 			surface.add_vertex(lower_b)
 			surface.add_vertex(upper_a)
 			surface.add_vertex(upper_b)
-	# Fan-triangulate the complete crown; every ring edge is covered exactly once.
+	# Close both the crown and the base to avoid open backfaces at steep camera angles.
 	var crown := Vector3.ZERO
 	for point in rings[heights.size() - 1]:
 		crown += point
@@ -454,6 +504,16 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 		surface.add_vertex(crown)
 		surface.add_vertex(rings[heights.size() - 1][next_segment])
 		surface.add_vertex(rings[heights.size() - 1][segment])
+	var base_center := Vector3.ZERO
+	for point in rings[0]:
+		base_center += point
+	base_center /= float(rings[0].size())
+	for segment in range(rings[0].size()):
+		var next_segment: int = (segment + 1) % rings[0].size()
+		surface.set_color(Color(0.27, 0.12, 0.09))
+		surface.add_vertex(base_center)
+		surface.add_vertex(rings[0][segment])
+		surface.add_vertex(rings[0][next_segment])
 	surface.generate_normals()
 	var rock_mesh := surface.commit()
 	var rock_material := _rock_surface_material()
@@ -462,9 +522,23 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	rock_body.scale = Vector3.ONE * factor
 	add_child(rock_body)
 	var rock_instance := MeshInstance3D.new()
+	rock_instance.name = "RockHighDetail"
 	rock_instance.mesh = rock_mesh
 	rock_instance.material_override = rock_material
+	rock_instance.visibility_range_end = 132.0
+	rock_instance.visibility_range_end_margin = 14.0
+	rock_instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	rock_body.add_child(rock_instance)
+	var lod_instance := MeshInstance3D.new()
+	lod_instance.name = "RockDistantLOD"
+	lod_instance.mesh = _make_rock_lod_mesh(rings)
+	lod_instance.material_override = rock_material
+	lod_instance.visibility_range_begin = 118.0
+	lod_instance.visibility_range_begin_margin = 14.0
+	lod_instance.visibility_range_end = 420.0
+	lod_instance.visibility_range_end_margin = 35.0
+	lod_instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+	rock_body.add_child(lod_instance)
 	var rock_collision := CollisionShape3D.new()
 	rock_collision.shape = rock_mesh.create_trimesh_shape()
 	rock_body.add_child(rock_collision)
