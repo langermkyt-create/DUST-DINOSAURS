@@ -37,6 +37,9 @@ jobs:
       - name: Test desert terrain relief and arroyo profile
         run: godot --headless --path . --script tests/test_terrain_relief.gd
 
+      - name: Test continuous tapered dinosaur tails
+        run: godot --headless --path . --script tests/test_dinosaur_tail.gd
+
       - name: Test procedural dinosaur skin materials
         run: godot --headless --path . --script tests/test_dinosaur_skin.gd
 

@@ -1335,13 +1335,9 @@ func _build_tyrannosaur(pos: Vector3, size: float) -> void:
 	var tail_pivot := Node3D.new()
 	tail_pivot.position = Vector3(0, 2.55, 0.95)
 	rex.add_child(tail_pivot)
-	var tail := CylinderMesh.new()
-	tail.top_radius = 0.035
-	tail.bottom_radius = 0.58
-	tail.height = 3.9
-	tail.radial_segments = 20
-	_mesh(tail_pivot, tail, hide, Vector3(0, 0, 1.95), Vector3.ONE, Vector3(PI / 2.0, 0, 0))
-	_sphere(tail_pivot, Vector3(0, 0, 0.38), Vector3(0.92, 0.68, 0.9), flank)
+	var rex_tail := _mesh(tail_pivot, _make_tapered_tail_mesh(4.25, 0.58, 0.24), hide, Vector3.ZERO)
+	rex_tail.name = "TyrannosaurTail"
+	_sphere(tail_pivot, Vector3(0, 0, 0.28), Vector3(0.84, 0.62, 0.72), flank)
 	var tail_sway := create_tween().set_loops()
 	tail_sway.tween_property(tail_pivot, "rotation:y", 0.11, 1.7).set_trans(Tween.TRANS_SINE)
 	tail_sway.tween_property(tail_pivot, "rotation:y", -0.11, 1.7).set_trans(Tween.TRANS_SINE)
@@ -1391,6 +1387,51 @@ func _build_tyrannosaur(pos: Vector3, size: float) -> void:
 		var gait := create_tween().set_loops()
 		gait.tween_property(leg, "rotation:x", 0.12 if side < 0.0 else -0.12, 1.1).set_trans(Tween.TRANS_SINE)
 		gait.tween_property(leg, "rotation:x", -0.12 if side < 0.0 else 0.12, 1.1).set_trans(Tween.TRANS_SINE)
+func _make_tapered_tail_mesh(length: float, base_radius: float, upward_curve: float) -> ArrayMesh:
+	# A single continuous, ring-built tail avoids the blunt cylinder seam and keeps
+	# the silhouette tapered from the pelvis to the flexible tip.
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var ring_count := 9
+	var segment_count := 16
+	var rings: Array[PackedVector3Array] = []
+	for ring_index in range(ring_count):
+		var t := float(ring_index) / float(ring_count - 1)
+		var radius := maxf(base_radius * pow(1.0 - t, 1.35), 0.012)
+		var center := Vector3(0.0, upward_curve * sin(t * PI * 0.8), length * t)
+		var ring := PackedVector3Array()
+		for segment in range(segment_count):
+			var angle := TAU * float(segment) / float(segment_count)
+			var rib := 1.0 + 0.025 * cos(angle * 8.0)
+			ring.append(center + Vector3(cos(angle) * radius * rib,
+				sin(angle) * radius * 0.78 * rib, 0.0))
+		rings.append(ring)
+	for ring_index in range(rings.size() - 1):
+		for segment in range(segment_count):
+			var next_segment := (segment + 1) % segment_count
+			var a: Vector3 = rings[ring_index][segment]
+			var b: Vector3 = rings[ring_index][next_segment]
+			var c: Vector3 = rings[ring_index + 1][segment]
+			var d: Vector3 = rings[ring_index + 1][next_segment]
+			surface.add_vertex(a)
+			surface.add_vertex(b)
+			surface.add_vertex(c)
+			surface.add_vertex(b)
+			surface.add_vertex(d)
+			surface.add_vertex(c)
+	var base_center := Vector3.ZERO
+	var tip_center := Vector3(0.0, upward_curve * sin(PI * 0.8), length)
+	for segment in range(segment_count):
+		var next_segment := (segment + 1) % segment_count
+		surface.add_vertex(base_center)
+		surface.add_vertex(rings[0][next_segment])
+		surface.add_vertex(rings[0][segment])
+		surface.add_vertex(tip_center)
+		surface.add_vertex(rings[ring_count - 1][segment])
+		surface.add_vertex(rings[ring_count - 1][next_segment])
+	surface.generate_normals()
+	return surface.commit()
+
 func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	var d := Node3D.new()
 	d.position = pos
@@ -1415,16 +1456,12 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	_sphere(d, Vector3(0, 1.63, -0.93), Vector3(1.12, 1.12, 1.08), flank)
 	_sphere(d, Vector3(0, 1.2, 0.12), Vector3(1.08, 0.55, 1.65), shadow)
 
-	# Long tapering tail on a dedicated pivot; the slow sway balances the animal's gait.
-	var tail := CylinderMesh.new()
-	tail.top_radius = 0.025
-	tail.bottom_radius = 0.43
-	tail.height = 2.65
-	tail.radial_segments = 20
+	# Long tapered tail with a continuous hide surface and gentle vertical sweep.
 	var tail_pivot := Node3D.new()
 	tail_pivot.position = Vector3(0, 1.42, 2.05)
 	d.add_child(tail_pivot)
-	_mesh(tail_pivot, tail, hide, Vector3.ZERO, Vector3.ONE, Vector3(PI / 2.0, 0, 0))
+	var tail_instance := _mesh(tail_pivot, _make_tapered_tail_mesh(2.85, 0.43, 0.16), hide, Vector3.ZERO)
+	tail_instance.name = "TriceratopsTail"
 	var tail_sway := create_tween().set_loops()
 	tail_sway.tween_property(tail_pivot, "rotation:y", 0.085, 2.4).set_trans(Tween.TRANS_SINE)
 	tail_sway.tween_property(tail_pivot, "rotation:y", -0.085, 2.4).set_trans(Tween.TRANS_SINE)
@@ -1562,7 +1599,7 @@ func _preview_route() -> Array[Dictionary]:
 		{
 			"id": "tyrannosaur_vista",
 			# The overlook moves closer while keeping the full animal in the open mesa corridor.
-			"position": Vector3(43.0, _terrain_height(Vector2(43.0, -91.0)) + 1.2, -91.0),
+			"position": Vector3(82.0, _terrain_height(Vector2(82.0, -132.0)) + 1.2, -132.0),
 			"target": Vector3(70.0, 5.2, -112.0),
 			"duration": 5.0
 		},

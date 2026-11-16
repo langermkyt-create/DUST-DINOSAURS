@@ -76,8 +76,8 @@ func _initialize() -> void:
 		return
 	var predator_position: Vector3 = waypoints["tyrannosaur_vista"]["position"]
 	var predator_distance := Vector2(predator_position.x - 70.0, predator_position.z + 112.0).length()
-	if predator_distance < 30.0 or predator_distance > 40.0:
-		_fail("Tyrannosaur vista camera must frame the authored animal from 30–40 m.")
+	if predator_distance < 20.0 or predator_distance > 27.0:
+		_fail("Tyrannosaur vista camera must frame the authored animal from 20–27 m.")
 		return
 	var predator_target: Vector3 = waypoints["tyrannosaur_vista"]["target"]
 	if predator_target.distance_to(Vector3(70.0, 5.2, -112.0)) > 0.1:
