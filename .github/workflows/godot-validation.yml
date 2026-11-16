@@ -40,6 +40,9 @@ jobs:
       - name: Test continuous tyrannosaur body anatomy
         run: godot --headless --path . --script tests/test_tyrannosaur_anatomy.gd
 
+      - name: Test continuous tyrannosaur legs and feet
+        run: godot --headless --path . --script tests/test_tyrannosaur_legs.gd
+
       - name: Test continuous tapered dinosaur tails
         run: godot --headless --path . --script tests/test_dinosaur_tail.gd
 
