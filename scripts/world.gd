@@ -1367,6 +1367,57 @@ func _make_tyrannosaur_body_mesh() -> ArrayMesh:
 	surface.generate_normals()
 	return surface.commit()
 
+func _make_tyrannosaur_leg_mesh() -> ArrayMesh:
+	# One lofted mass carries the thigh, hock and grounded foot into a single silhouette.
+	# The longitudinal profile stays broad at the hip and narrows before widening over the toes.
+	var profiles: Array[Vector4] = [
+		Vector4(0.36, 0.04, 0.28, 0.34),
+		Vector4(0.14, 0.02, 0.39, 0.42),
+		Vector4(-0.18, -0.01, 0.41, 0.44),
+		Vector4(-0.55, -0.04, 0.30, 0.34),
+		Vector4(-0.90, -0.10, 0.20, 0.24),
+		Vector4(-1.16, -0.19, 0.22, 0.30),
+		Vector4(-1.36, -0.39, 0.29, 0.42),
+		Vector4(-1.43, -0.48, 0.30, 0.44)
+	]
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var segment_count := 20
+	var rings: Array[PackedVector3Array] = []
+	for profile in profiles:
+		var ring := PackedVector3Array()
+		for segment in range(segment_count):
+			var angle := TAU * float(segment) / float(segment_count)
+			ring.append(Vector3(cos(angle) * profile.z, profile.x,
+				profile.y + sin(angle) * profile.w))
+		rings.append(ring)
+	for ring_index in range(rings.size() - 1):
+		for segment in range(segment_count):
+			var next_segment := (segment + 1) % segment_count
+			var a: Vector3 = rings[ring_index][segment]
+			var b: Vector3 = rings[ring_index][next_segment]
+			var c: Vector3 = rings[ring_index + 1][segment]
+			var d: Vector3 = rings[ring_index + 1][next_segment]
+			surface.add_vertex(a)
+			surface.add_vertex(b)
+			surface.add_vertex(c)
+			surface.add_vertex(b)
+			surface.add_vertex(d)
+			surface.add_vertex(c)
+	var top_center := Vector3(0.0, profiles[0].x, profiles[0].y)
+	var bottom_profile := profiles[profiles.size() - 1]
+	var bottom_center := Vector3(0.0, bottom_profile.x, bottom_profile.y)
+	for segment in range(segment_count):
+		var next_segment := (segment + 1) % segment_count
+		surface.add_vertex(top_center)
+		surface.add_vertex(rings[0][next_segment])
+		surface.add_vertex(rings[0][segment])
+		surface.add_vertex(bottom_center)
+		surface.add_vertex(rings[rings.size() - 1][segment])
+		surface.add_vertex(rings[rings.size() - 1][next_segment])
+	surface.generate_normals()
+	return surface.commit()
+
 func _build_tyrannosaur(pos: Vector3, size: float) -> void:
 	var rex := Node3D.new()
 	rex.position = pos
@@ -1428,27 +1479,18 @@ func _build_tyrannosaur(pos: Vector3, size: float) -> void:
 		var leg := Node3D.new()
 		leg.position = Vector3(side * 0.63, 1.7, 0.56)
 		rex.add_child(leg)
-		var thigh := CapsuleMesh.new()
-		thigh.radius = 0.34
-		thigh.height = 1.05
-		thigh.radial_segments = 20
-		thigh.rings = 8
-		_mesh(leg, thigh, flank, Vector3(0, -0.28, 0.03), Vector3(1.0, 1.0, 1.25), Vector3(-0.2, 0, side * -0.08))
-		var shin := CylinderMesh.new()
-		shin.top_radius = 0.2
-		shin.bottom_radius = 0.27
-		shin.height = 0.86
-		shin.radial_segments = 16
-		_mesh(leg, shin, hide, Vector3(0, -0.94, -0.08), Vector3.ONE, Vector3(-0.12, 0, 0))
-		_sphere(leg, Vector3(0, -1.43, -0.34), Vector3(0.42, 0.2, 0.56), dark)
+		var leg_mass := _mesh(leg, _make_tyrannosaur_leg_mesh(), flank, Vector3.ZERO)
+		leg_mass.name = "TyrannosaurLegMass"
 		for toe in [-0.22, 0.0, 0.22]:
-			_sphere(leg, Vector3(toe, -1.45, -0.66), Vector3(0.15, 0.12, 0.25), flank)
+			var toe_pad := _sphere(leg, Vector3(toe, -1.45, -0.68), Vector3(0.15, 0.12, 0.25), flank)
+			toe_pad.name = "TyrannosaurToe"
 			var claw := CylinderMesh.new()
 			claw.top_radius = 0.008
 			claw.bottom_radius = 0.075
 			claw.height = 0.2
 			claw.radial_segments = 8
-			_mesh(leg, claw, teeth, Vector3(toe, -1.43, -0.84), Vector3.ONE, Vector3(PI / 2.0, 0, 0))
+			var claw_instance := _mesh(leg, claw, teeth, Vector3(toe, -1.43, -0.91), Vector3.ONE, Vector3(PI / 2.0, 0, 0))
+			claw_instance.name = "TyrannosaurClaw"
 		var gait := create_tween().set_loops()
 		gait.tween_property(leg, "rotation:x", 0.12 if side < 0.0 else -0.12, 1.1).set_trans(Tween.TRANS_SINE)
 		gait.tween_property(leg, "rotation:x", -0.12 if side < 0.0 else 0.12, 1.1).set_trans(Tween.TRANS_SINE)
