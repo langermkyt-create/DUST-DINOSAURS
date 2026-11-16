@@ -3,6 +3,7 @@ const PlayerScript = preload("res://scripts/player.gd")
 const PREVIEW_TWEEN_SPEED_SCALE := 3.5
 const PREVIEW_WAYPOINT_HOLD_SECONDS := 0.2
 const PREVIEW_CAMERA_FOV := 56.0
+const TERRAIN_MESH_SEGMENTS := 224
 var player: CharacterBody3D
 var message_label: Label
 func _ready() -> void:
@@ -47,18 +48,21 @@ void vertex() {
 }
 void fragment() {
 	float broad = fbm(world_position.xz * 0.026);
+	float sediment = noise2(world_position.xz * vec2(0.065, 0.22));
 	float grain = noise2(world_position.xz * 1.35);
 	float flecks = noise2(world_position.xz * 8.5);
 	float fine_grain = noise2(world_position.xz * 31.0);
-	float wind_streak = sin(dot(world_position.xz, vec2(0.72, 0.69)) * 2.2
+	float wind_streak = sin(dot(world_position.xz, vec2(0.72, 0.69)) * 1.7
 		+ noise2(world_position.xz * 0.12) * 3.0) * 0.5 + 0.5;
-	vec3 dust = vec3(0.21, 0.125, 0.075);
-	vec3 ochre = vec3(0.39, 0.245, 0.15);
-	vec3 pale = vec3(0.56, 0.405, 0.275);
+	vec3 dust = vec3(0.24, 0.145, 0.085);
+	vec3 ochre = vec3(0.43, 0.275, 0.17);
+	vec3 pale = vec3(0.59, 0.445, 0.30);
 	vec3 ground = mix(dust, ochre, smoothstep(0.2, 0.8, broad));
-	ground = mix(ground, pale, smoothstep(0.64, 0.9, grain) * 0.24);
-	ground *= 0.88 + flecks * 0.18 + fine_grain * 0.08;
-	ground *= 0.97 + wind_streak * 0.04;
+	ground = mix(ground, pale, smoothstep(0.64, 0.9, grain) * 0.27);
+	ground *= 0.82 + flecks * 0.28 + fine_grain * 0.12;
+	float clay_streaks = smoothstep(0.72, 0.94, sediment);
+	ground = mix(ground, ground * vec3(0.72, 0.67, 0.58), clay_streaks * 0.18);
+	ground *= 0.96 + wind_streak * 0.06;
 	ALBEDO = ground;
 	ROUGHNESS = 0.94 + fine_grain * 0.05;
 	SPECULAR = 0.08;
@@ -248,11 +252,20 @@ func _terrain_fbm(point: Vector2) -> float:
 		amplitude *= 0.5
 	return value
 
+func _terrain_wash_center(world_x: float) -> float:
+	# A shallow, winding Arizona arroyo cuts across the open basin south of Red Rock.
+	var bend_noise := (_terrain_fbm(Vector2(world_x * 0.045, 8.0)) - 0.5) * 4.0
+	return -76.0 + sin(world_x * 0.018) * 16.0 + bend_noise
+
 func _terrain_height(world_xz: Vector2) -> float:
 	var dune := _terrain_fbm(world_xz * 0.018)
+	var fine_dune := _terrain_fbm(world_xz * 0.072)
 	var ripple := sin(world_xz.dot(Vector2(0.72, 0.69)) * 1.35
 		+ _terrain_fbm(world_xz * 0.045) * 5.0)
-	return (dune - 0.5) * 1.15 + ripple * 0.035
+	var wash_distance := absf(world_xz.y - _terrain_wash_center(world_xz.x))
+	var channel := exp(-pow(wash_distance / 9.0, 2.0))
+	var shoulder := exp(-pow((wash_distance - 13.0) / 5.0, 2.0))
+	return (dune - 0.5) * 1.15 + (fine_dune - 0.5) * 0.22 		+ ripple * 0.035 - channel * 0.5 + shoulder * 0.12
 
 func _is_predator_sightline(angle: float) -> bool:
 	var predator_bearing := Vector2(70.0, -112.0).angle()
@@ -291,7 +304,7 @@ func _make_terrain_mesh(segments: int) -> ArrayMesh:
 func _build_landscape() -> void:
 	# The visible dunes and the collision surface are generated from the same height function.
 	# This removes the old mismatch where feet and rocks floated above a flat collision plane.
-	var ground := _make_terrain_mesh(180)
+	var ground := _make_terrain_mesh(TERRAIN_MESH_SEGMENTS)
 	ground.surface_set_material(0, _terrain_material())
 	var terrain := StaticBody3D.new()
 	terrain.name = "ProceduralTerrain"

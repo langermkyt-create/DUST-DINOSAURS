@@ -34,6 +34,9 @@ jobs:
       - name: Test deterministic roof shingle geometry
         run: godot --headless --path . --script tests/test_roof_shingles.gd
 
+      - name: Test desert terrain relief and arroyo profile
+        run: godot --headless --path . --script tests/test_terrain_relief.gd
+
       - name: Test procedural dinosaur skin materials
         run: godot --headless --path . --script tests/test_dinosaur_skin.gd
 
