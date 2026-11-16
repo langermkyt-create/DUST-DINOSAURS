@@ -66,6 +66,16 @@ func _initialize() -> void:
 	if herd_target.distance_to(Vector3(-31.0, 2.2, -58.0)) > 0.1:
 		_fail("Herd close-up must aim at the authored triceratops family location.")
 		return
+	var herd_position: Vector3 = waypoints["herd_close"]["position"]
+	var herd_distance := Vector2(herd_position.x + 31.0, herd_position.z + 52.0).length()
+	if herd_distance < 8.0 or herd_distance > 12.0:
+		_fail("Herd close-up camera must stay outside the 8 m safety radius and within readable range.")
+		return
+	var predator_position: Vector3 = waypoints["tyrannosaur_vista"]["position"]
+	var predator_distance := Vector2(predator_position.x - 70.0, predator_position.z + 112.0).length()
+	if predator_distance < 30.0 or predator_distance > 40.0:
+		_fail("Tyrannosaur vista camera must frame the authored animal from 30–40 m.")
+		return
 	var predator_target: Vector3 = waypoints["tyrannosaur_vista"]["target"]
 	if predator_target.distance_to(Vector3(70.0, 5.2, -112.0)) > 0.1:
 		_fail("Distant predator vista must aim at the authored tyrannosaur location.")
