@@ -1529,9 +1529,16 @@ func _preview_route() -> Array[Dictionary]:
 		{
 			"id": "herd_close",
 			# Hold just outside the herd's 8 m safety radius for a readable family shot.
-			"position": Vector3(-41.0, _terrain_height(Vector2(-41.0, -52.0)) + 1.35, -52.0),
+			"position": Vector3(-41.0, _terrain_height(Vector2(-41.0, -48.0)) + 1.35, -48.0),
 			"target": Vector3(-31.0, 2.2, -58.0),
 			"duration": 4.0
+		},
+		{
+			"id": "herd_clearance",
+			# Move west of the herd before the longer southbound leg; never cut between animals.
+			"position": Vector3(-52.0, _terrain_height(Vector2(-52.0, -45.0)) + 0.2, -45.0),
+			"target": Vector3(-31.0, 2.2, -58.0),
+			"duration": 1.0
 		},
 		{
 			"id": "south_detour",
