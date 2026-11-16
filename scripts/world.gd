@@ -1298,6 +1298,58 @@ func _build_dinosaur_herd() -> void:
 	_make_triceratops(Vector3(-23, _terrain_height(Vector2(-23, -62)), -62), 0.66, -0.3)
 	_build_tyrannosaur(Vector3(70, _terrain_height(Vector2(70, -112)), -112), 2.3)
 
+func _make_tyrannosaur_body_mesh() -> ArrayMesh:
+	# Loft the skull, neck, rib cage and hips into one continuous anatomical shell.
+	# Profiles run from the muzzle toward the pelvis so the surface has no sphere seams.
+	var profiles: Array[Vector4] = [
+		Vector4(-3.05, 3.22, 0.38, 0.34),
+		Vector4(-2.72, 3.25, 0.53, 0.43),
+		Vector4(-2.28, 3.12, 0.62, 0.56),
+		Vector4(-1.78, 2.92, 0.68, 0.69),
+		Vector4(-1.18, 2.72, 0.76, 0.86),
+		Vector4(-0.42, 2.58, 0.85, 0.98),
+		Vector4(0.38, 2.56, 0.84, 0.97),
+		Vector4(1.05, 2.52, 0.70, 0.82),
+		Vector4(1.62, 2.48, 0.43, 0.56)
+	]
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var segment_count := 24
+	var rings: Array[PackedVector3Array] = []
+	for profile in profiles:
+		var ring := PackedVector3Array()
+		for segment in range(segment_count):
+			var angle := TAU * float(segment) / float(segment_count)
+			ring.append(Vector3(cos(angle) * profile.z,
+				profile.y + sin(angle) * profile.w, profile.x))
+		rings.append(ring)
+	for ring_index in range(rings.size() - 1):
+		for segment in range(segment_count):
+			var next_segment := (segment + 1) % segment_count
+			var a: Vector3 = rings[ring_index][segment]
+			var b: Vector3 = rings[ring_index][next_segment]
+			var c: Vector3 = rings[ring_index + 1][segment]
+			var d: Vector3 = rings[ring_index + 1][next_segment]
+			surface.add_vertex(a)
+			surface.add_vertex(b)
+			surface.add_vertex(c)
+			surface.add_vertex(b)
+			surface.add_vertex(d)
+			surface.add_vertex(c)
+	var front_center := Vector3(0.0, profiles[0].y, profiles[0].x)
+	var rear := profiles[profiles.size() - 1]
+	var rear_center := Vector3(0.0, rear.y, rear.x)
+	for segment in range(segment_count):
+		var next_segment := (segment + 1) % segment_count
+		surface.add_vertex(front_center)
+		surface.add_vertex(rings[0][next_segment])
+		surface.add_vertex(rings[0][segment])
+		surface.add_vertex(rear_center)
+		surface.add_vertex(rings[rings.size() - 1][segment])
+		surface.add_vertex(rings[rings.size() - 1][next_segment])
+	surface.generate_normals()
+	return surface.commit()
+
 func _build_tyrannosaur(pos: Vector3, size: float) -> void:
 	var rex := Node3D.new()
 	rex.position = pos
@@ -1309,14 +1361,10 @@ func _build_tyrannosaur(pos: Vector3, size: float) -> void:
 	var dark := _material(Color(0.12, 0.105, 0.075), 0.96)
 	var teeth := _material(Color(0.82, 0.75, 0.58), 0.72)
 	var eye := _material(Color(0.78, 0.48, 0.13), 0.28)
-	# Deep rib cage, heavy hips and a raised shoulder line.
-	_sphere(rex, Vector3(0, 2.55, 0.15), Vector3(1.42, 1.55, 2.35), hide)
-	_sphere(rex, Vector3(0, 2.48, 0.92), Vector3(1.3, 1.35, 1.18), flank)
-	_sphere(rex, Vector3(0, 1.98, -0.08), Vector3(1.1, 0.48, 1.72), underside)
-	_sphere(rex, Vector3(0, 2.82, -1.15), Vector3(0.98, 1.02, 1.15), flank)
-	# Forward neck, broad skull, hinged lower jaw and visible teeth.
-	_sphere(rex, Vector3(0, 3.05, -1.65), Vector3(0.86, 0.78, 0.92), hide)
-	_sphere(rex, Vector3(0, 3.42, -2.22), Vector3(0.92, 0.76, 0.88), hide)
+	# A single lofted shell joins the hips, rib cage, neck and skull into one silhouette.
+	var body_shell := _mesh(rex, _make_tyrannosaur_body_mesh(), hide, Vector3.ZERO)
+	body_shell.name = "TyrannosaurBody"
+	# The lower jaw remains a separate articulated-looking mass beneath the muzzle.
 	_sphere(rex, Vector3(0, 3.12, -2.72), Vector3(0.73, 0.4, 0.9), flank)
 	_sphere(rex, Vector3(0, 2.84, -2.62), Vector3(0.69, 0.2, 0.82), dark)
 	_sphere(rex, Vector3(0, 2.77, -2.56), Vector3(0.62, 0.12, 0.73), underside)
