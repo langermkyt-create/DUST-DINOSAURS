@@ -15,12 +15,12 @@ func _initialize() -> void:
 		return
 	var base_radius := 0.0
 	var tip_radius := 0.0
+	var tip_center_y := 0.18 * sin(PI * 0.8)
 	for vertex in vertices:
-		var radius := Vector2(vertex.x, vertex.y).length()
 		if absf(vertex.z) < 0.0001:
-			base_radius = maxf(base_radius, radius)
+			base_radius = maxf(base_radius, Vector2(vertex.x, vertex.y).length())
 		if absf(vertex.z - 3.0) < 0.0001:
-			tip_radius = maxf(tip_radius, radius)
+			tip_radius = maxf(tip_radius, Vector2(vertex.x, vertex.y - tip_center_y).length())
 	if base_radius < 0.45 or tip_radius > base_radius * 0.08:
 		_fail(world, "Tail silhouette must taper continuously from a broad base to a narrow tip.")
 		return
