@@ -43,7 +43,7 @@ func _initialize() -> void:
 		waypoints[waypoint_id] = waypoint
 		total_duration += duration
 
-	for required_id in ["town_establishing", "main_street", "town_north_exit", "west_ridge_approach", "herd_close", "south_detour", "tyrannosaur_vista", "town_return"]:
+	for required_id in ["town_establishing", "main_street", "town_north_exit", "west_ridge_approach", "herd_close", "herd_clearance", "south_detour", "tyrannosaur_vista", "town_return"]:
 		if not waypoints.has(required_id):
 			_fail("Preview route is missing required landmark: " + required_id)
 			return
@@ -53,6 +53,9 @@ func _initialize() -> void:
 		return
 	if not _route_avoids_herd_after_close(route):
 		_fail("Preview camera route must detour around the herd before moving to the tyrannosaur.")
+		return
+	if waypoints["herd_clearance"]["position"].distance_to(Vector3(-52.0, waypoints["herd_clearance"]["position"].y, -45.0)) > 0.1:
+		_fail("Herd clearance waypoint must move west of the animals before the southbound leg.")
 		return
 	var predator_bearing := Vector2(70.0, -112.0).angle()
 	if not bool(world_under_test.call("_is_predator_sightline", predator_bearing)):
