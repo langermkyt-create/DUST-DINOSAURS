@@ -46,6 +46,9 @@ jobs:
       - name: Test continuous tapered dinosaur tails
         run: godot --headless --path . --script tests/test_dinosaur_tail.gd
 
+      - name: Test closed triceratops frill geometry
+        run: godot --headless --path . --script tests/test_triceratops_frill.gd
+
       - name: Test procedural dinosaur skin materials
         run: godot --headless --path . --script tests/test_dinosaur_skin.gd
 
