@@ -11,8 +11,8 @@ func _initialize() -> void:
 	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 	var bounds := mesh.get_aabb()
-	if vertices.size() < 1200 or vertices.size() % 3 != 0 or normals.size() != vertices.size():
-		_fail(world, "Tyrannosaur body loft must contain a dense, fully-normaled triangle surface.")
+	if vertices.size() < 4500 or vertices.size() % 3 != 0 or normals.size() != vertices.size():
+		_fail(world, "Interpolated tyrannosaur body loft must contain a dense, fully-normaled triangle surface.")
 		return
 	if bounds.size.x < 1.5 or bounds.size.y < 1.5 or bounds.size.z < 4.0:
 		_fail(world, "Tyrannosaur body loft must retain muzzle-to-pelvis anatomical proportions.")
