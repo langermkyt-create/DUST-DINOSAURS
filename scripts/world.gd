@@ -2,6 +2,7 @@ extends Node3D
 const PlayerScript = preload("res://scripts/player.gd")
 const PREVIEW_TWEEN_SPEED_SCALE := 3.5
 const PREVIEW_WAYPOINT_HOLD_SECONDS := 0.2
+const PREVIEW_CAMERA_FOV := 56.0
 var player: CharacterBody3D
 var message_label: Label
 func _ready() -> void:
@@ -1527,7 +1528,8 @@ func _preview_route() -> Array[Dictionary]:
 		},
 		{
 			"id": "herd_close",
-			"position": Vector3(-52.0, _terrain_height(Vector2(-52.0, -55.0)) + 0.2, -55.0),
+			# Hold just outside the herd's 8 m safety radius for a readable family shot.
+			"position": Vector3(-41.0, _terrain_height(Vector2(-41.0, -52.0)) + 1.35, -52.0),
 			"target": Vector3(-31.0, 2.2, -58.0),
 			"duration": 4.0
 		},
@@ -1539,7 +1541,8 @@ func _preview_route() -> Array[Dictionary]:
 		},
 		{
 			"id": "tyrannosaur_vista",
-			"position": Vector3(22.0, _terrain_height(Vector2(22.0, -78.0)) + 1.2, -78.0),
+			# The overlook moves closer while keeping the full animal in the open mesa corridor.
+			"position": Vector3(43.0, _terrain_height(Vector2(43.0, -91.0)) + 1.2, -91.0),
 			"target": Vector3(70.0, 5.2, -112.0),
 			"duration": 5.0
 		},
@@ -1569,6 +1572,9 @@ func _start_preview_flythrough() -> void:
 	DisplayServer.window_set_title("DUST & DINOSAURS — PREVIEW READY")
 	player.set_physics_process(false)
 	player.set_process_input(false)
+	# A tighter preview lens gives the herd and distant predator readable screen
+	# coverage without changing the player's normal 78-degree gameplay view.
+	player.camera.fov = PREVIEW_CAMERA_FOV
 	message_label.text = "AUTOMATED PREVIEW ROUTE — RED ROCK, ARIZONA 1897"
 	await RenderingServer.frame_post_draw
 	await get_tree().create_timer(1.5).timeout
