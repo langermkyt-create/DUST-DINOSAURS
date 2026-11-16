@@ -1298,9 +1298,16 @@ func _build_dinosaur_herd() -> void:
 	_make_triceratops(Vector3(-23, _terrain_height(Vector2(-23, -62)), -62), 0.66, -0.3)
 	_build_tyrannosaur(Vector3(70, _terrain_height(Vector2(70, -112)), -112), 2.3)
 
+func _catmull_rom_profile(p0: Vector4, p1: Vector4, p2: Vector4, p3: Vector4, t: float) -> Vector4:
+	var t2 := t * t
+	var t3 := t2 * t
+	return (p1 * 2.0 + (p2 - p0) * t
+		+ (p0 * 2.0 - p1 * 5.0 + p2 * 4.0 - p3) * t2
+		+ (-p0 + p1 * 3.0 - p2 * 3.0 + p3) * t3) * 0.5
+
 func _make_tyrannosaur_body_mesh() -> ArrayMesh:
 	# Loft the skull, neck, rib cage and hips into one continuous anatomical shell.
-	# Profiles run from the muzzle toward the pelvis so the surface has no sphere seams.
+	# Catmull-Rom profile interpolation adds controlled curvature without sphere seams.
 	var profiles: Array[Vector4] = [
 		Vector4(-3.05, 3.22, 0.38, 0.34),
 		Vector4(-2.72, 3.25, 0.53, 0.43),
@@ -1312,11 +1319,21 @@ func _make_tyrannosaur_body_mesh() -> ArrayMesh:
 		Vector4(1.05, 2.52, 0.70, 0.82),
 		Vector4(1.62, 2.48, 0.43, 0.56)
 	]
+	var smooth_profiles: Array[Vector4] = []
+	for profile_index in range(profiles.size() - 1):
+		var p0: Vector4 = profiles[maxi(profile_index - 1, 0)]
+		var p1: Vector4 = profiles[profile_index]
+		var p2: Vector4 = profiles[profile_index + 1]
+		var p3: Vector4 = profiles[mini(profile_index + 2, profiles.size() - 1)]
+		for subdivision in range(4):
+			var t := float(subdivision) / 4.0
+			smooth_profiles.append(_catmull_rom_profile(p0, p1, p2, p3, t))
+	smooth_profiles.append(profiles[profiles.size() - 1])
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var segment_count := 24
 	var rings: Array[PackedVector3Array] = []
-	for profile in profiles:
+	for profile in smooth_profiles:
 		var ring := PackedVector3Array()
 		for segment in range(segment_count):
 			var angle := TAU * float(segment) / float(segment_count)
@@ -1336,8 +1353,8 @@ func _make_tyrannosaur_body_mesh() -> ArrayMesh:
 			surface.add_vertex(b)
 			surface.add_vertex(d)
 			surface.add_vertex(c)
-	var front_center := Vector3(0.0, profiles[0].y, profiles[0].x)
-	var rear := profiles[profiles.size() - 1]
+	var front_center := Vector3(0.0, smooth_profiles[0].y, smooth_profiles[0].x)
+	var rear := smooth_profiles[smooth_profiles.size() - 1]
 	var rear_center := Vector3(0.0, rear.y, rear.x)
 	for segment in range(segment_count):
 		var next_segment := (segment + 1) % segment_count
