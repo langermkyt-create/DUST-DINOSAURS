@@ -23,9 +23,14 @@ func _initialize() -> void:
 		if bounds.size.y < 1.7 or bounds.size.x < 0.5 or bounds.size.z < 1.2:
 			_fail(world, "Hind-leg loft must preserve a full thigh-to-foot silhouette.")
 			return
-	var toes := world.find_children("TyrannosaurToe", "MeshInstance3D", true, false)
-	var claws := world.find_children("TyrannosaurClaw", "MeshInstance3D", true, false)
-	if toes.size() != 6 or claws.size() != 6:
+	var toe_count := 0
+	var claw_count := 0
+	for mesh_node in world.find_children("*", "MeshInstance3D", true, false):
+		if mesh_node.name.begins_with("TyrannosaurToe"):
+			toe_count += 1
+		elif mesh_node.name.begins_with("TyrannosaurClaw"):
+			claw_count += 1
+	if toe_count != 6 or claw_count != 6:
 		_fail(world, "Both feet must retain three toe pads and three claws.")
 		return
 	print("Tyrannosaur leg regression passed: two continuous thigh-to-foot lofts, six toe pads and six claws.")
