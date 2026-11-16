@@ -1586,16 +1586,36 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 		var angle := PI * float(i) / 24.0
 		var scallop := 1.0 + 0.055 * sin(float(i) * PI / 3.0)
 		rim.append(Vector3(cos(angle) * 1.02 * scallop, sin(angle) * 1.13 * scallop, -0.12 * sin(angle)))
+	var frill_thickness := 0.16
+	var back_center := center + Vector3(0.0, 0.0, frill_thickness)
 	for i in range(24):
-		fan.set_color(Color(0.42 + 0.05 * sin(float(i) * 0.7), 0.39, 0.27))
+		var front_a := center + rim[i]
+		var front_b := center + rim[i + 1]
+		var back_a := front_a + Vector3(0.0, 0.0, frill_thickness)
+		var back_b := front_b + Vector3(0.0, 0.0, frill_thickness)
+		var plate_tint := Color(0.42 + 0.05 * sin(float(i) * 0.7), 0.39, 0.27)
+		# Front and back plates plus the perimeter web make the frill a closed bony form.
+		fan.set_color(plate_tint)
 		fan.add_vertex(center)
-		fan.add_vertex(center + rim[i])
-		fan.add_vertex(center + rim[i + 1])
+		fan.add_vertex(front_a)
+		fan.add_vertex(front_b)
+		fan.set_color(plate_tint * 0.86)
+		fan.add_vertex(back_center)
+		fan.add_vertex(back_b)
+		fan.add_vertex(back_a)
+		fan.set_color(plate_tint * 0.72)
+		fan.add_vertex(front_a)
+		fan.add_vertex(front_b)
+		fan.add_vertex(back_a)
+		fan.add_vertex(front_b)
+		fan.add_vertex(back_b)
+		fan.add_vertex(back_a)
 	fan.generate_normals()
 	var fan_material := StandardMaterial3D.new()
 	fan_material.vertex_color_use_as_albedo = true
 	fan_material.roughness = 0.9
-	_mesh(d, fan.commit(), fan_material, Vector3.ZERO)
+	var frill := _mesh(d, fan.commit(), fan_material, Vector3.ZERO)
+	frill.name = "TriceratopsFrill"
 	for i in range(0, 25, 3):
 		_sphere(d, center + rim[i], Vector3(0.13, 0.14, 0.13), flank)
 
