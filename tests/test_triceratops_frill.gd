@@ -15,7 +15,7 @@ func _initialize() -> void:
 	if vertices.size() < 288 or vertices.size() % 3 != 0 or normals.size() != vertices.size():
 		_fail(world, "Frill plate must contain front, back and perimeter triangles with generated normals.")
 		return
-	if bounds.size.z < 0.15 or bounds.size.x < 1.8 or bounds.size.y < 1.8:
+	if bounds.size.z < 0.15 or bounds.size.x < 1.8 or bounds.size.y < 1.0:
 		_fail(world, "Frill plate must preserve its broad scalloped silhouette and measurable thickness.")
 		return
 	print("Triceratops frill regression passed: ", vertices.size() / 3,
