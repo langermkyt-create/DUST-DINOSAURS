@@ -51,8 +51,11 @@ func _initialize() -> void:
 	if not _route_avoids_buildings(route):
 		_fail("Preview camera route must not pass through authored building footprints.")
 		return
+	if not _route_exits_herd_safely(route):
+		_fail("The head close-up must leave the nearest animal monotonically and keep clear of the other herd members.")
+		return
 	if not _route_avoids_herd_after_close(route):
-		_fail("Preview camera route must detour around the herd before moving to the tyrannosaur.")
+		_fail("Preview camera route must detour around the herd after its intentional close-up.")
 		return
 	if waypoints["herd_clearance"]["position"].distance_to(Vector3(-52.0, waypoints["herd_clearance"]["position"].y, -45.0)) > 0.1:
 		_fail("Herd clearance waypoint must move west of the animals before the southbound leg.")
@@ -66,13 +69,14 @@ func _initialize() -> void:
 		return
 
 	var herd_target: Vector3 = waypoints["herd_close"]["target"]
-	if herd_target.distance_to(Vector3(-31.0, 2.2, -58.0)) > 0.1:
-		_fail("Herd close-up must aim at the authored triceratops family location.")
+	var expected_head_height: float = float(world_under_test.call("_terrain_height", Vector2(-31.0, -52.0))) + 1.95
+	if herd_target.distance_to(Vector3(-31.0, expected_head_height, -54.2)) > 0.1:
+		_fail("Herd close-up must aim at the lead triceratops head, not the center of the family group.")
 		return
 	var herd_position: Vector3 = waypoints["herd_close"]["position"]
 	var herd_distance := Vector2(herd_position.x + 31.0, herd_position.z + 52.0).length()
-	if herd_distance < 8.0 or herd_distance > 12.0:
-		_fail("Herd close-up camera must stay outside the 8 m safety radius and within readable range.")
+	if herd_distance < 5.5 or herd_distance > 7.5:
+		_fail("Triceratops head close-up must hold a safe 5.5–7.5 m framing distance.")
 		return
 	var predator_position: Vector3 = waypoints["tyrannosaur_vista"]["position"]
 	var predator_distance := Vector2(predator_position.x - 70.0, predator_position.z + 112.0).length()
@@ -95,23 +99,55 @@ func _initialize() -> void:
 	quit(0)
 
 
-func _route_avoids_herd_after_close(route: Array) -> bool:
+func _route_exits_herd_safely(route: Array) -> bool:
 	var close_index := -1
-	var predator_index := -1
+	var clearance_index := -1
 	for index in range(route.size()):
 		var waypoint_id := str(route[index]["id"])
 		if waypoint_id == "herd_close":
 			close_index = index
-		elif waypoint_id == "tyrannosaur_vista":
-			predator_index = index
-	if close_index < 0 or predator_index <= close_index:
+		elif waypoint_id == "herd_clearance":
+			clearance_index = index
+	if close_index < 0 or clearance_index != close_index + 1:
 		return false
 	var herd_centers: Array[Vector2] = [
 		Vector2(-31.0, -52.0),
 		Vector2(-39.0, -59.0),
 		Vector2(-23.0, -62.0)
 	]
-	for segment_index in range(close_index, predator_index):
+	var start: Vector3 = route[close_index]["position"]
+	var finish: Vector3 = route[clearance_index]["position"]
+	var previous_distance := Vector2(start.x + 31.0, start.z + 52.0).length()
+	for sample_index in range(1, 21):
+		var sample := start.lerp(finish, float(sample_index) / 20.0)
+		var sample_xz := Vector2(sample.x, sample.z)
+		var lead_distance := sample_xz.distance_to(herd_centers[0])
+		if lead_distance + 0.01 < previous_distance:
+			return false
+		previous_distance = lead_distance
+		for herd_index in range(1, herd_centers.size()):
+			if sample_xz.distance_to(herd_centers[herd_index]) < 8.0:
+				return false
+	return true
+
+
+func _route_avoids_herd_after_close(route: Array) -> bool:
+	var clearance_index := -1
+	var predator_index := -1
+	for index in range(route.size()):
+		var waypoint_id := str(route[index]["id"])
+		if waypoint_id == "herd_clearance":
+			clearance_index = index
+		elif waypoint_id == "tyrannosaur_vista":
+			predator_index = index
+	if clearance_index < 0 or predator_index <= clearance_index:
+		return false
+	var herd_centers: Array[Vector2] = [
+		Vector2(-31.0, -52.0),
+		Vector2(-39.0, -59.0),
+		Vector2(-23.0, -62.0)
+	]
+	for segment_index in range(clearance_index, predator_index):
 		var start: Vector3 = route[segment_index]["position"]
 		var finish: Vector3 = route[segment_index + 1]["position"]
 		for sample_index in range(21):
