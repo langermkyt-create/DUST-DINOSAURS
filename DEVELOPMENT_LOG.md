@@ -42,6 +42,8 @@ No third-party art assets were introduced; all geometry remains original and pro
 
 ## 2026-11-17 validation status
 
+- The validation workflow now cancels an older run when a newer commit is pushed to the same PR branch, so the final grouped test pass is not delayed by stale snapshots.
+
 - Pass 1 torso loft regression and the full Godot validation/Windows export workflow passed on commit `c1df156d` (workflow #81).
 - Pass 2 is committed as `9db99c03`; its CI result is pending at the time of this log update.
 - Pass 3 is committed as the current branch head only after the final watertight-frill test is run by CI.

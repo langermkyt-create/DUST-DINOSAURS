@@ -10,6 +10,12 @@ on:
 permissions:
   contents: read
 
+# A new push to the same PR branch supersedes the previous full validation run.
+# This keeps a multi-commit anatomy pass from occupying runners with stale snapshots.
+concurrency:
+  group: godot-validation-${{ github.event.pull_request.head.ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate-and-export:
     runs-on: ubuntu-latest
