@@ -31,19 +31,23 @@ func _initialize() -> void:
 	if head.get_parent() != rig or jaw.get_parent() != rig:
 		_fail(world, "Skull and lower jaw must share the animated head pivot.")
 		return
-	var sockets := world.find_children("TriceratopsEyeSocket", "MeshInstance3D", true, false)
-	var eyes := world.find_children("TriceratopsEye", "MeshInstance3D", true, false)
+	var sockets := 0
+	var eyes := 0
 	var brow_horns := 0
 	var nasal_horns := 0
 	var horn_roots := 0
 	for node in world.find_children("*", "MeshInstance3D", true, false):
-		if node.name == "TriceratopsBrowHorn":
+		if node.name == "TriceratopsEyeSocket":
+			sockets += 1
+		elif node.name == "TriceratopsEye":
+			eyes += 1
+		elif node.name == "TriceratopsBrowHorn":
 			brow_horns += 1
 		elif node.name == "TriceratopsNasalHorn":
 			nasal_horns += 1
 		elif node.name == "TriceratopsHornRoot":
 			horn_roots += 1
-	if sockets.size() != 2 or eyes.size() != 2:
+	if sockets != 2 or eyes != 2:
 		_fail(world, "Triceratops must have two recessed eye sockets and two eye globes.")
 		return
 	if brow_horns != 2 or nasal_horns != 1 or horn_roots != 3:
