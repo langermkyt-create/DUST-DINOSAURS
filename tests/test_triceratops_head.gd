@@ -5,9 +5,9 @@ func _initialize() -> void:
 	world.set_script(load("res://scripts/world.gd"))
 	var head_mesh := world.call("_make_triceratops_head_mesh") as ArrayMesh
 	var jaw_mesh := world.call("_make_triceratops_jaw_mesh") as ArrayMesh
-	if not _validate_closed_loft(world, head_mesh, 3500, Vector3(1.0, 0.8, 1.25), "head"):
+	if not _validate_closed_loft(world, head_mesh, 1300, Vector3(1.0, 0.8, 1.25), "head"):
 		return
-	if not _validate_closed_loft(world, jaw_mesh, 1400, Vector3(0.35, 0.12, 0.7), "lower jaw"):
+	if not _validate_closed_loft(world, jaw_mesh, 600, Vector3(0.35, 0.12, 0.7), "lower jaw"):
 		return
 	var brow_left := world.call("_make_triceratops_horn_mesh",
 		Vector3(-0.40, 2.06, -2.13), Vector3(-0.55, 2.83, -2.78), 0.14,
@@ -19,7 +19,7 @@ func _initialize() -> void:
 		Vector3(0.0, 1.72, -2.62), Vector3(0.0, 2.24, -3.02), 0.105,
 		Vector3(0.0, 0.075, -0.045)) as ArrayMesh
 	for horn_mesh in [brow_left, brow_right, nasal]:
-		if not _validate_closed_loft(world, horn_mesh, 1500, Vector3(0.12, 0.3, 0.3), "horn"):
+		if not _validate_closed_loft(world, horn_mesh, 540, Vector3(0.12, 0.3, 0.3), "horn"):
 			return
 	world.call("_make_triceratops", Vector3.ZERO, 1.0, 0.0)
 	var head := world.find_child("TriceratopsHead", true, false) as MeshInstance3D
@@ -58,16 +58,20 @@ func _initialize() -> void:
 	quit(0)
 
 
-func _validate_closed_loft(world: Node3D, mesh: ArrayMesh, minimum_vertices: int, minimum_bounds: Vector3, label: String) -> bool:
+func _validate_closed_loft(world: Node3D, mesh: ArrayMesh, minimum_triangles: int, minimum_bounds: Vector3, label: String) -> bool:
 	if mesh == null or mesh.get_surface_count() != 1:
 		_fail(world, "Triceratops " + label + " generator must return one mesh surface.")
 		return false
 	var arrays := mesh.surface_get_arrays(0)
 	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var triangle_indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	if triangle_indices.is_empty():
+		for vertex_index in range(vertices.size()):
+			triangle_indices.append(vertex_index)
 	var bounds := mesh.get_aabb()
-	if vertices.size() < minimum_vertices or vertices.size() % 3 != 0 or normals.size() != vertices.size():
-		_fail(world, "Triceratops " + label + " loft must retain dense triangles and generated normals.")
+	if vertices.size() < 100 or triangle_indices.size() % 3 != 0 or triangle_indices.size() / 3 < minimum_triangles or normals.size() != vertices.size():
+		_fail(world, "Triceratops " + label + " loft must retain dense indexed triangles and generated normals.")
 		return false
 	if bounds.size.x < minimum_bounds.x or bounds.size.y < minimum_bounds.y or bounds.size.z < minimum_bounds.z:
 		_fail(world, "Triceratops " + label + " loft has insufficient anatomical bounds.")
@@ -77,10 +81,13 @@ func _validate_closed_loft(world: Node3D, mesh: ArrayMesh, minimum_vertices: int
 			_fail(world, "Triceratops " + label + " loft contains invalid or degenerate normals.")
 			return false
 	var edge_counts: Dictionary = {}
-	for triangle_index in range(0, vertices.size(), 3):
-		_count_edge(vertices[triangle_index], vertices[triangle_index + 1], edge_counts)
-		_count_edge(vertices[triangle_index + 1], vertices[triangle_index + 2], edge_counts)
-		_count_edge(vertices[triangle_index + 2], vertices[triangle_index], edge_counts)
+	for triangle_index in range(0, triangle_indices.size(), 3):
+		var a: Vector3 = vertices[triangle_indices[triangle_index]]
+		var b: Vector3 = vertices[triangle_indices[triangle_index + 1]]
+		var c: Vector3 = vertices[triangle_indices[triangle_index + 2]]
+		_count_edge(a, b, edge_counts)
+		_count_edge(b, c, edge_counts)
+		_count_edge(c, a, edge_counts)
 	for edge in edge_counts:
 		if int(edge_counts[edge]) != 2:
 			_fail(world, "Triceratops " + label + " loft contains an open or non-manifold edge.")
