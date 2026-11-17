@@ -35,13 +35,13 @@ jobs:
         run: godot --headless --editor --path . --quit
 
       - name: Test continuous triceratops torso anatomy
-        run: godot --headless --path . --script tests/test_triceratops_body.gd
+        run: timeout 30s godot --headless --path . --script tests/test_triceratops_body.gd
 
       - name: Test continuous triceratops legs and terrain contact
-        run: godot --headless --path . --script tests/test_triceratops_legs.gd
+        run: timeout 30s godot --headless --path . --script tests/test_triceratops_legs.gd
 
       - name: Test closed triceratops frill geometry
-        run: godot --headless --path . --script tests/test_triceratops_frill.gd
+        run: timeout 30s godot --headless --path . --script tests/test_triceratops_frill.gd
 
       - name: Test sandstone rock LOD and collision
         run: godot --headless --path . --script tests/test_rock_lod.gd
