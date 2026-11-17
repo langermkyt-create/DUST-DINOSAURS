@@ -1418,6 +1418,158 @@ func _make_tyrannosaur_leg_mesh() -> ArrayMesh:
 	surface.generate_normals()
 	return surface.commit()
 
+func _make_triceratops_body_mesh() -> ArrayMesh:
+	# One closed, smoothly lofted shell carries the shoulder barrel through the
+	# rib cage and pelvis. Profiles are (longitudinal Z, center Y, half-width X,
+	# half-height Y); the broadest volume sits behind the shoulder line.
+	var profiles: Array[Vector4] = [
+		Vector4(-1.85, 1.54, 0.42, 0.50),
+		Vector4(-1.52, 1.55, 0.64, 0.67),
+		Vector4(-1.02, 1.52, 0.82, 0.78),
+		Vector4(-0.40, 1.49, 0.93, 0.84),
+		Vector4(0.30, 1.46, 0.96, 0.84),
+		Vector4(0.88, 1.41, 0.82, 0.74),
+		Vector4(1.38, 1.35, 0.60, 0.59),
+		Vector4(1.72, 1.32, 0.34, 0.37)
+	]
+	var smooth_profiles: Array[Vector4] = []
+	for profile_index in range(profiles.size() - 1):
+		var p0: Vector4 = profiles[maxi(profile_index - 1, 0)]
+		var p1: Vector4 = profiles[profile_index]
+		var p2: Vector4 = profiles[profile_index + 1]
+		var p3: Vector4 = profiles[mini(profile_index + 2, profiles.size() - 1)]
+		for subdivision in range(4):
+			var t := float(subdivision) / 4.0
+			smooth_profiles.append(_catmull_rom_profile(p0, p1, p2, p3, t))
+	smooth_profiles.append(profiles[profiles.size() - 1])
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var segment_count := 28
+	var rings: Array[PackedVector3Array] = []
+	for profile in smooth_profiles:
+		var ring := PackedVector3Array()
+		for segment in range(segment_count):
+			var angle := TAU * float(segment) / float(segment_count)
+			ring.append(Vector3(cos(angle) * profile.z,
+				profile.y + sin(angle) * profile.w, profile.x))
+		rings.append(ring)
+	for ring_index in range(rings.size() - 1):
+		for segment in range(segment_count):
+			var next_segment := (segment + 1) % segment_count
+			var a: Vector3 = rings[ring_index][segment]
+			var b: Vector3 = rings[ring_index][next_segment]
+			var c: Vector3 = rings[ring_index + 1][segment]
+			var next_ring_next: Vector3 = rings[ring_index + 1][next_segment]
+			surface.add_vertex(a)
+			surface.add_vertex(b)
+			surface.add_vertex(c)
+			surface.add_vertex(b)
+			surface.add_vertex(next_ring_next)
+			surface.add_vertex(c)
+	var front := smooth_profiles[0]
+	var rear := smooth_profiles[smooth_profiles.size() - 1]
+	var front_center := Vector3(0.0, front.y, front.x)
+	var rear_center := Vector3(0.0, rear.y, rear.x)
+	for segment in range(segment_count):
+		var next_segment := (segment + 1) % segment_count
+		surface.add_vertex(front_center)
+		surface.add_vertex(rings[0][next_segment])
+		surface.add_vertex(rings[0][segment])
+		surface.add_vertex(rear_center)
+		surface.add_vertex(rings[rings.size() - 1][segment])
+		surface.add_vertex(rings[rings.size() - 1][next_segment])
+	surface.generate_normals()
+	return surface.commit()
+
+func _triceratops_leg_pivot_y(root_height: float, ground_height: float, animal_scale: float) -> float:
+	# The leg mesh sole is authored at -1.12 local units; solve the pivot height
+	# so the sole reaches the sampled world ground at any uniform animal scale.
+	return 1.12 + (ground_height - root_height) / maxf(animal_scale, 0.001)
+
+func _build_triceratops_toes(pivot: Node3D, shadow: Material, horn: Material) -> void:
+	for toe_index in range(3):
+		var toe_x := (float(toe_index) - 1.0) * 0.21
+		var toe_pad := _sphere(pivot, Vector3(toe_x, -1.075, -0.54), Vector3(0.14, 0.095, 0.27), shadow)
+		toe_pad.name = "TriceratopsToePad_%d" % toe_index
+		var claw := CylinderMesh.new()
+		claw.top_radius = 0.006
+		claw.bottom_radius = 0.047
+		claw.height = 0.14
+		claw.radial_segments = 10
+		var claw_instance := _mesh(pivot, claw, horn, Vector3(toe_x, -1.075, -0.72), Vector3.ONE, Vector3(-PI / 2.0, 0, 0))
+		claw_instance.name = "TriceratopsToeClaw_%d" % toe_index
+
+func _make_triceratops_leg_mesh(front_leg: bool) -> ArrayMesh:
+	# Each limb is a closed loft from the shoulder/hip through the ankle into
+	# the weight-bearing foot. Profiles are (height, forward offset, X radius, Z radius).
+	var profiles: Array[Vector4]
+	if front_leg:
+		profiles = [
+			Vector4(0.22, 0.00, 0.31, 0.33),
+			Vector4(-0.02, -0.015, 0.32, 0.33),
+			Vector4(-0.34, -0.045, 0.28, 0.29),
+			Vector4(-0.68, -0.09, 0.22, 0.24),
+			Vector4(-0.96, -0.17, 0.24, 0.29),
+			Vector4(-1.12, -0.28, 0.31, 0.39)
+		]
+	else:
+		profiles = [
+			Vector4(0.22, 0.00, 0.35, 0.37),
+			Vector4(-0.02, -0.015, 0.35, 0.36),
+			Vector4(-0.34, -0.06, 0.30, 0.32),
+			Vector4(-0.66, -0.12, 0.23, 0.26),
+			Vector4(-0.93, -0.21, 0.26, 0.31),
+			Vector4(-1.12, -0.29, 0.33, 0.40)
+		]
+	var smooth_profiles: Array[Vector4] = []
+	for profile_index in range(profiles.size() - 1):
+		var p0: Vector4 = profiles[maxi(profile_index - 1, 0)]
+		var p1: Vector4 = profiles[profile_index]
+		var p2: Vector4 = profiles[profile_index + 1]
+		var p3: Vector4 = profiles[mini(profile_index + 2, profiles.size() - 1)]
+		for subdivision in range(3):
+			var t := float(subdivision) / 3.0
+			smooth_profiles.append(_catmull_rom_profile(p0, p1, p2, p3, t))
+	smooth_profiles.append(profiles[profiles.size() - 1])
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var segment_count := 20
+	var rings: Array[PackedVector3Array] = []
+	for profile in smooth_profiles:
+		var ring := PackedVector3Array()
+		for segment in range(segment_count):
+			var angle := TAU * float(segment) / float(segment_count)
+			ring.append(Vector3(cos(angle) * profile.z, profile.x,
+				profile.y + sin(angle) * profile.w))
+		rings.append(ring)
+	for ring_index in range(rings.size() - 1):
+		for segment in range(segment_count):
+			var next_segment := (segment + 1) % segment_count
+			var a: Vector3 = rings[ring_index][segment]
+			var b: Vector3 = rings[ring_index][next_segment]
+			var c: Vector3 = rings[ring_index + 1][segment]
+			var next_ring_next: Vector3 = rings[ring_index + 1][next_segment]
+			surface.add_vertex(a)
+			surface.add_vertex(b)
+			surface.add_vertex(c)
+			surface.add_vertex(b)
+			surface.add_vertex(next_ring_next)
+			surface.add_vertex(c)
+	var top := profiles[0]
+	var bottom := profiles[profiles.size() - 1]
+	var top_center := Vector3(0.0, top.x, top.y)
+	var bottom_center := Vector3(0.0, bottom.x, bottom.y)
+	for segment in range(segment_count):
+		var next_segment := (segment + 1) % segment_count
+		surface.add_vertex(top_center)
+		surface.add_vertex(rings[0][next_segment])
+		surface.add_vertex(rings[0][segment])
+		surface.add_vertex(bottom_center)
+		surface.add_vertex(rings[rings.size() - 1][segment])
+		surface.add_vertex(rings[rings.size() - 1][next_segment])
+	surface.generate_normals()
+	return surface.commit()
+
 func _build_tyrannosaur(pos: Vector3, size: float) -> void:
 	var rex := Node3D.new()
 	rex.position = pos
@@ -1539,6 +1691,68 @@ func _make_tapered_tail_mesh(length: float, base_radius: float, upward_curve: fl
 	surface.generate_normals()
 	return surface.commit()
 
+func _add_frill_triangle(surface: SurfaceTool, tint: Color, a: Vector3, b: Vector3, c: Vector3) -> void:
+	surface.set_color(tint)
+	surface.add_vertex(a)
+	surface.add_vertex(b)
+	surface.add_vertex(c)
+
+func _add_frill_quad(surface: SurfaceTool, tint: Color, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+	_add_frill_triangle(surface, tint, a, b, c)
+	_add_frill_triangle(surface, tint, b, d, c)
+
+func _make_triceratops_frill_mesh(center: Vector3, rim: PackedVector3Array, thickness: float) -> ArrayMesh:
+	# A shallow convex front and rear are joined around the complete outline.
+	# The basal chord is deliberately split at the center and mid-ring points,
+	# so no open boundary remains where the semicircular plate meets the skull.
+	var front_rim := PackedVector3Array()
+	var back_rim := PackedVector3Array()
+	var front_mid := PackedVector3Array()
+	var back_mid := PackedVector3Array()
+	for point_index in range(rim.size()):
+		var angle := PI * float(point_index) / float(rim.size() - 1)
+		var front_point: Vector3 = center + rim[point_index]
+		var mid_point := center.lerp(front_point, 0.52) + Vector3(0.0, 0.0, -0.035 * sin(angle))
+		front_rim.append(front_point)
+		back_rim.append(front_point + Vector3(0.0, 0.0, thickness))
+		front_mid.append(mid_point)
+		back_mid.append(mid_point + Vector3(0.0, 0.0, thickness))
+	var back_center := center + Vector3(0.0, 0.0, thickness)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for segment in range(rim.size() - 1):
+		var front_a: Vector3 = front_rim[segment]
+		var front_b: Vector3 = front_rim[segment + 1]
+		var back_a: Vector3 = back_rim[segment]
+		var back_b: Vector3 = back_rim[segment + 1]
+		var mid_a: Vector3 = front_mid[segment]
+		var mid_b: Vector3 = front_mid[segment + 1]
+		var back_mid_a: Vector3 = back_mid[segment]
+		var back_mid_b: Vector3 = back_mid[segment + 1]
+		var plate_tint := Color(0.42 + 0.05 * sin(float(segment) * 0.7), 0.39, 0.27)
+		# Front: center fan plus a second ring gives the plate a restrained convex crown.
+		_add_frill_triangle(surface, plate_tint, center, mid_a, mid_b)
+		_add_frill_triangle(surface, plate_tint, mid_a, front_a, front_b)
+		_add_frill_triangle(surface, plate_tint, mid_a, front_b, mid_b)
+		# Rear face uses the reverse winding and a darker mineral tint.
+		_add_frill_triangle(surface, plate_tint * 0.86, back_center, back_mid_b, back_mid_a)
+		_add_frill_triangle(surface, plate_tint * 0.86, back_mid_a, back_b, back_a)
+		_add_frill_triangle(surface, plate_tint * 0.86, back_mid_a, back_mid_b, back_b)
+		# Scalloped outer edge closes the front and rear plates.
+		_add_frill_triangle(surface, plate_tint * 0.72, front_a, front_b, back_a)
+		_add_frill_triangle(surface, plate_tint * 0.72, front_b, back_b, back_a)
+	# Close the basal chord in four strips, following the center and mid-ring
+	# boundary vertices so every perimeter edge is shared by exactly two faces.
+	var edge_tint := Color(0.30, 0.28, 0.20)
+	_add_frill_quad(surface, edge_tint, center, front_mid[0], back_center, back_mid[0])
+	_add_frill_quad(surface, edge_tint, front_mid[0], front_rim[0], back_mid[0], back_rim[0])
+	var last := rim.size() - 1
+	_add_frill_quad(surface, edge_tint, center, front_mid[last], back_center, back_mid[last])
+	_add_frill_quad(surface, edge_tint, front_mid[last], front_rim[last], back_mid[last], back_rim[last])
+	surface.index()
+	surface.generate_normals()
+	return surface.commit()
+
 func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	var d := Node3D.new()
 	d.position = pos
@@ -1551,17 +1765,10 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	var horn := _material(Color(0.72, 0.62, 0.43), 0.82)
 	var eye := _material(Color(0.035, 0.028, 0.019), 0.25)
 
-	# Heavy barrel torso, shoulders and sloped hindquarters.
-	var torso := CapsuleMesh.new()
-	torso.radius = 0.73
-	torso.height = 2.65
-	torso.radial_segments = 32
-	torso.rings = 12
-	var body := _mesh(d, torso, hide, Vector3(0, 1.48, 0.05), Vector3.ONE, Vector3(PI / 2.0, 0, 0))
-	body.scale = Vector3(1.0, 1.0, 1.32)
-	_sphere(d, Vector3(0, 1.42, 0.92), Vector3(1.28, 1.12, 1.25), hide)
-	_sphere(d, Vector3(0, 1.63, -0.93), Vector3(1.12, 1.12, 1.08), flank)
-	_sphere(d, Vector3(0, 1.2, 0.12), Vector3(1.08, 0.55, 1.65), shadow)
+	# A single loft replaces the old capsule, shoulder sphere, hip sphere and
+	# belly primitive, removing the visible seams between major body masses.
+	var body_shell := _mesh(d, _make_triceratops_body_mesh(), hide, Vector3.ZERO)
+	body_shell.name = "TriceratopsBody"
 
 	# Long tapered tail with a continuous hide surface and gentle vertical sweep.
 	var tail_pivot := Node3D.new()
@@ -1569,17 +1776,17 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	d.add_child(tail_pivot)
 	var tail_instance := _mesh(tail_pivot, _make_tapered_tail_mesh(2.85, 0.43, 0.16), hide, Vector3.ZERO)
 	tail_instance.name = "TriceratopsTail"
-	var tail_sway := create_tween().set_loops()
-	tail_sway.tween_property(tail_pivot, "rotation:y", 0.085, 2.4).set_trans(Tween.TRANS_SINE)
-	tail_sway.tween_property(tail_pivot, "rotation:y", -0.085, 2.4).set_trans(Tween.TRANS_SINE)
+	if is_inside_tree():
+		var tail_sway := create_tween().set_loops()
+		tail_sway.tween_property(tail_pivot, "rotation:y", 0.085, 2.4).set_trans(Tween.TRANS_SINE)
+		tail_sway.tween_property(tail_pivot, "rotation:y", -0.085, 2.4).set_trans(Tween.TRANS_SINE)
 	_sphere(d, Vector3(0, 1.83, -1.47), Vector3(0.88, 0.9, 0.9), flank)
 	_sphere(d, Vector3(0, 1.93, -1.98), Vector3(0.82, 0.72, 0.92), hide)
 	_sphere(d, Vector3(0, 1.52, -2.23), Vector3(0.7, 0.34, 0.88), shadow)
 	_sphere(d, Vector3(0, 1.47, -2.48), Vector3(0.56, 0.28, 0.58), shadow)
 
-	# Broad scalloped frill, modeled as a custom fan mesh with raised knobs.
-	var fan := SurfaceTool.new()
-	fan.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# The fan is curved across its face and sealed along both the scalloped
+	# rim and the straight basal chord; the same mesh carries the vertex tint.
 	var center := Vector3(0, 2.12, -1.57)
 	var rim := PackedVector3Array()
 	for i in range(25):
@@ -1587,34 +1794,10 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 		var scallop := 1.0 + 0.055 * sin(float(i) * PI / 3.0)
 		rim.append(Vector3(cos(angle) * 1.02 * scallop, sin(angle) * 1.13 * scallop, -0.12 * sin(angle)))
 	var frill_thickness := 0.16
-	var back_center := center + Vector3(0.0, 0.0, frill_thickness)
-	for i in range(24):
-		var front_a := center + rim[i]
-		var front_b := center + rim[i + 1]
-		var back_a := front_a + Vector3(0.0, 0.0, frill_thickness)
-		var back_b := front_b + Vector3(0.0, 0.0, frill_thickness)
-		var plate_tint := Color(0.42 + 0.05 * sin(float(i) * 0.7), 0.39, 0.27)
-		# Front and back plates plus the perimeter web make the frill a closed bony form.
-		fan.set_color(plate_tint)
-		fan.add_vertex(center)
-		fan.add_vertex(front_a)
-		fan.add_vertex(front_b)
-		fan.set_color(plate_tint * 0.86)
-		fan.add_vertex(back_center)
-		fan.add_vertex(back_b)
-		fan.add_vertex(back_a)
-		fan.set_color(plate_tint * 0.72)
-		fan.add_vertex(front_a)
-		fan.add_vertex(front_b)
-		fan.add_vertex(back_a)
-		fan.add_vertex(front_b)
-		fan.add_vertex(back_b)
-		fan.add_vertex(back_a)
-	fan.generate_normals()
 	var fan_material := StandardMaterial3D.new()
 	fan_material.vertex_color_use_as_albedo = true
 	fan_material.roughness = 0.9
-	var frill := _mesh(d, fan.commit(), fan_material, Vector3.ZERO)
+	var frill := _mesh(d, _make_triceratops_frill_mesh(center, rim, frill_thickness), fan_material, Vector3.ZERO)
 	frill.name = "TriceratopsFrill"
 	for i in range(0, 25, 3):
 		_sphere(d, center + rim[i], Vector3(0.13, 0.14, 0.13), flank)
@@ -1638,36 +1821,37 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 		_sphere(d, Vector3(x, 2.03, -2.06), Vector3(0.095, 0.105, 0.075), eye)
 		_sphere(d, Vector3(x * 0.76, 1.67, -2.64), Vector3(0.055, 0.04, 0.035), shadow)
 
-	# Four weight-bearing legs, articulated at the hip and animated in a slow gait.
+	# Four continuous, weight-bearing limbs. Their neutral sole height is
+	# corrected against the actual terrain under each foot, not the herd center.
+	var leg_index := 0
 	for x in [-0.78, 0.78]:
 		for z in [-0.86, 0.98]:
+			var sole_offset_z := -0.28 if z < 0.0 else -0.29
+			var sole_local := Vector3(x, 0.0, z + sole_offset_z)
+			var foot_world := pos + sole_local.rotated(Vector3.UP, yaw) * size
+			var ground_height := _terrain_height(Vector2(foot_world.x, foot_world.z))
 			var pivot := Node3D.new()
-			pivot.position = Vector3(x, 1.18, z)
+			pivot.name = "TriceratopsLegPivot_%d" % leg_index
+			pivot.position = Vector3(x, _triceratops_leg_pivot_y(pos.y, ground_height, size), z)
 			d.add_child(pivot)
-			var upper := CylinderMesh.new()
-			upper.top_radius = 0.24
-			upper.bottom_radius = 0.34
-			upper.height = 0.82
-			upper.radial_segments = 18
-			_mesh(pivot, upper, hide, Vector3(0, -0.39, 0))
-			var lower := CylinderMesh.new()
-			lower.top_radius = 0.2
-			lower.bottom_radius = 0.27
-			lower.height = 0.66
-			lower.radial_segments = 18
-			_mesh(pivot, lower, shadow, Vector3(0, -1.02, -0.025))
-			_sphere(pivot, Vector3(0, -1.34, -0.14), Vector3(0.43, 0.22, 0.48), shadow)
-			for toe in [-0.2, 0.0, 0.2]:
-				_sphere(pivot, Vector3(toe, -1.37, -0.43), Vector3(0.12, 0.1, 0.18), horn)
-			# Opposite diagonal pairs alternate, avoiding the old same-phase four-leg shuffle.
-			var gait_direction: float = 1.0 if x * z > 0.0 else -1.0
-			var gait := create_tween().set_loops()
-			gait.tween_property(pivot, "rotation:x", gait_direction * 0.13, 0.85).set_trans(Tween.TRANS_SINE)
-			gait.tween_property(pivot, "rotation:x", gait_direction * -0.13, 0.85).set_trans(Tween.TRANS_SINE)
-	# Subtle torso breathing gives the herd a resting idle instead of a frozen pose.
-	var breathing := create_tween().set_loops()
-	breathing.tween_property(body, "scale:y", 1.025, 2.1).set_trans(Tween.TRANS_SINE)
-	breathing.tween_property(body, "scale:y", 1.0, 2.1).set_trans(Tween.TRANS_SINE)
+			var front_leg: bool = z < 0.0
+			var leg_mass := _mesh(pivot, _make_triceratops_leg_mesh(front_leg), hide, Vector3.ZERO)
+			leg_mass.name = "TriceratopsLegMass"
+			_build_triceratops_toes(pivot, shadow, horn)
+			# Diagonal pairs alternate with a restrained stride so the feet remain
+			# close to the ground instead of swinging like four independent rods.
+			if is_inside_tree():
+				var gait_direction: float = 1.0 if x * z > 0.0 else -1.0
+				var gait := create_tween().set_loops()
+				gait.tween_property(pivot, "rotation:x", gait_direction * 0.08, 1.1).set_trans(Tween.TRANS_SINE)
+				gait.tween_property(pivot, "rotation:x", gait_direction * -0.08, 1.1).set_trans(Tween.TRANS_SINE)
+			leg_index += 1
+	# Animation is attached only after the animal enters the live scene tree;
+	# off-tree procedural builds stay deterministic and safe for geometry tests.
+	if is_inside_tree():
+		var breathing := create_tween().set_loops()
+		breathing.tween_property(body_shell, "scale:x", 1.018, 2.1).set_trans(Tween.TRANS_SINE)
+		breathing.tween_property(body_shell, "scale:x", 1.0, 2.1).set_trans(Tween.TRANS_SINE)
 
 func _preview_route() -> Array[Dictionary]:
 	# The north-and-west exit keeps the camera outside building collision volumes.
