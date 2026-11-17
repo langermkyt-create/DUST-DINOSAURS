@@ -3,16 +3,21 @@ extends SceneTree
 func _initialize() -> void:
 	var world := Node3D.new()
 	world.set_script(load("res://scripts/world.gd"))
-	world.call("_make_triceratops", Vector3.ZERO, 1.0, 0.0)
-	var frill := world.find_child("TriceratopsFrill", true, false) as MeshInstance3D
-	if frill == null or frill.mesh == null or frill.mesh.get_surface_count() != 1:
-		_fail(world, "Triceratops must install one closed frill plate mesh.")
+	var center := Vector3(0, 2.12, -1.57)
+	var rim := PackedVector3Array()
+	for i in range(25):
+		var angle := PI * float(i) / 24.0
+		var scallop := 1.0 + 0.055 * sin(float(i) * PI / 3.0)
+		rim.append(Vector3(cos(angle) * 1.02 * scallop, sin(angle) * 1.13 * scallop, -0.12 * sin(angle)))
+	var frill_mesh := world.call("_make_triceratops_frill_mesh", center, rim, 0.16) as ArrayMesh
+	if frill_mesh == null or frill_mesh.get_surface_count() != 1:
+		_fail(world, "Triceratops must generate one closed frill plate mesh.")
 		return
-	var arrays := frill.mesh.surface_get_arrays(0)
+	var arrays := frill_mesh.surface_get_arrays(0)
 	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-	var bounds := frill.mesh.get_aabb()
+	var bounds := frill_mesh.get_aabb()
 	if vertices.size() < 250 or normals.size() != vertices.size():
 		_fail(world, "Frill plate must contain a curved front, rear and generated normals.")
 		return

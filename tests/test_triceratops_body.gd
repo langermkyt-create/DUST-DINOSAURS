@@ -3,15 +3,14 @@ extends SceneTree
 func _initialize() -> void:
 	var world := Node3D.new()
 	world.set_script(load("res://scripts/world.gd"))
-	world.call("_make_triceratops", Vector3.ZERO, 1.0, 0.0)
-	var body := world.find_child("TriceratopsBody", true, false) as MeshInstance3D
-	if body == null or body.mesh == null or body.mesh.get_surface_count() != 1:
-		_fail(world, "Triceratops must use one continuous body shell.")
+	var body_mesh := world.call("_make_triceratops_body_mesh") as ArrayMesh
+	if body_mesh == null or body_mesh.get_surface_count() != 1:
+		_fail(world, "Triceratops body generator must return one continuous mesh.")
 		return
-	var arrays := body.mesh.surface_get_arrays(0)
+	var arrays := body_mesh.surface_get_arrays(0)
 	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	var bounds := body.mesh.get_aabb()
+	var bounds := body_mesh.get_aabb()
 	if vertices.size() < 4500 or vertices.size() % 3 != 0 or normals.size() != vertices.size():
 		_fail(world, "Triceratops body loft must retain dense triangulation and generated normals.")
 		return

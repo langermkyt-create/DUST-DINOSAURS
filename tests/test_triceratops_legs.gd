@@ -3,23 +3,19 @@ extends SceneTree
 func _initialize() -> void:
 	var world := Node3D.new()
 	world.set_script(load("res://scripts/world.gd"))
-	world.call("_make_triceratops", Vector3.ZERO, 1.0, 0.0)
-	var pivots: Array[Node] = []
-	_collect_named(world, "TriceratopsLegPivot_", pivots)
-	if pivots.size() != 4:
-		_fail(world, "Triceratops must have four independently articulated leg pivots.")
+	var front_mesh := world.call("_make_triceratops_leg_mesh", true) as ArrayMesh
+	var hind_mesh := world.call("_make_triceratops_leg_mesh", false) as ArrayMesh
+	if front_mesh == null or hind_mesh == null:
+		_fail(world, "Fore and hind leg generators must both return meshes.")
 		return
-	var toe_pads := 0
-	for pivot_node in pivots:
-		var pivot := pivot_node as Node3D
-		var leg := pivot.get_node_or_null("TriceratopsLegMass") as MeshInstance3D
-		if leg == null or not leg.mesh is ArrayMesh:
-			_fail(world, "Every triceratops leg must be one continuous lofted mesh.")
+	for leg_mesh in [front_mesh, hind_mesh]:
+		if leg_mesh.get_surface_count() != 1:
+			_fail(world, "Each triceratops limb must be one continuous lofted surface.")
 			return
-		var arrays := leg.mesh.surface_get_arrays(0)
+		var arrays := leg_mesh.surface_get_arrays(0)
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-		var bounds := leg.mesh.get_aabb()
+		var bounds := leg_mesh.get_aabb()
 		if vertices.size() < 1500 or normals.size() != vertices.size():
 			_fail(world, "Triceratops leg loft is missing dense geometry or generated normals.")
 			return
@@ -29,28 +25,36 @@ func _initialize() -> void:
 		if absf(bounds.position.y + 1.12) > 0.035:
 			_fail(world, "Triceratops leg sole must terminate at the authored ground-contact plane.")
 			return
-		for child in pivot.get_children():
-			if child.name.begins_with("TriceratopsToePad_"):
-				toe_pads += 1
-		var sole_offset_z := -0.28 if pivot.position.z < 0.0 else -0.29
-		var sole_xz := Vector2(pivot.position.x, pivot.position.z + sole_offset_z)
-		var sole_height := pivot.position.y + bounds.position.y
-		var ground := float(world.call("_terrain_height", sole_xz))
-		if absf(sole_height - ground) > 0.06:
-			_fail(world, "Triceratops leg sole is not aligned to the terrain beneath its foot.")
-			return
-	if toe_pads != 12:
-		_fail(world, "Each of the four triceratops feet must retain three toe pads.")
+		for normal in normals:
+			if not normal.is_finite() or normal.length() < 0.9:
+				_fail(world, "Triceratops leg loft contains invalid or degenerate normals.")
+				return
+	var pivot := Node3D.new()
+	var hide := StandardMaterial3D.new()
+	var horn := StandardMaterial3D.new()
+	world.call("_build_triceratops_toes", pivot, hide, horn)
+	var toe_pads := 0
+	var claws := 0
+	for child in pivot.get_children():
+		if child.name.begins_with("TriceratopsToePad_"):
+			toe_pads += 1
+		elif child.name.begins_with("TriceratopsToeClaw_"):
+			claws += 1
+	if toe_pads != 3 or claws != 3:
+		_fail(world, "Each triceratops foot must retain three toe pads and three tapered claws.")
 		return
-	print("Triceratops leg regression passed: four continuous lofts, twelve toe pads, and terrain-aligned soles.")
+	for size in [0.66, 0.78, 1.0]:
+		var root_height := 0.37
+		var ground_height := -0.18
+		var pivot_y := float(world.call("_triceratops_leg_pivot_y", root_height, ground_height, size))
+		var sole_world_y := root_height + (pivot_y - 1.12) * size
+		if absf(sole_world_y - ground_height) > 0.0001:
+			_fail(world, "Triceratops sole-height solver must preserve ground contact at every herd scale.")
+			return
+	print("Triceratops leg regression passed: fore/hind lofts, three toes and claws per foot, and scale-aware sole contact.")
+	pivot.free()
 	world.free()
 	quit(0)
-
-func _collect_named(node: Node, prefix: String, output: Array[Node]) -> void:
-	for child in node.get_children():
-		if child.name.begins_with(prefix):
-			output.append(child)
-		_collect_named(child, prefix, output)
 
 func _fail(world: Node3D, message: String) -> void:
 	if is_instance_valid(world):

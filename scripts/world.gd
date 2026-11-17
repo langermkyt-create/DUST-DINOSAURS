@@ -1481,6 +1481,24 @@ func _make_triceratops_body_mesh() -> ArrayMesh:
 	surface.generate_normals()
 	return surface.commit()
 
+func _triceratops_leg_pivot_y(root_height: float, ground_height: float, animal_scale: float) -> float:
+	# The leg mesh sole is authored at -1.12 local units; solve the pivot height
+	# so the sole reaches the sampled world ground at any uniform animal scale.
+	return 1.12 + (ground_height - root_height) / maxf(animal_scale, 0.001)
+
+func _build_triceratops_toes(pivot: Node3D, shadow: Material, horn: Material) -> void:
+	for toe_index in range(3):
+		var toe_x := (float(toe_index) - 1.0) * 0.21
+		var toe_pad := _sphere(pivot, Vector3(toe_x, -1.075, -0.54), Vector3(0.14, 0.095, 0.27), shadow)
+		toe_pad.name = "TriceratopsToePad_%d" % toe_index
+		var claw := CylinderMesh.new()
+		claw.top_radius = 0.006
+		claw.bottom_radius = 0.047
+		claw.height = 0.14
+		claw.radial_segments = 10
+		var claw_instance := _mesh(pivot, claw, horn, Vector3(toe_x, -1.075, -0.72), Vector3.ONE, Vector3(-PI / 2.0, 0, 0))
+		claw_instance.name = "TriceratopsToeClaw_%d" % toe_index
+
 func _make_triceratops_leg_mesh(front_leg: bool) -> ArrayMesh:
 	# Each limb is a closed loft from the shoulder/hip through the ankle into
 	# the weight-bearing foot. Profiles are (height, forward offset, X radius, Z radius).
@@ -1811,24 +1829,15 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 			var sole_offset_z := -0.28 if z < 0.0 else -0.29
 			var sole_local := Vector3(x, 0.0, z + sole_offset_z)
 			var foot_world := pos + sole_local.rotated(Vector3.UP, yaw) * size
-			var terrain_correction := (_terrain_height(Vector2(foot_world.x, foot_world.z)) - pos.y) / maxf(size, 0.001)
+			var ground_height := _terrain_height(Vector2(foot_world.x, foot_world.z))
 			var pivot := Node3D.new()
 			pivot.name = "TriceratopsLegPivot_%d" % leg_index
-			pivot.position = Vector3(x, 1.12 + terrain_correction, z)
+			pivot.position = Vector3(x, _triceratops_leg_pivot_y(pos.y, ground_height, size), z)
 			d.add_child(pivot)
 			var front_leg := z < 0.0
 			var leg_mass := _mesh(pivot, _make_triceratops_leg_mesh(front_leg), hide, Vector3.ZERO)
 			leg_mass.name = "TriceratopsLegMass"
-			for toe_index in range(3):
-				var toe_x := (float(toe_index) - 1.0) * 0.21
-				var toe_pad := _sphere(pivot, Vector3(toe_x, -1.075, -0.54), Vector3(0.14, 0.095, 0.27), shadow)
-				toe_pad.name = "TriceratopsToePad_%d" % toe_index
-				var claw := CylinderMesh.new()
-				claw.top_radius = 0.006
-				claw.bottom_radius = 0.047
-				claw.height = 0.14
-				claw.radial_segments = 10
-				_mesh(pivot, claw, horn, Vector3(toe_x, -1.075, -0.72), Vector3.ONE, Vector3(-PI / 2.0, 0, 0))
+			_build_triceratops_toes(pivot, shadow, horn)
 			# Diagonal pairs alternate with a restrained stride so the feet remain
 			# close to the ground instead of swinging like four independent rods.
 			if is_inside_tree():
