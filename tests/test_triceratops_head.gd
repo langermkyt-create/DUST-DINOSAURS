@@ -9,6 +9,18 @@ func _initialize() -> void:
 		return
 	if not _validate_closed_loft(world, jaw_mesh, 1400, Vector3(0.35, 0.12, 0.7), "lower jaw"):
 		return
+	var brow_left := world.call("_make_triceratops_horn_mesh",
+		Vector3(-0.40, 2.06, -2.13), Vector3(-0.55, 2.83, -2.78), 0.14,
+		Vector3(-0.032, 0.10, -0.07)) as ArrayMesh
+	var brow_right := world.call("_make_triceratops_horn_mesh",
+		Vector3(0.40, 2.06, -2.13), Vector3(0.55, 2.83, -2.78), 0.14,
+		Vector3(0.032, 0.10, -0.07)) as ArrayMesh
+	var nasal := world.call("_make_triceratops_horn_mesh",
+		Vector3(0.0, 1.72, -2.62), Vector3(0.0, 2.24, -3.02), 0.105,
+		Vector3(0.0, 0.075, -0.045)) as ArrayMesh
+	for horn_mesh in [brow_left, brow_right, nasal]:
+		if not _validate_closed_loft(world, horn_mesh, 1500, Vector3(0.12, 0.3, 0.3), "horn"):
+			return
 	world.call("_make_triceratops", Vector3.ZERO, 1.0, 0.0)
 	var head := world.find_child("TriceratopsHead", true, false) as MeshInstance3D
 	var jaw := world.find_child("TriceratopsLowerJaw", true, false) as MeshInstance3D
@@ -21,10 +33,23 @@ func _initialize() -> void:
 		return
 	var sockets := world.find_children("TriceratopsEyeSocket", "MeshInstance3D", true, false)
 	var eyes := world.find_children("TriceratopsEye", "MeshInstance3D", true, false)
+	var brow_horns := 0
+	var nasal_horns := 0
+	var horn_roots := 0
+	for node in world.find_children("*", "MeshInstance3D", true, false):
+		if node.name == "TriceratopsBrowHorn":
+			brow_horns += 1
+		elif node.name == "TriceratopsNasalHorn":
+			nasal_horns += 1
+		elif node.name == "TriceratopsHornRoot":
+			horn_roots += 1
 	if sockets.size() != 2 or eyes.size() != 2:
 		_fail(world, "Triceratops must have two recessed eye sockets and two eye globes.")
 		return
-	print("Triceratops head regression passed: continuous skull and jaw lofts, closed shells, shared head rig, and paired eye sockets.")
+	if brow_horns != 2 or nasal_horns != 1 or horn_roots != 3:
+		_fail(world, "Triceratops must install two swept brow horns, one nasal horn and three root collars.")
+		return
+	print("Triceratops head regression passed: closed skull/jaw, paired eye sockets, two curved brow horns, one nasal horn and three root collars.")
 	world.free()
 	quit(0)
 
