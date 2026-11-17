@@ -28,34 +28,36 @@ No third-party art assets were introduced. All geometry remains original and pro
 - The 48-second video was decoded and visually inspected at representative timestamps. It clearly shows the settlement, triceratops group and tyrannosaur vista. It still reads as a simplified low-poly vertical slice; the triceratops torso/limbs and many props remain visibly primitive. The new mesh regressions prove geometry properties, not AAA visual quality.
 - The preview host lacked `VK_KHR_surface` and fell back to Mesa llvmpipe/OpenGL 3. SSAO, SDFGI and SSIL were unavailable on that renderer. This is useful diagnostic capture evidence, not a target-GPU quality or performance measurement.
 
-## 2026-11-17 development session
+## 2026-11-17 development session — completed
 
-Continued from the open triceratops anatomy blocker in the previous session. Work is on branch `automation/triceratops-anatomy-20261117` and is intended for PR #1 after the full validation run.
+Continued the triceratops anatomy blocker from the prior session. The work was developed in PR #1, then merged into `main` as merge commit `9244cb512b2bd36574d64c9646621b19e10cf6f3`. The final validated branch head was `e35edec3fab727a7761f0352fef7cebb43c72515`.
 
-Three substantive passes are in progress:
+Three substantive passes were completed:
 
 1. **Continuous torso shell** — replaced the triceratops capsule, shoulder sphere, hip sphere and belly primitive with a closed Catmull–Rom loft spanning shoulder, rib cage and pelvis. Added a regression for density, bounds and finite generated normals.
-2. **Continuous legs and grounded soles** — replaced separate upper/lower cylinders with four closed lofts, distinct fore/hind profiles, three toe pads and tapered claws per foot. Each leg's neutral sole is offset against terrain sampled beneath that foot; diagonal gait amplitude is reduced to limit rod-like swinging. Added a regression for mesh continuity, dimensions, toe count and terrain contact.
-3. **Watertight curved frill** — replacing the previous front/back fan and incomplete basal edge with a convex two-face plate, outer web and sealed basal chord. The regression counts undirected triangle edges and requires every edge to be shared exactly twice.
+2. **Continuous legs and grounded soles** — replaced separate upper/lower cylinders with four closed lofts, distinct fore/hind profiles, three toe pads and tapered claws per foot. Each leg's neutral sole is aligned to terrain sampled beneath its actual foot point; diagonal gait amplitude is reduced to limit rod-like swinging. Added regressions for fore/hind geometry, toe/claw assembly and scale-aware sole-height solving.
+3. **Watertight curved frill** — replaced the old planar front/back fan with a shallow convex two-face plate, outer web and sealed basal chord. The regression counts undirected triangle edges and requires every edge to be shared exactly twice.
 
-No third-party art assets were introduced; all geometry remains original and procedural.
+All geometry is original and procedural; no third-party art assets were introduced. The test builders are isolated from full animal assembly, off-tree mesh generation skips live animation tweens, and focused tests have 30-second fail-fast limits. The validation workflow now rejects parser diagnostics instead of silently continuing.
 
-## 2026-11-17 validation status
+## 2026-11-17 verified validation
 
-- The validation workflow now cancels an older run when a newer commit is pushed to the same PR branch, so the final grouped test pass is not delayed by stale snapshots.
+- Godot validation and Windows export workflow **#90** passed on final branch head `e35edec3`.
+- Godot 4.4.1 import and script parsing passed with parser diagnostics checked.
+- New triceratops torso, fore/hind leg, toe/claw, scale-aware sole-contact and watertight-frill regressions passed.
+- Existing sandstone rock LOD/collision, roof shingles, desert terrain/arroyo, tyrannosaur torso/legs/tail, procedural skin and preview-route regressions passed.
+- Headless main-scene launch passed.
+- Windows x86_64 export passed.
+- Merge commit `9244cb51` is now on `main`. The post-merge Godot validation and Windows Build workflows (#91 and #119) were queued at the time of this log update.
 
-- Pass 1 torso loft regression and the full Godot validation/Windows export workflow passed on commit `c1df156d` (workflow #81).
-- Pass 2 is committed as `9db99c03`; its full CI run stalled at the pre-existing sandstone rock LOD test before reaching the new triceratops leg regression.
-- Pass 3 is committed as `4882b476`; its full CI run also stalled at the same earlier rock LOD step. The final workflow now runs the three focused triceratops regressions immediately after script import, before the older rock test, so the new anatomy can be checked independently.
-- The previous llvmpipe/OpenGL capture limitation remains. The anatomy regressions validate geometry and mesh topology, not final close-up visual quality or target-GPU performance.
-- AAA status remains **not achieved**. The next step is to run the full PR validation and Windows export, inspect a fresh animal close-up capture, then continue to head articulation, skin microdetail and animal gait.
+The 17 Nov CI proves geometry properties, script validity, main-scene headless launch and Windows export. It does **not** prove final close-up appearance or target-GPU performance. No new post-merge gameplay capture has yet been visually inspected.
 
-## Outstanding blockers and next work
+## Current blockers and next work
 
-1. Replace the triceratops' primitive torso/shoulder/hip assembly and separated cylindrical limbs with coherent, proportioned lofted anatomy; keep frill, horn and tail integration under regression.
-2. Inspect close-up animal renders after each anatomy pass; test foot contact, gait phase, silhouette continuity and shading, not only vertex counts.
-3. Expand fixed control scenes to include a representative desert/rock/cactus route, settlement exterior and interior, herd close-up, predator close-up, and weather/lighting variants.
-4. Run captures on a declared target PC/GPU with frame-time, memory, stability and graphics-feature measurements. The current llvmpipe capture cannot establish target-hardware performance.
-5. Obtain an independent visual review against concrete reference criteria: material response, texture frequency, geometry quality, animation, lighting/shadows, scene density, LOD transitions and artifact rate.
+1. Inspect a fresh post-merge gameplay capture with a close view of the triceratops body, feet and frill. Do not infer visual quality from the mesh tests.
+2. Improve the triceratops head/neck transition, eye sockets, horn roots, skin microdetail and natural gait while preserving the new continuous body/limb structure.
+3. Continue the whole-world pass across architecture/interiors, plants, props, animal interactions, weather and lighting; prioritize coherent material response and remove visible placeholder forms.
+4. Validate on a declared target GPU with reproducible resolution/settings and frame-time/memory measurements. The previous llvmpipe/OpenGL capture is not a target-hardware benchmark.
+5. Build a representative fixed-camera scene set (desert, rock/vegetation, town/interior, animals/dinosaurs, weather/time-of-day) and obtain independent visual review against concrete RDR2 reference criteria.
 
-Keep the AAA gate open until the whole representative scene set, target-hardware performance/stability and independent review are evidenced.
+AAA status remains **not achieved**. Continue from the new main HEAD, inspect post-merge CI/artifacts first, then proceed to the next triceratops close-up anatomy pass.
