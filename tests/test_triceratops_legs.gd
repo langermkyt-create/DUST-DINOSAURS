@@ -8,14 +8,15 @@ func _initialize() -> void:
 	if front_mesh == null or hind_mesh == null:
 		_fail(world, "Fore and hind leg generators must both return meshes.")
 		return
-	for leg_mesh in [front_mesh, hind_mesh]:
+	var leg_meshes: Array[ArrayMesh] = [front_mesh, hind_mesh]
+	for leg_mesh in leg_meshes:
 		if leg_mesh.get_surface_count() != 1:
 			_fail(world, "Each triceratops limb must be one continuous lofted surface.")
 			return
-		var arrays := leg_mesh.surface_get_arrays(0)
+		var arrays: Array = leg_mesh.surface_get_arrays(0)
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-		var bounds := leg_mesh.get_aabb()
+		var bounds: AABB = leg_mesh.get_aabb()
 		if vertices.size() < 1500 or normals.size() != vertices.size():
 			_fail(world, "Triceratops leg loft is missing dense geometry or generated normals.")
 			return
@@ -44,10 +45,10 @@ func _initialize() -> void:
 		_fail(world, "Each triceratops foot must retain three toe pads and three tapered claws.")
 		return
 	for size in [0.66, 0.78, 1.0]:
-		var root_height := 0.37
-		var ground_height := -0.18
-		var pivot_y := float(world.call("_triceratops_leg_pivot_y", root_height, ground_height, size))
-		var sole_world_y := root_height + (pivot_y - 1.12) * size
+		var root_height: float = 0.37
+		var ground_height: float = -0.18
+		var pivot_y: float = float(world.call("_triceratops_leg_pivot_y", root_height, ground_height, size))
+		var sole_world_y: float = root_height + (pivot_y - 1.12) * size
 		if absf(sole_world_y - ground_height) > 0.0001:
 			_fail(world, "Triceratops sole-height solver must preserve ground contact at every herd scale.")
 			return

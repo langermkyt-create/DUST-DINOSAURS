@@ -1834,7 +1834,7 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 			pivot.name = "TriceratopsLegPivot_%d" % leg_index
 			pivot.position = Vector3(x, _triceratops_leg_pivot_y(pos.y, ground_height, size), z)
 			d.add_child(pivot)
-			var front_leg := z < 0.0
+			var front_leg: bool = z < 0.0
 			var leg_mass := _mesh(pivot, _make_triceratops_leg_mesh(front_leg), hide, Vector3.ZERO)
 			leg_mass.name = "TriceratopsLegMass"
 			_build_triceratops_toes(pivot, shadow, horn)
