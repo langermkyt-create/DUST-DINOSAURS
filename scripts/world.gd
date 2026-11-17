@@ -85,6 +85,7 @@ shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx;
 uniform vec4 skin_tint : source_color = vec4(0.36, 0.34, 0.24, 1.0);
 uniform float detail_scale = 1.0;
+uniform float micro_normal_strength = 0.07;
 varying vec3 skin_world_pos;
 float skin_hash(vec3 p) {
 	p = fract(p * 0.1031);
@@ -117,22 +118,29 @@ void fragment() {
 	float fine_mottle = skin_noise(skin_world_pos * 7.5);
 	float pebble = skin_noise(skin_world_pos * 24.0);
 	float pore = skin_noise(skin_world_pos * 61.0);
+	float micro_relief = skin_noise(skin_world_pos * 96.0);
+	float micro_grain = skin_noise(skin_world_pos * 164.0);
 	float scale_rhythm = sin(skin_world_pos.x * 17.0
 		+ skin_world_pos.z * 13.0
 		+ sin(skin_world_pos.y * 9.0) * 0.7) * 0.5 + 0.5;
 	float scale_edges = smoothstep(0.52, 0.94, scale_rhythm);
 	vec3 skin = skin_tint.rgb * (0.78 + broad_mottle * 0.24 + fine_mottle * 0.12);
 	skin = mix(skin, skin * vec3(1.12, 1.05, 0.88), scale_edges * 0.12);
-	skin *= 0.97 + pebble * 0.07 + pore * 0.035;
+	skin *= 0.96 + pebble * 0.07 + pore * 0.035 + micro_grain * 0.025;
+	vec2 relief_gradient = clamp(vec2(dFdx(micro_relief), dFdy(micro_relief)) * 0.16,
+		vec2(-0.08), vec2(0.08));
+	NORMAL = normalize(NORMAL + vec3(-relief_gradient.x, -relief_gradient.y, 0.0) * micro_normal_strength);
 	ALBEDO = skin;
-	ROUGHNESS = 0.84 + pebble * 0.13;
-	SPECULAR = 0.13;
+	ROUGHNESS = clamp(0.79 + pebble * 0.13 + micro_grain * 0.05, 0.78, 0.97);
+	SPECULAR = 0.10 + fine_mottle * 0.04;
+	AO = clamp(0.94 + (micro_grain - 0.5) * 0.12, 0.86, 1.0);
 }
 """
 	var material := ShaderMaterial.new()
 	material.shader = shader
 	material.set_shader_parameter("skin_tint", base)
 	material.set_shader_parameter("detail_scale", detail_scale)
+	material.set_shader_parameter("micro_normal_strength", 0.07)
 	return material
 
 func _mesh(parent: Node3D, mesh: Mesh, material: Material, pos: Vector3, scale := Vector3.ONE, rot := Vector3.ZERO) -> MeshInstance3D:
@@ -1880,6 +1888,11 @@ func _make_triceratops_frill_mesh(center: Vector3, rim: PackedVector3Array, thic
 	surface.generate_normals()
 	return surface.commit()
 
+func _triceratops_gait_direction(leg_x: float, leg_z: float) -> float:
+	# Same-sign X/Z legs form one diagonal pair; the other pair moves in opposition.
+	return 1.0 if leg_x * leg_z > 0.0 else -1.0
+
+
 func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	var d := Node3D.new()
 	d.position = pos
@@ -1983,17 +1996,22 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 			# Diagonal pairs alternate with a restrained stride so the feet remain
 			# close to the ground instead of swinging like four independent rods.
 			if is_inside_tree():
-				var gait_direction: float = 1.0 if x * z > 0.0 else -1.0
+				var gait_direction := _triceratops_gait_direction(x, z)
+				var stride_amplitude := 0.065
+				pivot.rotation.x = -gait_direction * stride_amplitude
 				var gait := create_tween().set_loops()
-				gait.tween_property(pivot, "rotation:x", gait_direction * 0.08, 1.1).set_trans(Tween.TRANS_SINE)
-				gait.tween_property(pivot, "rotation:x", gait_direction * -0.08, 1.1).set_trans(Tween.TRANS_SINE)
+				gait.tween_property(pivot, "rotation:x", gait_direction * stride_amplitude, 0.62).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+				gait.tween_property(pivot, "rotation:x", -gait_direction * stride_amplitude, 0.62).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 			leg_index += 1
 	# Animation is attached only after the animal enters the live scene tree;
 	# off-tree procedural builds stay deterministic and safe for geometry tests.
 	if is_inside_tree():
 		var breathing := create_tween().set_loops()
-		breathing.tween_property(body_shell, "scale:x", 1.018, 2.1).set_trans(Tween.TRANS_SINE)
-		breathing.tween_property(body_shell, "scale:x", 1.0, 2.1).set_trans(Tween.TRANS_SINE)
+		breathing.tween_property(body_shell, "scale:y", 1.012, 2.1).set_trans(Tween.TRANS_SINE)
+		breathing.tween_property(body_shell, "scale:y", 1.0, 2.1).set_trans(Tween.TRANS_SINE)
+		var head_motion := create_tween().set_loops()
+		head_motion.tween_property(head_rig, "rotation:x", 0.022, 1.9).set_trans(Tween.TRANS_SINE)
+		head_motion.tween_property(head_rig, "rotation:x", -0.014, 2.1).set_trans(Tween.TRANS_SINE)
 
 func _preview_route() -> Array[Dictionary]:
 	# The north-and-west exit keeps the camera outside building collision volumes.
