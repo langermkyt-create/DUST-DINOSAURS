@@ -1758,9 +1758,10 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	d.add_child(tail_pivot)
 	var tail_instance := _mesh(tail_pivot, _make_tapered_tail_mesh(2.85, 0.43, 0.16), hide, Vector3.ZERO)
 	tail_instance.name = "TriceratopsTail"
-	var tail_sway := create_tween().set_loops()
-	tail_sway.tween_property(tail_pivot, "rotation:y", 0.085, 2.4).set_trans(Tween.TRANS_SINE)
-	tail_sway.tween_property(tail_pivot, "rotation:y", -0.085, 2.4).set_trans(Tween.TRANS_SINE)
+	if is_inside_tree():
+		var tail_sway := create_tween().set_loops()
+		tail_sway.tween_property(tail_pivot, "rotation:y", 0.085, 2.4).set_trans(Tween.TRANS_SINE)
+		tail_sway.tween_property(tail_pivot, "rotation:y", -0.085, 2.4).set_trans(Tween.TRANS_SINE)
 	_sphere(d, Vector3(0, 1.83, -1.47), Vector3(0.88, 0.9, 0.9), flank)
 	_sphere(d, Vector3(0, 1.93, -1.98), Vector3(0.82, 0.72, 0.92), hide)
 	_sphere(d, Vector3(0, 1.52, -2.23), Vector3(0.7, 0.34, 0.88), shadow)
@@ -1808,7 +1809,8 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	for x in [-0.78, 0.78]:
 		for z in [-0.86, 0.98]:
 			var sole_offset_z := -0.28 if z < 0.0 else -0.29
-			var foot_world := d.to_global(Vector3(x, 0.0, z + sole_offset_z))
+			var sole_local := Vector3(x, 0.0, z + sole_offset_z)
+			var foot_world := pos + sole_local.rotated(Vector3.UP, yaw) * size
 			var terrain_correction := (_terrain_height(Vector2(foot_world.x, foot_world.z)) - pos.y) / maxf(size, 0.001)
 			var pivot := Node3D.new()
 			pivot.name = "TriceratopsLegPivot_%d" % leg_index
@@ -1829,15 +1831,18 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 				_mesh(pivot, claw, horn, Vector3(toe_x, -1.075, -0.72), Vector3.ONE, Vector3(-PI / 2.0, 0, 0))
 			# Diagonal pairs alternate with a restrained stride so the feet remain
 			# close to the ground instead of swinging like four independent rods.
-			var gait_direction: float = 1.0 if x * z > 0.0 else -1.0
-			var gait := create_tween().set_loops()
-			gait.tween_property(pivot, "rotation:x", gait_direction * 0.08, 1.1).set_trans(Tween.TRANS_SINE)
-			gait.tween_property(pivot, "rotation:x", gait_direction * -0.08, 1.1).set_trans(Tween.TRANS_SINE)
+			if is_inside_tree():
+				var gait_direction: float = 1.0 if x * z > 0.0 else -1.0
+				var gait := create_tween().set_loops()
+				gait.tween_property(pivot, "rotation:x", gait_direction * 0.08, 1.1).set_trans(Tween.TRANS_SINE)
+				gait.tween_property(pivot, "rotation:x", gait_direction * -0.08, 1.1).set_trans(Tween.TRANS_SINE)
 			leg_index += 1
-	# Subtle torso breathing gives the herd a resting idle instead of a frozen pose.
-	var breathing := create_tween().set_loops()
-	breathing.tween_property(body_shell, "scale:x", 1.018, 2.1).set_trans(Tween.TRANS_SINE)
-	breathing.tween_property(body_shell, "scale:x", 1.0, 2.1).set_trans(Tween.TRANS_SINE)
+	# Animation is attached only after the animal enters the live scene tree;
+	# off-tree procedural builds stay deterministic and safe for geometry tests.
+	if is_inside_tree():
+		var breathing := create_tween().set_loops()
+		breathing.tween_property(body_shell, "scale:x", 1.018, 2.1).set_trans(Tween.TRANS_SINE)
+		breathing.tween_property(body_shell, "scale:x", 1.0, 2.1).set_trans(Tween.TRANS_SINE)
 
 func _preview_route() -> Array[Dictionary]:
 	# The north-and-west exit keeps the camera outside building collision volumes.
