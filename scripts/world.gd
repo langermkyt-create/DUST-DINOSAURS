@@ -1481,6 +1481,77 @@ func _make_triceratops_body_mesh() -> ArrayMesh:
 	surface.generate_normals()
 	return surface.commit()
 
+func _make_triceratops_leg_mesh(front_leg: bool) -> ArrayMesh:
+	# Each limb is a closed loft from the shoulder/hip through the ankle into
+	# the weight-bearing foot. Profiles are (height, forward offset, X radius, Z radius).
+	var profiles: Array[Vector4]
+	if front_leg:
+		profiles = [
+			Vector4(0.22, 0.00, 0.31, 0.33),
+			Vector4(-0.02, -0.015, 0.32, 0.33),
+			Vector4(-0.34, -0.045, 0.28, 0.29),
+			Vector4(-0.68, -0.09, 0.22, 0.24),
+			Vector4(-0.96, -0.17, 0.24, 0.29),
+			Vector4(-1.12, -0.28, 0.31, 0.39)
+		]
+	else:
+		profiles = [
+			Vector4(0.22, 0.00, 0.35, 0.37),
+			Vector4(-0.02, -0.015, 0.35, 0.36),
+			Vector4(-0.34, -0.06, 0.30, 0.32),
+			Vector4(-0.66, -0.12, 0.23, 0.26),
+			Vector4(-0.93, -0.21, 0.26, 0.31),
+			Vector4(-1.12, -0.29, 0.33, 0.40)
+		]
+	var smooth_profiles: Array[Vector4] = []
+	for profile_index in range(profiles.size() - 1):
+		var p0: Vector4 = profiles[maxi(profile_index - 1, 0)]
+		var p1: Vector4 = profiles[profile_index]
+		var p2: Vector4 = profiles[profile_index + 1]
+		var p3: Vector4 = profiles[mini(profile_index + 2, profiles.size() - 1)]
+		for subdivision in range(3):
+			var t := float(subdivision) / 3.0
+			smooth_profiles.append(_catmull_rom_profile(p0, p1, p2, p3, t))
+	smooth_profiles.append(profiles[profiles.size() - 1])
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var segment_count := 20
+	var rings: Array[PackedVector3Array] = []
+	for profile in smooth_profiles:
+		var ring := PackedVector3Array()
+		for segment in range(segment_count):
+			var angle := TAU * float(segment) / float(segment_count)
+			ring.append(Vector3(cos(angle) * profile.z, profile.x,
+				profile.y + sin(angle) * profile.w))
+		rings.append(ring)
+	for ring_index in range(rings.size() - 1):
+		for segment in range(segment_count):
+			var next_segment := (segment + 1) % segment_count
+			var a: Vector3 = rings[ring_index][segment]
+			var b: Vector3 = rings[ring_index][next_segment]
+			var c: Vector3 = rings[ring_index + 1][segment]
+			var next_ring_next: Vector3 = rings[ring_index + 1][next_segment]
+			surface.add_vertex(a)
+			surface.add_vertex(b)
+			surface.add_vertex(c)
+			surface.add_vertex(b)
+			surface.add_vertex(next_ring_next)
+			surface.add_vertex(c)
+	var top := profiles[0]
+	var bottom := profiles[profiles.size() - 1]
+	var top_center := Vector3(0.0, top.x, top.y)
+	var bottom_center := Vector3(0.0, bottom.x, bottom.y)
+	for segment in range(segment_count):
+		var next_segment := (segment + 1) % segment_count
+		surface.add_vertex(top_center)
+		surface.add_vertex(rings[0][next_segment])
+		surface.add_vertex(rings[0][segment])
+		surface.add_vertex(bottom_center)
+		surface.add_vertex(rings[rings.size() - 1][segment])
+		surface.add_vertex(rings[rings.size() - 1][next_segment])
+	surface.generate_normals()
+	return surface.commit()
+
 func _build_tyrannosaur(pos: Vector3, size: float) -> void:
 	var rex := Node3D.new()
 	rex.position = pos
@@ -1694,32 +1765,37 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 		_sphere(d, Vector3(x, 2.03, -2.06), Vector3(0.095, 0.105, 0.075), eye)
 		_sphere(d, Vector3(x * 0.76, 1.67, -2.64), Vector3(0.055, 0.04, 0.035), shadow)
 
-	# Four weight-bearing legs, articulated at the hip and animated in a slow gait.
+	# Four continuous, weight-bearing limbs. Their neutral sole height is
+	# corrected against the actual terrain under each foot, not the herd center.
+	var leg_index := 0
 	for x in [-0.78, 0.78]:
 		for z in [-0.86, 0.98]:
+			var foot_world := d.to_global(Vector3(x, 0.0, z))
+			var terrain_correction := (_terrain_height(Vector2(foot_world.x, foot_world.z)) - pos.y) / maxf(size, 0.001)
 			var pivot := Node3D.new()
-			pivot.position = Vector3(x, 1.18, z)
+			pivot.name = "TriceratopsLegPivot_%d" % leg_index
+			pivot.position = Vector3(x, 1.12 + terrain_correction, z)
 			d.add_child(pivot)
-			var upper := CylinderMesh.new()
-			upper.top_radius = 0.24
-			upper.bottom_radius = 0.34
-			upper.height = 0.82
-			upper.radial_segments = 18
-			_mesh(pivot, upper, hide, Vector3(0, -0.39, 0))
-			var lower := CylinderMesh.new()
-			lower.top_radius = 0.2
-			lower.bottom_radius = 0.27
-			lower.height = 0.66
-			lower.radial_segments = 18
-			_mesh(pivot, lower, shadow, Vector3(0, -1.02, -0.025))
-			_sphere(pivot, Vector3(0, -1.34, -0.14), Vector3(0.43, 0.22, 0.48), shadow)
-			for toe in [-0.2, 0.0, 0.2]:
-				_sphere(pivot, Vector3(toe, -1.37, -0.43), Vector3(0.12, 0.1, 0.18), horn)
-			# Opposite diagonal pairs alternate, avoiding the old same-phase four-leg shuffle.
+			var front_leg := z < 0.0
+			var leg_mass := _mesh(pivot, _make_triceratops_leg_mesh(front_leg), hide, Vector3.ZERO)
+			leg_mass.name = "TriceratopsLegMass"
+			for toe_index in range(3):
+				var toe_x := (float(toe_index) - 1.0) * 0.21
+				var toe_pad := _sphere(pivot, Vector3(toe_x, -1.075, -0.54), Vector3(0.14, 0.095, 0.27), shadow)
+				toe_pad.name = "TriceratopsToePad_%d" % toe_index
+				var claw := CylinderMesh.new()
+				claw.top_radius = 0.006
+				claw.bottom_radius = 0.047
+				claw.height = 0.14
+				claw.radial_segments = 10
+				_mesh(pivot, claw, horn, Vector3(toe_x, -1.075, -0.72), Vector3.ONE, Vector3(-PI / 2.0, 0, 0))
+			# Diagonal pairs alternate with a restrained stride so the feet remain
+			# close to the ground instead of swinging like four independent rods.
 			var gait_direction: float = 1.0 if x * z > 0.0 else -1.0
 			var gait := create_tween().set_loops()
-			gait.tween_property(pivot, "rotation:x", gait_direction * 0.13, 0.85).set_trans(Tween.TRANS_SINE)
-			gait.tween_property(pivot, "rotation:x", gait_direction * -0.13, 0.85).set_trans(Tween.TRANS_SINE)
+			gait.tween_property(pivot, "rotation:x", gait_direction * 0.08, 1.1).set_trans(Tween.TRANS_SINE)
+			gait.tween_property(pivot, "rotation:x", gait_direction * -0.08, 1.1).set_trans(Tween.TRANS_SINE)
+			leg_index += 1
 	# Subtle torso breathing gives the herd a resting idle instead of a frozen pose.
 	var breathing := create_tween().set_loops()
 	breathing.tween_property(body_shell, "scale:x", 1.018, 2.1).set_trans(Tween.TRANS_SINE)

@@ -49,6 +49,9 @@ jobs:
       - name: Test continuous triceratops torso anatomy
         run: godot --headless --path . --script tests/test_triceratops_body.gd
 
+      - name: Test continuous triceratops legs and terrain contact
+        run: godot --headless --path . --script tests/test_triceratops_legs.gd
+
       - name: Test closed triceratops frill geometry
         run: godot --headless --path . --script tests/test_triceratops_frill.gd
 
