@@ -1807,7 +1807,8 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	var leg_index := 0
 	for x in [-0.78, 0.78]:
 		for z in [-0.86, 0.98]:
-			var foot_world := d.to_global(Vector3(x, 0.0, z))
+			var sole_offset_z := -0.28 if z < 0.0 else -0.29
+			var foot_world := d.to_global(Vector3(x, 0.0, z + sole_offset_z))
 			var terrain_correction := (_terrain_height(Vector2(foot_world.x, foot_world.z)) - pos.y) / maxf(size, 0.001)
 			var pivot := Node3D.new()
 			pivot.name = "TriceratopsLegPivot_%d" % leg_index

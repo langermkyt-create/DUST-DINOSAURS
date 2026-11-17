@@ -32,7 +32,8 @@ func _initialize() -> void:
 		for child in pivot.get_children():
 			if child.name.begins_with("TriceratopsToePad_"):
 				toe_pads += 1
-		var sole := pivot.to_global(Vector3(0.0, bounds.position.y, 0.0))
+		var sole_offset_z := -0.28 if pivot.position.z < 0.0 else -0.29
+		var sole := pivot.to_global(Vector3(0.0, bounds.position.y, sole_offset_z))
 		var ground := float(world.call("_terrain_height", Vector2(sole.x, sole.z)))
 		if absf(sole.y - ground) > 0.06:
 			_fail(world, "Triceratops leg sole is not aligned to the terrain beneath its foot.")

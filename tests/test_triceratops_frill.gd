@@ -13,7 +13,7 @@ func _initialize() -> void:
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var bounds := frill.mesh.get_aabb()
-	if vertices.size() < 500 or normals.size() != vertices.size():
+	if vertices.size() < 250 or normals.size() != vertices.size():
 		_fail(world, "Frill plate must contain a curved front, rear and generated normals.")
 		return
 	if bounds.size.z < 0.15 or bounds.size.x < 1.8 or bounds.size.y < 1.0:
