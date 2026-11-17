@@ -1673,6 +1673,68 @@ func _make_tapered_tail_mesh(length: float, base_radius: float, upward_curve: fl
 	surface.generate_normals()
 	return surface.commit()
 
+func _add_frill_triangle(surface: SurfaceTool, tint: Color, a: Vector3, b: Vector3, c: Vector3) -> void:
+	surface.set_color(tint)
+	surface.add_vertex(a)
+	surface.add_vertex(b)
+	surface.add_vertex(c)
+
+func _add_frill_quad(surface: SurfaceTool, tint: Color, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+	_add_frill_triangle(surface, tint, a, b, c)
+	_add_frill_triangle(surface, tint, b, d, c)
+
+func _make_triceratops_frill_mesh(center: Vector3, rim: PackedVector3Array, thickness: float) -> ArrayMesh:
+	# A shallow convex front and rear are joined around the complete outline.
+	# The basal chord is deliberately split at the center and mid-ring points,
+	# so no open boundary remains where the semicircular plate meets the skull.
+	var front_rim := PackedVector3Array()
+	var back_rim := PackedVector3Array()
+	var front_mid := PackedVector3Array()
+	var back_mid := PackedVector3Array()
+	for point_index in range(rim.size()):
+		var angle := PI * float(point_index) / float(rim.size() - 1)
+		var front_point: Vector3 = center + rim[point_index]
+		var mid_point := center.lerp(front_point, 0.52) + Vector3(0.0, 0.0, -0.035 * sin(angle))
+		front_rim.append(front_point)
+		back_rim.append(front_point + Vector3(0.0, 0.0, thickness))
+		front_mid.append(mid_point)
+		back_mid.append(mid_point + Vector3(0.0, 0.0, thickness))
+	var back_center := center + Vector3(0.0, 0.0, thickness)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for segment in range(rim.size() - 1):
+		var front_a: Vector3 = front_rim[segment]
+		var front_b: Vector3 = front_rim[segment + 1]
+		var back_a: Vector3 = back_rim[segment]
+		var back_b: Vector3 = back_rim[segment + 1]
+		var mid_a: Vector3 = front_mid[segment]
+		var mid_b: Vector3 = front_mid[segment + 1]
+		var back_mid_a: Vector3 = back_mid[segment]
+		var back_mid_b: Vector3 = back_mid[segment + 1]
+		var plate_tint := Color(0.42 + 0.05 * sin(float(segment) * 0.7), 0.39, 0.27)
+		# Front: center fan plus a second ring gives the plate a restrained convex crown.
+		_add_frill_triangle(surface, plate_tint, center, mid_a, mid_b)
+		_add_frill_triangle(surface, plate_tint, mid_a, front_a, front_b)
+		_add_frill_triangle(surface, plate_tint, mid_a, front_b, mid_b)
+		# Rear face uses the reverse winding and a darker mineral tint.
+		_add_frill_triangle(surface, plate_tint * 0.86, back_center, back_mid_b, back_mid_a)
+		_add_frill_triangle(surface, plate_tint * 0.86, back_mid_a, back_b, back_a)
+		_add_frill_triangle(surface, plate_tint * 0.86, back_mid_a, back_mid_b, back_b)
+		# Scalloped outer edge closes the front and rear plates.
+		_add_frill_triangle(surface, plate_tint * 0.72, front_a, front_b, back_a)
+		_add_frill_triangle(surface, plate_tint * 0.72, front_b, back_b, back_a)
+	# Close the basal chord in four strips, following the center and mid-ring
+	# boundary vertices so every perimeter edge is shared by exactly two faces.
+	var edge_tint := Color(0.30, 0.28, 0.20)
+	_add_frill_quad(surface, edge_tint, center, front_mid[0], back_center, back_mid[0])
+	_add_frill_quad(surface, edge_tint, front_mid[0], front_rim[0], back_mid[0], back_rim[0])
+	var last := rim.size() - 1
+	_add_frill_quad(surface, edge_tint, center, front_mid[last], back_center, back_mid[last])
+	_add_frill_quad(surface, edge_tint, front_mid[last], front_rim[last], back_mid[last], back_rim[last])
+	surface.index()
+	surface.generate_normals()
+	return surface.commit()
+
 func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	var d := Node3D.new()
 	d.position = pos
@@ -1704,9 +1766,8 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	_sphere(d, Vector3(0, 1.52, -2.23), Vector3(0.7, 0.34, 0.88), shadow)
 	_sphere(d, Vector3(0, 1.47, -2.48), Vector3(0.56, 0.28, 0.58), shadow)
 
-	# Broad scalloped frill, modeled as a custom fan mesh with raised knobs.
-	var fan := SurfaceTool.new()
-	fan.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# The fan is curved across its face and sealed along both the scalloped
+	# rim and the straight basal chord; the same mesh carries the vertex tint.
 	var center := Vector3(0, 2.12, -1.57)
 	var rim := PackedVector3Array()
 	for i in range(25):
@@ -1714,34 +1775,10 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 		var scallop := 1.0 + 0.055 * sin(float(i) * PI / 3.0)
 		rim.append(Vector3(cos(angle) * 1.02 * scallop, sin(angle) * 1.13 * scallop, -0.12 * sin(angle)))
 	var frill_thickness := 0.16
-	var back_center := center + Vector3(0.0, 0.0, frill_thickness)
-	for i in range(24):
-		var front_a := center + rim[i]
-		var front_b := center + rim[i + 1]
-		var back_a := front_a + Vector3(0.0, 0.0, frill_thickness)
-		var back_b := front_b + Vector3(0.0, 0.0, frill_thickness)
-		var plate_tint := Color(0.42 + 0.05 * sin(float(i) * 0.7), 0.39, 0.27)
-		# Front and back plates plus the perimeter web make the frill a closed bony form.
-		fan.set_color(plate_tint)
-		fan.add_vertex(center)
-		fan.add_vertex(front_a)
-		fan.add_vertex(front_b)
-		fan.set_color(plate_tint * 0.86)
-		fan.add_vertex(back_center)
-		fan.add_vertex(back_b)
-		fan.add_vertex(back_a)
-		fan.set_color(plate_tint * 0.72)
-		fan.add_vertex(front_a)
-		fan.add_vertex(front_b)
-		fan.add_vertex(back_a)
-		fan.add_vertex(front_b)
-		fan.add_vertex(back_b)
-		fan.add_vertex(back_a)
-	fan.generate_normals()
 	var fan_material := StandardMaterial3D.new()
 	fan_material.vertex_color_use_as_albedo = true
 	fan_material.roughness = 0.9
-	var frill := _mesh(d, fan.commit(), fan_material, Vector3.ZERO)
+	var frill := _mesh(d, _make_triceratops_frill_mesh(center, rim, frill_thickness), fan_material, Vector3.ZERO)
 	frill.name = "TriceratopsFrill"
 	for i in range(0, 25, 3):
 		_sphere(d, center + rim[i], Vector3(0.13, 0.14, 0.13), flank)
