@@ -99,3 +99,14 @@ The passing validation is on PR branch \`f05491878dd73d488d7eb7bd4b465f814b45e2b
 5. Obtain target-GPU measurements and independent visual review against specific RDR2 criteria. The current llvmpipe capture cannot establish target-hardware quality or performance.
 
 AAA status remains **not achieved**. Continue from the merged head, inspect the new Windows Build preview first, then choose the next highest-impact world-level blocker.
+
+
+## 2026-11-17 third development pass — evidence-route close-up
+
+The post-merge Windows Build \`#121\` completed successfully and produced a fresh 48-second \`1280×720, 30 FPS\` preview on main \`e8b4b0f2\`. I decoded the video and inspected a 3-second contact sheet plus the triceratops close-up crop. The new head/eye/horn work is present in the scene, but the existing \`herd_close\` camera still framed the family from roughly 10.8 m and aimed at the herd center. At 1280×720, the new anatomy was not large enough on screen to evaluate reliably.
+
+To make the next visual check meaningful, the preview route now moves to a 6.3 m west-flank shot and aims at the lead triceratops head. The next camera segment is tested to move monotonically away from that animal while remaining at least 8 m from the other family members; the southbound route then resumes after the explicit clearance point. The route duration is unchanged.
+
+The focused preview-route regression and the full Godot validation workflow **#102** passed on branch commit \`9ee3472f25a96ddb644446e0890cf7addb972002\`. This is a camera/evidence improvement only. It does not change the dinosaur mesh and does not establish visual quality. The post-merge Windows Build must produce another capture, which must be inspected at the new head close-up before the next art decision.
+
+AAA status remains **not achieved**. Next: merge after checks, inspect the new close-up capture, then continue from the actual rendered result.

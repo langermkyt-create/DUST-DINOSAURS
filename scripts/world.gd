@@ -2053,9 +2053,10 @@ func _preview_route() -> Array[Dictionary]:
 		},
 		{
 			"id": "herd_close",
-			# Hold just outside the herd's 8 m safety radius for a readable family shot.
-			"position": Vector3(-41.0, _terrain_height(Vector2(-41.0, -48.0)) + 1.35, -48.0),
-			"target": Vector3(-31.0, 2.2, -58.0),
+			# A deliberate 6.3 m head detail shot on the west flank; the following
+			# clearance leg moves monotonically away from the family before turning south.
+			"position": Vector3(-37.0, _terrain_height(Vector2(-37.0, -50.0)) + 1.35, -50.0),
+			"target": Vector3(-31.0, _terrain_height(Vector2(-31.0, -52.0)) + 1.95, -54.2),
 			"duration": 4.0
 		},
 		{
