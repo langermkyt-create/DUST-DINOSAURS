@@ -50,6 +50,9 @@ jobs:
       - name: Test continuous triceratops head, jaw and eye sockets
         run: timeout 30s godot --headless --path . --script tests/test_triceratops_head.gd
 
+      - name: Test coordinated triceratops diagonal gait
+        run: timeout 30s godot --headless --path . --script tests/test_triceratops_gait.gd
+
       - name: Test closed triceratops frill geometry
         run: timeout 30s godot --headless --path . --script tests/test_triceratops_frill.gd
 
