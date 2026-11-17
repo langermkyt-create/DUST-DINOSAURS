@@ -45,8 +45,8 @@ No third-party art assets were introduced; all geometry remains original and pro
 - The validation workflow now cancels an older run when a newer commit is pushed to the same PR branch, so the final grouped test pass is not delayed by stale snapshots.
 
 - Pass 1 torso loft regression and the full Godot validation/Windows export workflow passed on commit `c1df156d` (workflow #81).
-- Pass 2 is committed as `9db99c03`; its CI result is pending at the time of this log update.
-- Pass 3 is committed as the current branch head only after the final watertight-frill test is run by CI.
+- Pass 2 is committed as `9db99c03`; its full CI run stalled at the pre-existing sandstone rock LOD test before reaching the new triceratops leg regression.
+- Pass 3 is committed as `4882b476`; its full CI run also stalled at the same earlier rock LOD step. The final workflow now runs the three focused triceratops regressions immediately after script import, before the older rock test, so the new anatomy can be checked independently.
 - The previous llvmpipe/OpenGL capture limitation remains. The anatomy regressions validate geometry and mesh topology, not final close-up visual quality or target-GPU performance.
 - AAA status remains **not achieved**. The next step is to run the full PR validation and Windows export, inspect a fresh animal close-up capture, then continue to head articulation, skin microdetail and animal gait.
 
