@@ -1418,6 +1418,69 @@ func _make_tyrannosaur_leg_mesh() -> ArrayMesh:
 	surface.generate_normals()
 	return surface.commit()
 
+func _make_triceratops_body_mesh() -> ArrayMesh:
+	# One closed, smoothly lofted shell carries the shoulder barrel through the
+	# rib cage and pelvis. Profiles are (longitudinal Z, center Y, half-width X,
+	# half-height Y); the broadest volume sits behind the shoulder line.
+	var profiles: Array[Vector4] = [
+		Vector4(-1.85, 1.54, 0.42, 0.50),
+		Vector4(-1.52, 1.55, 0.64, 0.67),
+		Vector4(-1.02, 1.52, 0.82, 0.78),
+		Vector4(-0.40, 1.49, 0.93, 0.84),
+		Vector4(0.30, 1.46, 0.96, 0.84),
+		Vector4(0.88, 1.41, 0.82, 0.74),
+		Vector4(1.38, 1.35, 0.60, 0.59),
+		Vector4(1.72, 1.32, 0.34, 0.37)
+	]
+	var smooth_profiles: Array[Vector4] = []
+	for profile_index in range(profiles.size() - 1):
+		var p0: Vector4 = profiles[maxi(profile_index - 1, 0)]
+		var p1: Vector4 = profiles[profile_index]
+		var p2: Vector4 = profiles[profile_index + 1]
+		var p3: Vector4 = profiles[mini(profile_index + 2, profiles.size() - 1)]
+		for subdivision in range(4):
+			var t := float(subdivision) / 4.0
+			smooth_profiles.append(_catmull_rom_profile(p0, p1, p2, p3, t))
+	smooth_profiles.append(profiles[profiles.size() - 1])
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var segment_count := 28
+	var rings: Array[PackedVector3Array] = []
+	for profile in smooth_profiles:
+		var ring := PackedVector3Array()
+		for segment in range(segment_count):
+			var angle := TAU * float(segment) / float(segment_count)
+			ring.append(Vector3(cos(angle) * profile.z,
+				profile.y + sin(angle) * profile.w, profile.x))
+		rings.append(ring)
+	for ring_index in range(rings.size() - 1):
+		for segment in range(segment_count):
+			var next_segment := (segment + 1) % segment_count
+			var a: Vector3 = rings[ring_index][segment]
+			var b: Vector3 = rings[ring_index][next_segment]
+			var c: Vector3 = rings[ring_index + 1][segment]
+			var next_ring_next: Vector3 = rings[ring_index + 1][next_segment]
+			surface.add_vertex(a)
+			surface.add_vertex(b)
+			surface.add_vertex(c)
+			surface.add_vertex(b)
+			surface.add_vertex(next_ring_next)
+			surface.add_vertex(c)
+	var front := smooth_profiles[0]
+	var rear := smooth_profiles[smooth_profiles.size() - 1]
+	var front_center := Vector3(0.0, front.y, front.x)
+	var rear_center := Vector3(0.0, rear.y, rear.x)
+	for segment in range(segment_count):
+		var next_segment := (segment + 1) % segment_count
+		surface.add_vertex(front_center)
+		surface.add_vertex(rings[0][next_segment])
+		surface.add_vertex(rings[0][segment])
+		surface.add_vertex(rear_center)
+		surface.add_vertex(rings[rings.size() - 1][segment])
+		surface.add_vertex(rings[rings.size() - 1][next_segment])
+	surface.generate_normals()
+	return surface.commit()
+
 func _build_tyrannosaur(pos: Vector3, size: float) -> void:
 	var rex := Node3D.new()
 	rex.position = pos
@@ -1551,17 +1614,10 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	var horn := _material(Color(0.72, 0.62, 0.43), 0.82)
 	var eye := _material(Color(0.035, 0.028, 0.019), 0.25)
 
-	# Heavy barrel torso, shoulders and sloped hindquarters.
-	var torso := CapsuleMesh.new()
-	torso.radius = 0.73
-	torso.height = 2.65
-	torso.radial_segments = 32
-	torso.rings = 12
-	var body := _mesh(d, torso, hide, Vector3(0, 1.48, 0.05), Vector3.ONE, Vector3(PI / 2.0, 0, 0))
-	body.scale = Vector3(1.0, 1.0, 1.32)
-	_sphere(d, Vector3(0, 1.42, 0.92), Vector3(1.28, 1.12, 1.25), hide)
-	_sphere(d, Vector3(0, 1.63, -0.93), Vector3(1.12, 1.12, 1.08), flank)
-	_sphere(d, Vector3(0, 1.2, 0.12), Vector3(1.08, 0.55, 1.65), shadow)
+	# A single loft replaces the old capsule, shoulder sphere, hip sphere and
+	# belly primitive, removing the visible seams between major body masses.
+	var body_shell := _mesh(d, _make_triceratops_body_mesh(), hide, Vector3.ZERO)
+	body_shell.name = "TriceratopsBody"
 
 	# Long tapered tail with a continuous hide surface and gentle vertical sweep.
 	var tail_pivot := Node3D.new()
@@ -1666,8 +1722,8 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 			gait.tween_property(pivot, "rotation:x", gait_direction * -0.13, 0.85).set_trans(Tween.TRANS_SINE)
 	# Subtle torso breathing gives the herd a resting idle instead of a frozen pose.
 	var breathing := create_tween().set_loops()
-	breathing.tween_property(body, "scale:y", 1.025, 2.1).set_trans(Tween.TRANS_SINE)
-	breathing.tween_property(body, "scale:y", 1.0, 2.1).set_trans(Tween.TRANS_SINE)
+	breathing.tween_property(body_shell, "scale:x", 1.018, 2.1).set_trans(Tween.TRANS_SINE)
+	breathing.tween_property(body_shell, "scale:x", 1.0, 2.1).set_trans(Tween.TRANS_SINE)
 
 func _preview_route() -> Array[Dictionary]:
 	# The north-and-west exit keeps the camera outside building collision volumes.
