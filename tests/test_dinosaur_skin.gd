@@ -16,6 +16,13 @@ func _initialize() -> void:
 			if float(material.get_shader_parameter("detail_scale")) <= 0.0:
 				_fail(world, "Dinosaur skin detail scale must remain positive.")
 				return
+			if float(material.get_shader_parameter("micro_normal_strength")) <= 0.0:
+				_fail(world, "Dinosaur hide must keep a positive procedural micro-normal strength.")
+				return
+			var shader_code: String = material.shader.code
+			if not shader_code.contains("micro_relief") or not shader_code.contains("dFdx") or not shader_code.contains("AO ="):
+				_fail(world, "Dinosaur hide shader must retain procedural micro-relief, normal perturbation and occlusion variation.")
+				return
 	if skin_meshes < 12:
 		_fail(world, "Both dinosaur species must use the shared procedural skin material on their hide meshes.")
 		return

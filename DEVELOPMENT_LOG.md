@@ -61,3 +61,41 @@ The 17 Nov CI proves geometry properties, script validity, main-scene headless l
 5. Build a representative fixed-camera scene set (desert, rock/vegetation, town/interior, animals/dinosaurs, weather/time-of-day) and obtain independent visual review against concrete RDR2 reference criteria.
 
 AAA status remains **not achieved**. Continue from the new main HEAD, inspect post-merge CI/artifacts first, then proceed to the next triceratops close-up anatomy pass.
+
+
+## 2026-11-17 second development pass — triceratops close-up refinement
+
+Inspected \`main\` at \`45994d27da9e60d47f62253a2f9d54dfdee57779\`, the latest commits, both workflows, open issues and pull requests. No open issues or pull requests were present at the start of this pass. Main's Godot validation workflow \`#92\` and Windows Build \`#120\` had succeeded.
+
+### Baseline visual review
+
+Downloaded and decoded the 48-second \`1280×720, 30 FPS\` gameplay preview from Windows Build \`#120\`. Inspected a contact sheet at three-second intervals and individual frames of the settlement, herd and tyrannosaur vista. The preview is a real gameplay capture, but it remains a strongly stylized low-poly slice: the ground reads as a broad dark plane, cactus and rock silhouettes are simple, the town is largely exterior-only, and the triceratops still has visibly intersecting head masses. This confirms the head close-up is a worthwhile next target; it does not support an AAA claim. The capture host uses software rendering (Mesa llvmpipe/OpenGL 3), so it is not a target-GPU benchmark.
+
+### Geometry and material passes
+
+1. **Skull, jaw and neck transition** — replaced four intersecting skull/jaw spheres with separate closed Catmull–Rom lofts that overlap the existing torso shell deliberately. Added a shared head rig for the skull, jaw, frill and facial details, plus paired eye sockets and smaller eye layers.
+2. **Horn anatomy** — replaced constant-radius rotated cylinders with curved, tapered, capped keratin tubes for the two brow horns and nasal horn. Added three hide-coloured root collars so the horn bases embed into the skull instead of floating above it.
+3. **Skin response and gait** — added a high-frequency procedural relief signal, restrained derivative-based normal perturbation, micro-grain variation, roughness breakup and AO modulation. Reworked the four leg tweens so diagonal pairs share a cycle and opposing pairs start out of phase; added a restrained head nod and vertical breathing motion.
+4. **Shading continuity correction** — indexed the new skull/jaw and horn surfaces before generating normals. This shares coincident ring vertices so the lofts shade smoothly rather than exposing every triangulation edge.
+
+All new geometry is original and procedural; no third-party art assets were added.
+
+### Regressions and CI
+
+- Added \`tests/test_triceratops_head.gd\` for closed skull/jaw/horn topology, bounds, generated normals, eye sockets, horn counts and root collars.
+- Added \`tests/test_triceratops_gait.gd\` for diagonal-pair synchronization and the four leg pivots.
+- Extended \`tests/test_dinosaur_skin.gd\` to require procedural micro-relief, derivative normal perturbation, AO and a positive strength parameter.
+- Added both new focused tests to \`.github/workflows/godot-validation.yml\`.
+- The first head test attempts exposed a test-only issue: Godot automatically suffixes duplicate sibling names. The regression was corrected to count name prefixes. The subsequent final branch validation **#99** passed import/parser checks, all triceratops and existing world regressions, preview-route validation, headless main-scene launch and Windows x86_64 export.
+
+The passing validation is on PR branch \`f05491878dd73d488d7eb7bd4b465f814b45e2b7\`, not yet on \`main\`. A fresh post-change gameplay capture has not yet been generated or visually inspected. The merge should trigger the Windows Build workflow; inspect that artifact before claiming a visible improvement.
+
+### Current blockers and next work
+
+1. Review the fresh post-merge capture at close range to confirm the head, eye sockets, horn roots, smooth normals and gait read correctly in the rendered game.
+2. Continue the whole-world quality pass: remove the large flat-looking ground read, improve rock/cactus material breakup and silhouette variation, and add an actual interior route/control scene rather than assuming the exterior town proves interior quality.
+3. Improve dinosaur skin/eye close-ups and foot-ground interaction based on the new rendered capture.
+4. Add reproducible fixed-camera scenes for desert, rocks/vegetation, town/interior, animals/dinosaurs and weather/time-of-day.
+5. Obtain target-GPU measurements and independent visual review against specific RDR2 criteria. The current llvmpipe capture cannot establish target-hardware quality or performance.
+
+AAA status remains **not achieved**. Continue from the merged head, inspect the new Windows Build preview first, then choose the next highest-impact world-level blocker.
