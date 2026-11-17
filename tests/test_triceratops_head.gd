@@ -37,15 +37,15 @@ func _initialize() -> void:
 	var nasal_horns := 0
 	var horn_roots := 0
 	for node in world.find_children("*", "MeshInstance3D", true, false):
-		if node.name == "TriceratopsEyeSocket":
+		if node.name.begins_with("TriceratopsEyeSocket"):
 			sockets += 1
-		elif node.name == "TriceratopsEye":
+		elif node.name.begins_with("TriceratopsEye"):
 			eyes += 1
-		elif node.name == "TriceratopsBrowHorn":
+		elif node.name.begins_with("TriceratopsBrowHorn"):
 			brow_horns += 1
 		elif node.name == "TriceratopsNasalHorn":
 			nasal_horns += 1
-		elif node.name == "TriceratopsHornRoot":
+		elif node.name.begins_with("TriceratopsHornRoot"):
 			horn_roots += 1
 	if sockets != 2 or eyes != 2:
 		_fail(world, "Triceratops must have two recessed eye sockets and two eye globes.")
