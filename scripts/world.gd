@@ -1775,6 +1775,59 @@ func _make_triceratops_jaw_mesh() -> ArrayMesh:
 	return _make_triceratops_z_loft(profiles, 24, 4)
 
 
+func _make_triceratops_horn_mesh(base: Vector3, tip: Vector3, base_radius: float, bend: Vector3) -> ArrayMesh:
+	# A curved keratin tube tapers continuously from a broad embedded root to
+	# a fine point. The local frame follows the curved centerline, avoiding the
+	# blunt, constant-cross-section look of rotated CylinderMesh horns.
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var ring_count := 20
+	var segment_count := 14
+	var rings: Array[PackedVector3Array] = []
+	for ring_index in range(ring_count):
+		var t := float(ring_index) / float(ring_count - 1)
+		var center := base.lerp(tip, t) + bend * sin(t * PI)
+		var tangent := (tip - base + bend * PI * cos(t * PI)).normalized()
+		var reference := Vector3.UP
+		if absf(tangent.dot(reference)) > 0.94:
+			reference = Vector3.FORWARD
+		var side := tangent.cross(reference).normalized()
+		var up := side.cross(tangent).normalized()
+		var radius := base_radius * pow(1.0 - t, 0.88) + 0.004
+		if ring_index == 0:
+			radius *= 1.08
+		var ring := PackedVector3Array()
+		for segment in range(segment_count):
+			var angle := TAU * float(segment) / float(segment_count)
+			var radial := side * cos(angle) + up * sin(angle)
+			ring.append(center + radial * radius)
+		rings.append(ring)
+	for ring_index in range(rings.size() - 1):
+		for segment in range(segment_count):
+			var next_segment := (segment + 1) % segment_count
+			var a: Vector3 = rings[ring_index][segment]
+			var b: Vector3 = rings[ring_index][next_segment]
+			var c: Vector3 = rings[ring_index + 1][segment]
+			var d: Vector3 = rings[ring_index + 1][next_segment]
+			# Winding faces away from the centerline.
+			surface.add_vertex(a)
+			surface.add_vertex(c)
+			surface.add_vertex(b)
+			surface.add_vertex(b)
+			surface.add_vertex(c)
+			surface.add_vertex(d)
+	for segment in range(segment_count):
+		var next_segment := (segment + 1) % segment_count
+		surface.add_vertex(base)
+		surface.add_vertex(rings[0][segment])
+		surface.add_vertex(rings[0][next_segment])
+		surface.add_vertex(tip)
+		surface.add_vertex(rings[rings.size() - 1][next_segment])
+		surface.add_vertex(rings[rings.size() - 1][segment])
+	surface.generate_normals()
+	return surface.commit()
+
+
 func _make_triceratops_frill_mesh(center: Vector3, rim: PackedVector3Array, thickness: float) -> ArrayMesh:
 	# A shallow convex front and rear are joined around the complete outline.
 	# The basal chord is deliberately split at the center and mid-ring points,
@@ -1883,21 +1936,24 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	for i in range(0, 25, 3):
 		_sphere(head_rig, center + rim[i] + head_offset, Vector3(0.13, 0.14, 0.13), flank)
 
-	# Two long brow horns and the shorter nasal horn.
-	for x in [-0.48, 0.48]:
-		var horn_mesh := CylinderMesh.new()
-		horn_mesh.top_radius = 0.012
-		horn_mesh.bottom_radius = 0.145
-		horn_mesh.height = 0.92
-		horn_mesh.radial_segments = 12
-		_mesh(head_rig, horn_mesh, horn, Vector3(x, 2.52, -2.0) + head_offset, Vector3.ONE, Vector3(-0.48, 0, 0))
-		_sphere(head_rig, Vector3(x * 1.23, 2.18, -2.1) + head_offset, Vector3(0.2, 0.16, 0.2), flank)
-	var nose := CylinderMesh.new()
-	nose.top_radius = 0.01
-	nose.bottom_radius = 0.11
-	nose.height = 0.52
-	nose.radial_segments = 12
-	_mesh(head_rig, nose, horn, Vector3(0, 2.0, -2.72) + head_offset, Vector3.ONE, Vector3(-0.45, 0, 0))
+	# Two forward-swept brow horns emerge from fleshy root collars; a shorter
+	# nasal horn follows the same tapered, curved keratin construction.
+	for x in [-0.40, 0.40]:
+		var brow_base := Vector3(x, 2.06, -2.13)
+		var brow_tip := Vector3(x * 1.38, 2.83, -2.78)
+		var brow_bend := Vector3(x * 0.08, 0.10, -0.07)
+		var root := _sphere(head_rig, brow_base + head_offset, Vector3(0.25, 0.22, 0.24), flank)
+		root.name = "TriceratopsHornRoot"
+		var brow := _mesh(head_rig, _make_triceratops_horn_mesh(brow_base, brow_tip, 0.14, brow_bend), horn, head_offset)
+		brow.name = "TriceratopsBrowHorn"
+	var nasal_base := Vector3(0.0, 1.72, -2.62)
+	var nasal_tip := Vector3(0.0, 2.24, -3.02)
+	var nasal_root := _sphere(head_rig, nasal_base + head_offset, Vector3(0.21, 0.17, 0.20), flank)
+	nasal_root.name = "TriceratopsHornRoot"
+	var nasal_horn := _mesh(head_rig,
+		_make_triceratops_horn_mesh(nasal_base, nasal_tip, 0.105, Vector3(0.0, 0.075, -0.045)),
+		horn, head_offset)
+	nasal_horn.name = "TriceratopsNasalHorn"
 	for x in [-0.40, 0.40]:
 		var socket := _sphere(head_rig, Vector3(x, 1.96, -2.12) + head_offset, Vector3(0.17, 0.16, 0.09), flank)
 		socket.name = "TriceratopsEyeSocket"
