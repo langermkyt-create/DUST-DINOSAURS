@@ -1757,6 +1757,9 @@ func _make_triceratops_z_loft(profiles: Array[Vector4], segment_count: int, subd
 		surface.add_vertex(last_center)
 		surface.add_vertex(rings[rings.size() - 1][segment])
 		surface.add_vertex(rings[rings.size() - 1][next_segment])
+	# Merge coincident ring vertices before normal generation so the loft
+	# shades continuously across each profile instead of looking triangulated.
+	surface.index()
 	surface.generate_normals()
 	return surface.commit()
 
@@ -1832,6 +1835,7 @@ func _make_triceratops_horn_mesh(base: Vector3, tip: Vector3, base_radius: float
 		surface.add_vertex(tip)
 		surface.add_vertex(rings[rings.size() - 1][next_segment])
 		surface.add_vertex(rings[rings.size() - 1][segment])
+	surface.index()
 	surface.generate_normals()
 	return surface.commit()
 
