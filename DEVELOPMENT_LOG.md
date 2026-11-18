@@ -156,3 +156,10 @@ The first creosote regression (#108) reached the placement-height assertion and 
 ### Creosote placement regression correction
 
 The first placement assertion exposed that reading `MultiMesh.get_instance_transform()` from an off-tree `SceneTree` dummy-renderer test returns the default identity transform rather than the authored CPU-side placement record. The production placement loop already computes the root position before submitting it to the MultiMesh. It now retains those 30 source positions as lightweight node metadata; the regression compares deterministic source placements, verifies each root against the shared terrain-height function, and checks settlement/arroyo clearance without depending on a renderer-side RID buffer. The real Windows preview remains the visual check for the instanced output.
+
+
+## 2026-11-18 development pass 5 — volumetric creosote foliage
+
+Inspected the successful 60-second #127 capture at native resolution. The terrain normals now point upward (minimum generated normal Y 0.995), and the layered soil shader produces a much more legible sunlit orange-ochre surface with visible sediment breakup. The 60-second capture completes the full preview route and all required waypoints. The first creosote iteration, however, reads as a sparse, dark, spiky tuft rather than a rounded woody Sonoran shrub.
+
+Reworked each leaf from a flat diamond into a small four-ring, five-sided volumetric lens, increased the branch count to 10–12, added a third paired-leaf tier, brightened the sage/olive palette and twig material, raised shrub scale modestly, and increased the instanced population from 90 to 126 while retaining three MultiMesh batches. The regression now requires dense geometry and the 126 seeded, terrain-aligned placement records. This is a mesh/material refinement; the next preview must be inspected before claiming that the shrub silhouette is resolved.

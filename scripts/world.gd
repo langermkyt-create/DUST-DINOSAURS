@@ -488,52 +488,60 @@ func _scatter_saguaros() -> void:
 			multimesh.set_instance_transform(i, Transform3D(basis, position))
 
 func _append_creosote_leaf(surface: SurfaceTool, center: Vector3, direction: Vector3, width: float, tint: Color) -> void:
+	# A four-ring, five-sided lens gives each narrow leaf real volume instead of a flat spike.
 	var forward := direction.normalized()
 	var side := forward.cross(Vector3.UP)
 	if side.length_squared() < 0.001:
 		side = Vector3.RIGHT
-	side = side.normalized() * width
+	side = side.normalized()
 	var normal := side.cross(forward).normalized()
-	var base := center - forward * width * 1.4
-	var tip := center + forward * width * 2.6
-	var left := center + side
-	var right := center - side
-	var raised := center + normal * width * 0.45
-	surface.set_color(tint.darkened(0.12))
-	surface.add_vertex(base)
-	surface.add_vertex(left)
-	surface.add_vertex(raised)
-	surface.set_color(tint.lightened(0.08))
-	surface.add_vertex(left)
-	surface.add_vertex(tip)
-	surface.add_vertex(raised)
-	surface.set_color(tint)
-	surface.add_vertex(tip)
-	surface.add_vertex(right)
-	surface.add_vertex(raised)
-	surface.set_color(tint.darkened(0.06))
-	surface.add_vertex(right)
-	surface.add_vertex(base)
-	surface.add_vertex(raised)
+	var ring_positions := [0.0, 0.32, 0.72, 1.0]
+	var ring_widths := [0.08, 0.76, 0.54, 0.02]
+	var rings: Array[PackedVector3Array] = []
+	for ring_index in range(ring_positions.size()):
+		var t: float = ring_positions[ring_index]
+		var radius: float = width * float(ring_widths[ring_index])
+		var ring_center := center + forward * ((t - 0.35) * width * 3.8)
+		var ring := PackedVector3Array()
+		for segment in range(5):
+			var angle := TAU * float(segment) / 5.0
+			ring.append(ring_center + side * cos(angle) * radius
+				+ normal * sin(angle) * radius * 0.42)
+		rings.append(ring)
+	for ring_index in range(rings.size() - 1):
+		for segment in range(5):
+			var next_segment := (segment + 1) % 5
+			var a: Vector3 = rings[ring_index][segment]
+			var b: Vector3 = rings[ring_index][next_segment]
+			var c: Vector3 = rings[ring_index + 1][segment]
+			var d: Vector3 = rings[ring_index + 1][next_segment]
+			surface.set_color(tint.darkened(0.08))
+			surface.add_vertex(a)
+			surface.add_vertex(b)
+			surface.add_vertex(c)
+			surface.set_color(tint.lightened(0.06))
+			surface.add_vertex(b)
+			surface.add_vertex(d)
+			surface.add_vertex(c)
 
 func _make_creosote_mesh(variant: int) -> ArrayMesh:
 	# Creosote is a low, woody shrub native to the Sonoran/Mojave transition.
 	# Branches and paired narrow leaves are authored into one instanced mesh.
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var branch_count := 8 + clampi(variant, 0, 2)
-	var twig_color := Color(0.20, 0.135, 0.075)
+	var branch_count := 10 + clampi(variant, 0, 2)
+	var twig_color := Color(0.25, 0.17, 0.095)
 	var leaf_palette: Array[Color] = [
-		Color(0.28, 0.34, 0.17),
-		Color(0.35, 0.39, 0.19),
-		Color(0.42, 0.42, 0.22)
+		Color(0.36, 0.43, 0.20),
+		Color(0.43, 0.49, 0.23),
+		Color(0.50, 0.51, 0.27)
 	]
 	for branch in range(branch_count):
 		var angle := TAU * float(branch) / float(branch_count) + float(variant) * 0.19
 		var outward := Vector3(cos(angle), 0.0, sin(angle))
 		var side := Vector3(-outward.z, 0.0, outward.x)
-		var height := 0.58 + float((branch * 3 + variant) % 4) * 0.09
-		var spread := 0.42 + float((branch + variant) % 3) * 0.09
+		var height := 0.68 + float((branch * 3 + variant) % 4) * 0.10
+		var spread := 0.50 + float((branch + variant) % 3) * 0.10
 		var curl := side * sin(angle * 2.0 + float(variant)) * 0.09
 		var points := PackedVector3Array([
 			Vector3.ZERO,
@@ -541,18 +549,18 @@ func _make_creosote_mesh(variant: int) -> ArrayMesh:
 			outward * spread + curl + Vector3.UP * height
 		])
 		_append_cactus_tube(surface, points,
-			PackedFloat32Array([0.055, 0.034, 0.014]), twig_color)
+			PackedFloat32Array([0.060, 0.038, 0.016]), twig_color)
 		var leaf_color: Color = leaf_palette[(branch + variant) % leaf_palette.size()]
 		var branch_direction := (points[2] - points[1]).normalized()
-		for leaf_row in range(2):
-			var t := 0.42 + float(leaf_row) * 0.28
+		for leaf_row in range(3):
+			var t := 0.32 + float(leaf_row) * 0.25
 			var center := points[1].lerp(points[2], t)
 			var leaf_direction := (outward * 0.7 + branch_direction * 0.45 + Vector3.UP * 0.18).normalized()
 			var leaf_side := side * (1.0 if leaf_row == 0 else -1.0)
 			_append_creosote_leaf(surface, center,
-				(leaf_direction + leaf_side * 0.9).normalized(), 0.034, leaf_color)
+				(leaf_direction + leaf_side * 0.9).normalized(), 0.038, leaf_color)
 			_append_creosote_leaf(surface, center,
-				(leaf_direction - leaf_side * 0.9).normalized(), 0.034, leaf_color.lightened(0.05))
+				(leaf_direction - leaf_side * 0.9).normalized(), 0.038, leaf_color.lightened(0.05))
 		_append_creosote_leaf(surface, points[2],
 			(outward + Vector3.UP * 0.5).normalized(), 0.03, leaf_color.lightened(0.08))
 	surface.generate_normals()
@@ -573,7 +581,7 @@ func _scatter_creosote_bushes() -> void:
 		var multimesh := MultiMesh.new()
 		multimesh.transform_format = MultiMesh.TRANSFORM_3D
 		multimesh.mesh = _make_creosote_mesh(variant)
-		multimesh.instance_count = 30
+		multimesh.instance_count = 42
 		multimesh.custom_aabb = AABB(Vector3(-130.0, -1.0, -130.0), Vector3(260.0, 4.0, 260.0))
 		var bushes := MultiMeshInstance3D.new()
 		bushes.name = "CreosoteBushes_" + str(variant)
@@ -606,7 +614,7 @@ func _scatter_creosote_bushes() -> void:
 			if not placed:
 				x = 80.0 + float(variant) * 2.0
 				z = 80.0 + float(index) * 0.15
-			var scale_factor := rng.randf_range(0.78, 1.28)
+			var scale_factor := rng.randf_range(0.86, 1.42)
 			var yaw := rng.randf_range(0.0, TAU)
 			var scale := Vector3(
 				scale_factor * rng.randf_range(0.9, 1.1),

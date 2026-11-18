@@ -17,8 +17,8 @@ func _initialize() -> void:
 		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 		var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
 		var repeated_vertices: PackedVector3Array = repeated_arrays[Mesh.ARRAY_VERTEX]
-		if vertices.size() < 1800 or vertices.size() % 3 != 0:
-			_fail(world, "Creosote shrub must contain a substantial complete branch-and-leaf mesh.")
+		if vertices.size() < 4000 or vertices.size() % 3 != 0:
+			_fail(world, "Creosote shrub must contain a dense, complete woody branch-and-oval-leaf mesh.")
 			return
 		if normals.size() != vertices.size() or colors.size() != vertices.size():
 			_fail(world, "Creosote mesh must carry generated normals and per-leaf color variation.")
@@ -31,7 +31,7 @@ func _initialize() -> void:
 				_fail(world, "Creosote geometry changed for the same variant.")
 				return
 		var bounds := mesh.get_aabb()
-		if bounds.size.x < 0.8 or bounds.size.z < 0.8 or bounds.size.y < 0.5 or bounds.size.y > 1.5:
+		if bounds.size.x < 0.9 or bounds.size.z < 0.9 or bounds.size.y < 0.6 or bounds.size.y > 1.8:
 			_fail(world, "Creosote shrub proportions must remain low, broad and grounded.")
 			return
 
@@ -45,15 +45,15 @@ func _initialize() -> void:
 	for variant in range(3):
 		var first := world.get_child(variant) as MultiMeshInstance3D
 		var second := second_world_under_test.get_child(variant) as MultiMeshInstance3D
-		if first == null or second == null or first.multimesh.instance_count != 30:
-			_fail(world, "Each creosote variant must contain thirty instanced shrubs.")
+		if first == null or second == null or first.multimesh.instance_count != 42:
+			_fail(world, "Each creosote variant must contain forty-two instanced shrubs.")
 			return
 		var first_positions: PackedVector3Array = first.get_meta("placement_positions")
 		var second_positions: PackedVector3Array = second.get_meta("placement_positions")
-		if first_positions.size() != 30 or second_positions.size() != 30:
-			_fail(world, "Each creosote batch must retain thirty authored placement records.")
+		if first_positions.size() != 42 or second_positions.size() != 42:
+			_fail(world, "Each creosote batch must retain forty-two authored placement records.")
 			return
-		for index in range(30):
+		for index in range(42):
 			var position: Vector3 = first_positions[index]
 			if position.distance_squared_to(second_positions[index]) > 0.000001:
 				_fail(world, "Seeded creosote placement must be deterministic.")
@@ -71,7 +71,7 @@ func _initialize() -> void:
 			if absf(position.z - float(world.call("_terrain_wash_center", position.x))) < 12.0:
 				_fail(world, "Creosote shrubs must not be scattered into the arroyo channel.")
 				return
-	print("Creosote regression passed: three deterministic meshes, 90 terrain-aligned shrubs, vertex color, normals and clear arroyo/settlement spacing.")
+	print("Creosote regression passed: three dense leaf meshes, 126 deterministic terrain-aligned shrubs, and clear arroyo/settlement spacing.")
 	world.free()
 	second_world_under_test.free()
 	second_world_under_test = null
