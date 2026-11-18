@@ -369,7 +369,8 @@ func _build_landscape() -> void:
 	_scatter_saguaros()
 	_scatter_creosote_bushes()
 
-func _append_cactus_tube(surface: SurfaceTool, points: PackedVector3Array, radii: PackedFloat32Array, base_color: Color) -> void:
+func _append_cactus_tube(surface: SurfaceTool, points: PackedVector3Array, radii: PackedFloat32Array, base_color: Color, radial_segments: int = 16) -> void:
+	var side_count := maxi(radial_segments, 6)
 	var rings: Array[PackedVector3Array] = []
 	for ring_index in range(points.size()):
 		var tangent: Vector3
@@ -383,17 +384,17 @@ func _append_cactus_tube(surface: SurfaceTool, points: PackedVector3Array, radii
 		var axis_x := tangent.cross(reference).normalized()
 		var axis_z := tangent.cross(axis_x).normalized()
 		var ring := PackedVector3Array()
-		for segment in range(16):
-			var angle := TAU * float(segment) / 16.0
-			var rib := 1.0 + 0.075 * cos(angle * 8.0)
+		for segment in range(side_count):
+			var angle := TAU * float(segment) / float(side_count)
+			var rib := 1.0 + 0.045 * cos(angle * 6.0)
 			var radial := (axis_x * cos(angle) + axis_z * sin(angle)) * radii[ring_index] * rib
 			ring.append(points[ring_index] + radial)
 		rings.append(ring)
 	for ring_index in range(rings.size() - 1):
-		for segment in range(16):
-			var next_segment := (segment + 1) % 16
+		for segment in range(side_count):
+			var next_segment := (segment + 1) % side_count
 			var height_tint := 0.94 + 0.08 * float(ring_index) / float(maxi(1, rings.size() - 1))
-			var rib_tint := 0.94 + 0.06 * cos(TAU * float(segment) / 16.0 * 8.0)
+			var rib_tint := 0.96 + 0.04 * cos(TAU * float(segment) / float(side_count) * 6.0)
 			var tint := base_color * height_tint * rib_tint
 			var a: Vector3 = rings[ring_index][segment]
 			var b: Vector3 = rings[ring_index][next_segment]
@@ -410,8 +411,8 @@ func _append_cactus_tube(surface: SurfaceTool, points: PackedVector3Array, radii
 	# Cap the exposed ends so the cactus does not have hollow cut surfaces.
 	var bottom_center := points[0]
 	var top_center := points[points.size() - 1]
-	for segment in range(16):
-		var next_segment := (segment + 1) % 16
+	for segment in range(side_count):
+		var next_segment := (segment + 1) % side_count
 		surface.set_color(base_color * 0.88)
 		surface.add_vertex(bottom_center)
 		surface.add_vertex(rings[0][next_segment])
@@ -495,22 +496,22 @@ func _append_creosote_leaf(surface: SurfaceTool, center: Vector3, direction: Vec
 		side = Vector3.RIGHT
 	side = side.normalized()
 	var normal := side.cross(forward).normalized()
-	var ring_positions := [0.0, 0.32, 0.72, 1.0]
-	var ring_widths := [0.08, 0.76, 0.54, 0.02]
+	var ring_positions := [0.0, 0.44, 1.0]
+	var ring_widths := [0.10, 0.82, 0.015]
 	var rings: Array[PackedVector3Array] = []
 	for ring_index in range(ring_positions.size()):
 		var t: float = ring_positions[ring_index]
 		var radius: float = width * float(ring_widths[ring_index])
 		var ring_center := center + forward * ((t - 0.35) * width * 3.8)
 		var ring := PackedVector3Array()
-		for segment in range(5):
-			var angle := TAU * float(segment) / 5.0
+		for segment in range(4):
+			var angle := TAU * float(segment) / 4.0
 			ring.append(ring_center + side * cos(angle) * radius
 				+ normal * sin(angle) * radius * 0.42)
 		rings.append(ring)
 	for ring_index in range(rings.size() - 1):
-		for segment in range(5):
-			var next_segment := (segment + 1) % 5
+		for segment in range(4):
+			var next_segment := (segment + 1) % 4
 			var a: Vector3 = rings[ring_index][segment]
 			var b: Vector3 = rings[ring_index][next_segment]
 			var c: Vector3 = rings[ring_index + 1][segment]
@@ -529,7 +530,7 @@ func _make_creosote_mesh(variant: int) -> ArrayMesh:
 	# Branches and paired narrow leaves are authored into one instanced mesh.
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var branch_count := 10 + clampi(variant, 0, 2)
+	var branch_count := 8 + clampi(variant, 0, 2)
 	var twig_color := Color(0.25, 0.17, 0.095)
 	var leaf_palette: Array[Color] = [
 		Color(0.36, 0.43, 0.20),
@@ -541,28 +542,32 @@ func _make_creosote_mesh(variant: int) -> ArrayMesh:
 		var outward := Vector3(cos(angle), 0.0, sin(angle))
 		var side := Vector3(-outward.z, 0.0, outward.x)
 		var height := 0.68 + float((branch * 3 + variant) % 4) * 0.10
-		var spread := 0.50 + float((branch + variant) % 3) * 0.10
+		var spread := 0.56 + float((branch + variant) % 3) * 0.11
 		var curl := side * sin(angle * 2.0 + float(variant)) * 0.09
 		var points := PackedVector3Array([
 			Vector3.ZERO,
 			outward * spread * 0.40 + curl * 0.4 + Vector3.UP * height * 0.42,
 			outward * spread + curl + Vector3.UP * height
 		])
+		# Eight-sided woody branches retain a round silhouette at a fraction of the
+		# vertex cost of the shared 16-sided saguaro tube builder.
 		_append_cactus_tube(surface, points,
-			PackedFloat32Array([0.060, 0.038, 0.016]), twig_color)
+			PackedFloat32Array([0.060, 0.038, 0.016]), twig_color, 8)
 		var leaf_color: Color = leaf_palette[(branch + variant) % leaf_palette.size()]
 		var branch_direction := (points[2] - points[1]).normalized()
-		for leaf_row in range(3):
-			var t := 0.32 + float(leaf_row) * 0.25
+		# Two paired leaf tiers and one terminal leaf keep a rounded canopy while
+		# avoiding the dense, spiky overdraw that stalled the software-rendered route.
+		for leaf_row in range(2):
+			var t := 0.38 + float(leaf_row) * 0.34
 			var center := points[1].lerp(points[2], t)
 			var leaf_direction := (outward * 0.7 + branch_direction * 0.45 + Vector3.UP * 0.18).normalized()
 			var leaf_side := side * (1.0 if leaf_row == 0 else -1.0)
 			_append_creosote_leaf(surface, center,
-				(leaf_direction + leaf_side * 0.9).normalized(), 0.038, leaf_color)
+				(leaf_direction + leaf_side * 0.9).normalized(), 0.045, leaf_color)
 			_append_creosote_leaf(surface, center,
-				(leaf_direction - leaf_side * 0.9).normalized(), 0.038, leaf_color.lightened(0.05))
+				(leaf_direction - leaf_side * 0.9).normalized(), 0.045, leaf_color.lightened(0.05))
 		_append_creosote_leaf(surface, points[2],
-			(outward + Vector3.UP * 0.5).normalized(), 0.03, leaf_color.lightened(0.08))
+			(outward + Vector3.UP * 0.5).normalized(), 0.036, leaf_color.lightened(0.08))
 	surface.generate_normals()
 	var mesh := surface.commit()
 	var material := StandardMaterial3D.new()
