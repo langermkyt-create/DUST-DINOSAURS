@@ -66,6 +66,8 @@ jobs:
         run: godot --headless --path . --script tests/test_terrain_relief.gd
       - name: Test layered Arizona soil material response
         run: godot --headless --path . --script tests/test_terrain_material.gd
+      - name: Test deterministic creosote bush geometry and scatter
+        run: godot --headless --path . --script tests/test_creosote_bushes.gd
 
       - name: Test continuous tyrannosaur body anatomy
         run: godot --headless --path . --script tests/test_tyrannosaur_anatomy.gd

@@ -133,3 +133,12 @@ The first terrain CI run (#105) confirmed import/parser success and all precedin
 The #122 and #124 baseline captures show a very dark, nearly uniform brown foreground. The first terrain-height pass adds measurable basin relief and a deeper arroyo, but the current shader still suppresses those forms visually. Replaced the single dark soil blend with a restrained sun-bleached dust/ochre/pale-sand palette, broad sediment variation, clay streaks, arroyo wash staining, slope-aware exposed sandstone, gravel/pores, fine-grain derivative normals, roughness variation and subtle AO. The shader derives slope from the world-space terrain normal, so exposed rock response follows the actual generated surface rather than a screen-space guess.
 
 Added `tests/test_terrain_material.gd` and wired it into the full Godot validation workflow. The regression verifies the material channels and palette ordering; shader compilation is exercised by Godot import and the next rendered Windows preview. No claim of visual success is made until that capture is inspected.
+
+
+## 2026-11-18 development pass 3 — native creosote ground cover
+
+The inspected #123 capture confirms the raised terrain mesh is still visually subtle at the current preview camera height; the new material pass is therefore being checked separately before any further amplitude change. The same capture also shows a species gap: the open basin contains saguaros, isolated grass tufts and boulders, but no low woody desert shrubs, leaving large areas visually empty.
+
+Added an original procedural creosote-bush mesh with tapered woody stems and paired narrow leaves, vertex-color variation and generated normals. Added three deterministic shape variants and 90 instances in three MultiMesh batches. Placement samples the shared terrain height and explicitly avoids the settlement radius, herd members, tyrannosaur vista and arroyo channel; shrubs are non-colliding ground cover so they do not interfere with player or dinosaur movement.
+
+Added `tests/test_creosote_bushes.gd` and wired it into Godot validation. The regression checks complete mesh arrays, proportions, deterministic geometry and scatter, three draw batches, terrain-aligned roots and clearances. The next Windows capture must be inspected for silhouette quality and overdraw before increasing shrub density or adding more plant species.
