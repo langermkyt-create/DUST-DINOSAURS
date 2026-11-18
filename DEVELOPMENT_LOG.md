@@ -110,3 +110,14 @@ To make the next visual check meaningful, the preview route now moves to a 6.3 m
 The focused preview-route regression and the full Godot validation workflow **#102** passed on branch commit \`9ee3472f25a96ddb644446e0890cf7addb972002\`. This is a camera/evidence improvement only. It does not change the dinosaur mesh and does not establish visual quality. The post-merge Windows Build must produce another capture, which must be inspected at the new head close-up before the next art decision.
 
 AAA status remains **not achieved**. Next: merge after checks, inspect the new close-up capture, then continue from the actual rendered result.
+
+
+## 2026-11-18 development pass 1 — Arizona basin and arroyo landform
+
+Reviewed main `a0cdfe4a`, the latest Godot/Windows workflows, open issues and pull requests (none open), and inspected the successful Windows Build #122 gameplay capture at native 1280×720 frames. The real capture shows the current ground reading as a nearly uniform dark plane with too little large-scale relief; scattered rocks and plants appear to sit on a visually flat basin.
+
+Changed `scripts/world.gd` to raise the terrain grid from 224 to 256 segments (about 2.0 m spacing across the 520 m field) and replaced the very low-amplitude height blend with overlapping basin undulation, dune fields, fine wind ripples, and a deeper, wider winding arroyo with raised shoulders. The visible mesh and trimesh collision still come from the same height function, and all building, plant, rock and animal placement continues to sample that same function.
+
+Expanded `tests/test_terrain_relief.gd` to check basin elevation range, arroyo bank/channel separation, generated normals, upward triangle winding and complete mesh topology. This is a geometry pass; no claim is made that the renderer has visually confirmed the new terrain yet. The existing CI already runs this regression, so the next push will validate it through the full Godot workflow and Windows export.
+
+AAA remains not achieved. Continue with the terrain material response, then native desert ground-cover variety.

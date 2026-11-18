@@ -3,7 +3,7 @@ const PlayerScript = preload("res://scripts/player.gd")
 const PREVIEW_TWEEN_SPEED_SCALE := 3.5
 const PREVIEW_WAYPOINT_HOLD_SECONDS := 0.2
 const PREVIEW_CAMERA_FOV := 56.0
-const TERRAIN_MESH_SEGMENTS := 224
+const TERRAIN_MESH_SEGMENTS := 256
 var player: CharacterBody3D
 var message_label: Label
 func _ready() -> void:
@@ -266,14 +266,23 @@ func _terrain_wash_center(world_x: float) -> float:
 	return -76.0 + sin(world_x * 0.018) * 16.0 + bend_noise
 
 func _terrain_height(world_xz: Vector2) -> float:
+	# Broad basin undulation, overlapping dune fields and a persistent arroyo profile
+	# give the 1897 Arizona ground a readable landform instead of a near-flat plane.
+	var basin := _terrain_fbm(world_xz * 0.010)
 	var dune := _terrain_fbm(world_xz * 0.018)
 	var fine_dune := _terrain_fbm(world_xz * 0.072)
+	var basin_roll := sin(world_xz.x * 0.011 + basin * 2.2) * 0.24
+	basin_roll += cos(world_xz.y * 0.013 - basin * 1.7) * 0.18
 	var ripple := sin(world_xz.dot(Vector2(0.72, 0.69)) * 1.35
 		+ _terrain_fbm(world_xz * 0.045) * 5.0)
 	var wash_distance := absf(world_xz.y - _terrain_wash_center(world_xz.x))
-	var channel := exp(-pow(wash_distance / 9.0, 2.0))
-	var shoulder := exp(-pow((wash_distance - 13.0) / 5.0, 2.0))
-	return (dune - 0.5) * 1.15 + (fine_dune - 0.5) * 0.22 		+ ripple * 0.035 - channel * 0.5 + shoulder * 0.12
+	var channel := exp(-pow(wash_distance / 10.5, 2.0))
+	var shoulder := exp(-pow((wash_distance - 15.5) / 6.0, 2.0))
+	var wash_ripple := sin(world_xz.x * 0.65 + _terrain_fbm(world_xz * 0.12) * 2.0)
+	wash_ripple *= 0.025 * exp(-wash_distance / 28.0)
+	return (basin - 0.5) * 1.6 + (dune - 0.5) * 1.2 \
+		+ (fine_dune - 0.5) * 0.30 + basin_roll + ripple * 0.05 \
+		- channel * 0.78 + shoulder * 0.22 + wash_ripple
 
 func _is_predator_sightline(angle: float) -> bool:
 	var predator_bearing := Vector2(70.0, -112.0).angle()
