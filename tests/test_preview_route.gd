@@ -191,8 +191,10 @@ func _route_avoids_buildings(route: Array) -> bool:
 	for segment_index in range(route.size() - 1):
 		var start_id := str(route[segment_index]["id"])
 		var finish_id := str(route[segment_index + 1]["id"])
-		var doorway_transition := (start_id == "saloon_approach" and finish_id == "saloon_interior") \
+		var doorway_transition := (
+			(start_id == "saloon_approach" and finish_id == "saloon_interior")
 			or (start_id == "saloon_interior" and finish_id == "saloon_exit")
+		)
 		if doorway_transition:
 			var doorway_start: Vector3 = route[segment_index]["position"]
 			var doorway_finish: Vector3 = route[segment_index + 1]["position"]
