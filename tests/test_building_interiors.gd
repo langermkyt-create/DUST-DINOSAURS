@@ -26,8 +26,12 @@ func _initialize() -> void:
 		if _count_named_prefix(building, "InteriorWainscot") != 5:
 			_fail("Every interior must have continuous lower wall trim without blocking the doorway: " + sign_text)
 			return
-		if _find_named(building, "InteriorLanternLight") == null:
+		var lantern := _find_named(building, "InteriorLanternLight") as OmniLight3D
+		if lantern == null:
 			_fail("Every interior must have its warm lantern light: " + sign_text)
+			return
+		if lantern.light_energy < 1.0 or lantern.omni_range < 10.0:
+			_fail("Interior lantern must illuminate the timber trim and furniture: " + sign_text)
 			return
 	if _find_named(world_under_test.get_child(0), "SaloonBar") == null:
 		_fail("Saloon interior must retain its service bar.")
