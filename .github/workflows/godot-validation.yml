@@ -62,6 +62,9 @@ jobs:
       - name: Test deterministic roof shingle geometry
         run: godot --headless --path . --script tests/test_roof_shingles.gd
 
+      - name: Test walkable frontier building interiors
+        run: timeout 30s godot --headless --path . --script tests/test_building_interiors.gd
+
       - name: Test desert terrain relief and arroyo profile
         run: godot --headless --path . --script tests/test_terrain_relief.gd
       - name: Test layered Arizona soil material response

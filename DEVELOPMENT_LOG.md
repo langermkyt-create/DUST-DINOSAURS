@@ -163,3 +163,40 @@ The first placement assertion exposed that reading `MultiMesh.get_instance_trans
 Inspected the successful 60-second #127 capture at native resolution. The terrain normals now point upward (minimum generated normal Y 0.995), and the layered soil shader produces a much more legible sunlit orange-ochre surface with visible sediment breakup. The 60-second capture completes the full preview route and all required waypoints. The first creosote iteration, however, reads as a sparse, dark, spiky tuft rather than a rounded woody Sonoran shrub.
 
 Reworked each leaf from a flat diamond into a small four-ring, five-sided volumetric lens, increased the branch count to 10–12, added a third paired-leaf tier, brightened the sage/olive palette and twig material, raised shrub scale modestly, and increased the instanced population from 90 to 126 while retaining three MultiMesh batches. The regression now requires dense geometry and the 126 seeded, terrain-aligned placement records. This is a mesh/material refinement; the next preview must be inspected before claiming that the shrub silhouette is resolved.
+
+## 2026-11-18 development pass 6 — creosote canopy performance budget
+
+Inspected main `475bdfd1`, the latest commits, both workflows, open issues/PRs, and the failed Windows Build `#129` diagnostics. The #129 preview captured the saloon approach and triceratops close-up but stopped at herd clearance and never completed the south detour; its required waypoint check failed, so no Windows executable was uploaded. The runtime log showed Mesa llvmpipe/OpenGL 3. The capture does not isolate a single bottleneck, but the preceding change had increased every shrub to a dense multi-ring leaf mesh.
+
+Reduced only the creosote-specific geometry cost while preserving the 126 seeded shrubs and their terrain placement:
+- Leaf lenses now use three rings and four sides instead of four rings and five sides.
+- Creosote woody branches use eight radial sides; saguaros retain their original 16-sided tube geometry.
+- Each variant uses 8–10 radial branches, two paired leaf tiers and a terminal leaf, keeping a rounded volumetric canopy instead of reverting to flat cards.
+- The regression enforces 3,000–4,000 vertices per variant and a combined source-vertex budget below 470,000.
+
+Godot validation **#112** passed import/parser checks, all existing regressions, the new creosote geometry/scatter budget, headless main-scene launch and Windows x86_64 export. The regression reported **435,456 instanced source vertices across 126 shrubs**. This is a measured geometry budget, not a measured GPU frame-time improvement; the post-merge Windows capture is still required to confirm that the incomplete #129 route is resolved.
+
+## 2026-11-18 development pass 7 — separate visual and collision terrain grids
+
+Kept the 256-segment terrain mesh for visible silhouettes, material response and generated lighting normals, but changed the static collision shape to a 192-segment mesh sampled from the exact same `_terrain_height` function. The collision-only mesh omits normals, which the physics shape does not use.
+
+Extended `tests/test_terrain_relief.gd` to build both production grids, check their vertex counts and confirm that the collision mesh omits its unused normal array. It samples 441 world-space points against the triangle-interpolated collision mesh.
+
+Godot validation **#114** passed. The collision grid uses **43.75% fewer vertices** than the render grid, and the maximum sampled deviation from the authored terrain height was **0.061 m** (limit 0.08 m). The visible 256-segment terrain is unchanged.
+
+## 2026-11-18 development pass 8 — walk-through saloon interior and route evidence
+
+Inspected the existing six building archetypes and their interior builders. The rooms already had walkable floor colliders and archetype-specific furniture, but lacked a coherent exposed timber structure and the preview route never entered one. Added three ceiling joists, four corner studs, five lower wall-trim runs and a named warm lantern to each room. The saloon now has a framed reflective mirror, back shelf and five bottle props behind the service bar.
+
+Added a deterministic preview sequence through the centered saloon doorway: approach, interior bar/mirror framing, exit, then a street-clearance stop before the northbound route. Added `tests/test_building_interiors.gd` for all six room archetypes and expanded the route regression plus Windows capture waypoint list.
+
+The first route regression correctly caught a new path from the saloon exit that crossed the sheriff-office footprint. Added `town_street_clearance` on the open main street and required it in both the route test and Windows capture trace. Final Godot validation **#121** passed:
+- Six room archetypes: 18 ceiling joists, 24 corner studs, 30 trim pieces and six lantern lights.
+- Saloon bar, mirror, back shelf and five bottle props.
+- 15 unique camera stops and 47 seconds of authored route travel, including the saloon interior.
+- Existing dinosaur, terrain, rock, roof, vegetation and material regressions.
+- Headless main-scene launch and Windows x86_64 export.
+
+The interior route and new vegetation have not yet been visually inspected in a successful post-change Windows gameplay capture. The CI host remains Mesa llvmpipe/OpenGL 3; target-GPU performance, high-quality Forward+ lighting, and independent whole-game visual review remain open blockers.
+
+AAA status remains **not achieved**. Next: merge only after the final PR validation, inspect the post-merge Windows preview and its saloon interior frame, then continue with rock/plant material integration and target-GPU measurement.

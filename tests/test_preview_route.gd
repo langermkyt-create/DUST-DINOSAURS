@@ -43,13 +43,37 @@ func _initialize() -> void:
 		waypoints[waypoint_id] = waypoint
 		total_duration += duration
 
-	for required_id in ["town_establishing", "main_street", "town_north_exit", "west_ridge_approach", "herd_close", "herd_clearance", "south_detour", "tyrannosaur_vista", "town_return"]:
+	for required_id in ["town_establishing", "main_street", "saloon_approach", "saloon_interior", "saloon_exit", "town_street_clearance", "town_north_exit", "west_ridge_approach", "herd_close", "herd_clearance", "south_detour", "tyrannosaur_vista", "town_return"]:
 		if not waypoints.has(required_id):
 			_fail("Preview route is missing required landmark: " + required_id)
 			return
 
+	var saloon_approach: Vector3 = waypoints["saloon_approach"]["position"]
+	var saloon_interior: Vector3 = waypoints["saloon_interior"]["position"]
+	var saloon_exit: Vector3 = waypoints["saloon_exit"]["position"]
+	if absf(saloon_approach.x + 12.0) > 0.05 or absf(saloon_interior.x + 12.0) > 0.05:
+		_fail("Saloon interior route must stay centered on the open front doorway.")
+		return
+	if saloon_approach.z > -5.0 or saloon_approach.z < -6.5:
+		_fail("Saloon approach must stop outside the front threshold.")
+		return
+	if saloon_interior.z > -9.5 or saloon_interior.z < -11.5:
+		_fail("Saloon interior camera must remain inside the room, behind the doorway.")
+		return
+	if saloon_exit.distance_to(saloon_approach) > 0.1:
+		_fail("Saloon exit must return through the same centered doorway.")
+		return
+	var street_clearance: Vector3 = waypoints["town_street_clearance"]["position"]
+	if absf(street_clearance.x) > 0.05 or street_clearance.z > -1.0 or street_clearance.z < -3.0:
+		_fail("Saloon exit must rejoin the open main street before the northbound route.")
+		return
+	var expected_bar_target := Vector3(-12.0,
+		float(world_under_test.call("_terrain_height", Vector2(-12.0, -12.0))) + 3.0, -14.6)
+	if waypoints["saloon_interior"]["target"].distance_to(expected_bar_target) > 0.1:
+		_fail("Saloon interior camera must frame the back bar and mirror, not the exterior street.")
+		return
 	if not _route_avoids_buildings(route):
-		_fail("Preview camera route must not pass through authored building footprints.")
+		_fail("Preview camera route must avoid building walls and use only the centered saloon doorway.")
 		return
 	if not _route_exits_herd_safely(route):
 		_fail("The head close-up must leave the nearest animal monotonically and keep clear of the other herd members.")
@@ -87,12 +111,12 @@ func _initialize() -> void:
 	if predator_target.distance_to(Vector3(70.0, 5.2, -112.0)) > 0.1:
 		_fail("Distant predator vista must aim at the authored tyrannosaur location.")
 		return
-	if total_duration < 35.0 or total_duration > 40.0:
-		_fail("Preview route duration must fit inside the 42-second CI capture.")
+	if total_duration < 42.0 or total_duration > 48.0:
+		_fail("Preview route duration must remain between 42 and 48 seconds for the 60-second CI capture.")
 		return
 
 	print("Preview route regression passed: ", route.size(),
-		" unique stops, town + triceratops + tyrannosaur, ",
+		" unique stops, town + walk-through saloon interior + triceratops + tyrannosaur, ",
 		total_duration, " seconds of camera travel.")
 	world_under_test.free()
 	world_under_test = null
@@ -169,6 +193,18 @@ func _route_avoids_buildings(route: Array) -> bool:
 		{"center": Vector2(31.0, 7.0), "half_size": Vector2(6.0, 5.0)}
 	]
 	for segment_index in range(route.size() - 1):
+		var start_id := str(route[segment_index]["id"])
+		var finish_id := str(route[segment_index + 1]["id"])
+		var doorway_transition := (
+			(start_id == "saloon_approach" and finish_id == "saloon_interior")
+			or (start_id == "saloon_interior" and finish_id == "saloon_exit")
+		)
+		if doorway_transition:
+			var doorway_start: Vector3 = route[segment_index]["position"]
+			var doorway_finish: Vector3 = route[segment_index + 1]["position"]
+			if absf(doorway_start.x + 12.0) > 0.05 or absf(doorway_finish.x + 12.0) > 0.05:
+				return false
+			continue
 		var start: Vector3 = route[segment_index]["position"]
 		var finish: Vector3 = route[segment_index + 1]["position"]
 		for sample_index in range(21):

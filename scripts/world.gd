@@ -4,6 +4,7 @@ const PREVIEW_TWEEN_SPEED_SCALE := 3.5
 const PREVIEW_WAYPOINT_HOLD_SECONDS := 0.2
 const PREVIEW_CAMERA_FOV := 56.0
 const TERRAIN_MESH_SEGMENTS := 256
+const TERRAIN_COLLISION_SEGMENTS := 192
 var player: CharacterBody3D
 var message_label: Label
 func _ready() -> void:
@@ -307,7 +308,7 @@ func _is_predator_sightline(angle: float) -> bool:
 	var predator_bearing := Vector2(70.0, -112.0).angle()
 	return absf(wrapf(angle - predator_bearing, -PI, PI)) < 0.28
 
-func _make_terrain_mesh(segments: int) -> ArrayMesh:
+func _make_terrain_mesh(segments: int, generate_normals: bool = true) -> ArrayMesh:
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var half_extent := 260.0
@@ -336,7 +337,8 @@ func _make_terrain_mesh(segments: int) -> ArrayMesh:
 			surface.add_vertex(d)
 			surface.set_uv(Vector2(float(x) / segments, float(z + 1) / segments))
 			surface.add_vertex(c)
-	surface.generate_normals()
+	if generate_normals:
+		surface.generate_normals()
 	return surface.commit()
 
 func _build_landscape() -> void:
@@ -344,11 +346,14 @@ func _build_landscape() -> void:
 	# This removes the old mismatch where feet and rocks floated above a flat collision plane.
 	var ground := _make_terrain_mesh(TERRAIN_MESH_SEGMENTS)
 	ground.surface_set_material(0, _terrain_material())
+	# Keep the 2 m visual grid for silhouettes and shading, but use a 2.71 m
+	# collision grid from the same height function to cut static-triangle cost.
+	var collision_mesh := _make_terrain_mesh(TERRAIN_COLLISION_SEGMENTS, false)
 	var terrain := StaticBody3D.new()
 	terrain.name = "ProceduralTerrain"
 	add_child(terrain)
 	var ground_shape := CollisionShape3D.new()
-	ground_shape.shape = ground.create_trimesh_shape()
+	ground_shape.shape = collision_mesh.create_trimesh_shape()
 	terrain.add_child(ground_shape)
 	var ground_instance := MeshInstance3D.new()
 	ground_instance.name = "DuneSurface"
@@ -369,7 +374,8 @@ func _build_landscape() -> void:
 	_scatter_saguaros()
 	_scatter_creosote_bushes()
 
-func _append_cactus_tube(surface: SurfaceTool, points: PackedVector3Array, radii: PackedFloat32Array, base_color: Color) -> void:
+func _append_cactus_tube(surface: SurfaceTool, points: PackedVector3Array, radii: PackedFloat32Array, base_color: Color, radial_segments: int = 16) -> void:
+	var side_count := maxi(radial_segments, 6)
 	var rings: Array[PackedVector3Array] = []
 	for ring_index in range(points.size()):
 		var tangent: Vector3
@@ -383,17 +389,17 @@ func _append_cactus_tube(surface: SurfaceTool, points: PackedVector3Array, radii
 		var axis_x := tangent.cross(reference).normalized()
 		var axis_z := tangent.cross(axis_x).normalized()
 		var ring := PackedVector3Array()
-		for segment in range(16):
-			var angle := TAU * float(segment) / 16.0
-			var rib := 1.0 + 0.075 * cos(angle * 8.0)
+		for segment in range(side_count):
+			var angle := TAU * float(segment) / float(side_count)
+			var rib := 1.0 + 0.045 * cos(angle * 6.0)
 			var radial := (axis_x * cos(angle) + axis_z * sin(angle)) * radii[ring_index] * rib
 			ring.append(points[ring_index] + radial)
 		rings.append(ring)
 	for ring_index in range(rings.size() - 1):
-		for segment in range(16):
-			var next_segment := (segment + 1) % 16
+		for segment in range(side_count):
+			var next_segment := (segment + 1) % side_count
 			var height_tint := 0.94 + 0.08 * float(ring_index) / float(maxi(1, rings.size() - 1))
-			var rib_tint := 0.94 + 0.06 * cos(TAU * float(segment) / 16.0 * 8.0)
+			var rib_tint := 0.96 + 0.04 * cos(TAU * float(segment) / float(side_count) * 6.0)
 			var tint := base_color * height_tint * rib_tint
 			var a: Vector3 = rings[ring_index][segment]
 			var b: Vector3 = rings[ring_index][next_segment]
@@ -410,8 +416,8 @@ func _append_cactus_tube(surface: SurfaceTool, points: PackedVector3Array, radii
 	# Cap the exposed ends so the cactus does not have hollow cut surfaces.
 	var bottom_center := points[0]
 	var top_center := points[points.size() - 1]
-	for segment in range(16):
-		var next_segment := (segment + 1) % 16
+	for segment in range(side_count):
+		var next_segment := (segment + 1) % side_count
 		surface.set_color(base_color * 0.88)
 		surface.add_vertex(bottom_center)
 		surface.add_vertex(rings[0][next_segment])
@@ -495,22 +501,22 @@ func _append_creosote_leaf(surface: SurfaceTool, center: Vector3, direction: Vec
 		side = Vector3.RIGHT
 	side = side.normalized()
 	var normal := side.cross(forward).normalized()
-	var ring_positions := [0.0, 0.32, 0.72, 1.0]
-	var ring_widths := [0.08, 0.76, 0.54, 0.02]
+	var ring_positions := [0.0, 0.44, 1.0]
+	var ring_widths := [0.10, 0.82, 0.015]
 	var rings: Array[PackedVector3Array] = []
 	for ring_index in range(ring_positions.size()):
 		var t: float = ring_positions[ring_index]
 		var radius: float = width * float(ring_widths[ring_index])
 		var ring_center := center + forward * ((t - 0.35) * width * 3.8)
 		var ring := PackedVector3Array()
-		for segment in range(5):
-			var angle := TAU * float(segment) / 5.0
+		for segment in range(4):
+			var angle := TAU * float(segment) / 4.0
 			ring.append(ring_center + side * cos(angle) * radius
 				+ normal * sin(angle) * radius * 0.42)
 		rings.append(ring)
 	for ring_index in range(rings.size() - 1):
-		for segment in range(5):
-			var next_segment := (segment + 1) % 5
+		for segment in range(4):
+			var next_segment := (segment + 1) % 4
 			var a: Vector3 = rings[ring_index][segment]
 			var b: Vector3 = rings[ring_index][next_segment]
 			var c: Vector3 = rings[ring_index + 1][segment]
@@ -529,7 +535,7 @@ func _make_creosote_mesh(variant: int) -> ArrayMesh:
 	# Branches and paired narrow leaves are authored into one instanced mesh.
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var branch_count := 10 + clampi(variant, 0, 2)
+	var branch_count := 8 + clampi(variant, 0, 2)
 	var twig_color := Color(0.25, 0.17, 0.095)
 	var leaf_palette: Array[Color] = [
 		Color(0.36, 0.43, 0.20),
@@ -541,28 +547,32 @@ func _make_creosote_mesh(variant: int) -> ArrayMesh:
 		var outward := Vector3(cos(angle), 0.0, sin(angle))
 		var side := Vector3(-outward.z, 0.0, outward.x)
 		var height := 0.68 + float((branch * 3 + variant) % 4) * 0.10
-		var spread := 0.50 + float((branch + variant) % 3) * 0.10
+		var spread := 0.56 + float((branch + variant) % 3) * 0.11
 		var curl := side * sin(angle * 2.0 + float(variant)) * 0.09
 		var points := PackedVector3Array([
 			Vector3.ZERO,
 			outward * spread * 0.40 + curl * 0.4 + Vector3.UP * height * 0.42,
 			outward * spread + curl + Vector3.UP * height
 		])
+		# Eight-sided woody branches retain a round silhouette at a fraction of the
+		# vertex cost of the shared 16-sided saguaro tube builder.
 		_append_cactus_tube(surface, points,
-			PackedFloat32Array([0.060, 0.038, 0.016]), twig_color)
+			PackedFloat32Array([0.060, 0.038, 0.016]), twig_color, 8)
 		var leaf_color: Color = leaf_palette[(branch + variant) % leaf_palette.size()]
 		var branch_direction := (points[2] - points[1]).normalized()
-		for leaf_row in range(3):
-			var t := 0.32 + float(leaf_row) * 0.25
+		# Two paired leaf tiers and one terminal leaf keep a rounded canopy while
+		# avoiding the dense, spiky overdraw that stalled the software-rendered route.
+		for leaf_row in range(2):
+			var t := 0.38 + float(leaf_row) * 0.34
 			var center := points[1].lerp(points[2], t)
 			var leaf_direction := (outward * 0.7 + branch_direction * 0.45 + Vector3.UP * 0.18).normalized()
 			var leaf_side := side * (1.0 if leaf_row == 0 else -1.0)
 			_append_creosote_leaf(surface, center,
-				(leaf_direction + leaf_side * 0.9).normalized(), 0.038, leaf_color)
+				(leaf_direction + leaf_side * 0.9).normalized(), 0.045, leaf_color)
 			_append_creosote_leaf(surface, center,
-				(leaf_direction - leaf_side * 0.9).normalized(), 0.038, leaf_color.lightened(0.05))
+				(leaf_direction - leaf_side * 0.9).normalized(), 0.045, leaf_color.lightened(0.05))
 		_append_creosote_leaf(surface, points[2],
-			(outward + Vector3.UP * 0.5).normalized(), 0.03, leaf_color.lightened(0.08))
+			(outward + Vector3.UP * 0.5).normalized(), 0.036, leaf_color.lightened(0.08))
 	surface.generate_normals()
 	var mesh := surface.commit()
 	var material := StandardMaterial3D.new()
@@ -1310,6 +1320,7 @@ func _make_roof_shingle_mesh(seed_value: int) -> ArrayMesh:
 
 func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) -> void:
 	var root := Node3D.new()
+	root.name = sign_text.replace(" ", "") + "Building"
 	root.position = pos + Vector3(0.0, _terrain_height(Vector2(pos.x, pos.z)), 0.0)
 	add_child(root)
 	var wall_surface := _weathered_wood_material(wall)
@@ -1410,6 +1421,7 @@ func _interior_lantern(root: Node3D, position: Vector3) -> void:
 	_cylinder(root, position, 0.12, 0.28, Color(0.08, 0.065, 0.045), 12)
 	_sphere(root, position + Vector3(0, -0.22, 0), Vector3(0.14, 0.24, 0.14), glass)
 	var light := OmniLight3D.new()
+	light.name = "InteriorLanternLight"
 	light.position = position + Vector3(0, -0.28, 0)
 	light.light_color = Color(1.0, 0.58, 0.29)
 	light.light_energy = 0.65
@@ -1428,9 +1440,42 @@ func _build_building_interior(root: Node3D, sign_text: String, wall: Color) -> v
 	for plank in range(15):
 		var z := -3.0 + float(plank) * 0.43
 		_box(root, Vector3(0, 0.052, z), Vector3(9.45, 0.018, 0.39), floor_wood)
+	# Exposed ceiling joists, corner studs and continuous lower wall trim give the
+	# room a readable timber structure instead of leaving the interior as a dark box.
+	for z in [-2.7, 0.0, 2.7]:
+		var joist := _box(root, Vector3(0.0, 3.92, z), Vector3(9.2, 0.18, 0.22), dark_wood)
+		joist.name = "InteriorCeilingJoist"
+	for x in [-4.62, 4.62]:
+		for z in [-3.1, 3.1]:
+			var stud := _box(root, Vector3(x, 2.0, z), Vector3(0.16, 3.75, 0.16), furniture)
+			stud.name = "InteriorWallStud"
+	for x in [-4.62, 4.62]:
+		var side_wainscot := _box(root, Vector3(x, 0.35, 0.0), Vector3(0.18, 0.42, 6.2), dark_wood)
+		side_wainscot.name = "InteriorWainscot"
+	var rear_wainscot := _box(root, Vector3(0.0, 0.35, -3.22), Vector3(9.2, 0.42, 0.16), dark_wood)
+	rear_wainscot.name = "InteriorWainscot"
+	for x in [-3.65, 3.65]:
+		var front_wainscot := _box(root, Vector3(x, 0.35, 3.22), Vector3(2.1, 0.42, 0.16), dark_wood)
+		front_wainscot.name = "InteriorWainscot"
 	_interior_lantern(root, Vector3(0, 3.65, -0.65))
 	if sign_text == "SALOON":
 		# Long service bar, brass foot rail, bottle shelves and card tables.
+		_interior_solid_box(root, Vector3(0.0, 3.0, -3.25),
+			Vector3(4.0, 0.78, 0.16), dark_wood, "SaloonMirrorFrame")
+		var mirror_material := StandardMaterial3D.new()
+		mirror_material.albedo_color = Color(0.20, 0.27, 0.29)
+		mirror_material.metallic = 0.58
+		mirror_material.roughness = 0.24
+		_interior_solid_box(root, Vector3(0.0, 3.0, -3.15),
+			Vector3(3.62, 0.50, 0.035), mirror_material, "SaloonMirror")
+		_interior_solid_box(root, Vector3(0.0, 2.55, -3.02),
+			Vector3(4.5, 0.12, 0.32), furniture, "SaloonBackShelf")
+		var shelf_bottle_material := _material(Color(0.25, 0.105, 0.045), 0.28, 0.08)
+		for bottle_index in range(5):
+			var bottle_x := -1.7 + float(bottle_index) * 0.85
+			var bottle := _cylinder(root, Vector3(bottle_x, 2.75, -2.88),
+				0.055, 0.22, shelf_bottle_material, 8)
+			bottle.name = "SaloonShelfBottle"
 		_interior_solid_box(root, Vector3(0, 1.15, -1.65), Vector3(6.0, 1.9, 0.72), furniture, "SaloonBar")
 		_interior_solid_box(root, Vector3(0, 2.15, -1.65), Vector3(6.2, 0.16, 0.86), dark_wood, "BarTop")
 		for x in [-2.2, -1.1, 0.0, 1.1, 2.2]:
@@ -2203,6 +2248,34 @@ func _preview_route() -> Array[Dictionary]:
 			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 8.0)) + 0.2, 8.0),
 			"target": Vector3(12.0, 2.5, -8.0),
 			"duration": 4.0
+		},
+		{
+			"id": "saloon_approach",
+			# Stop outside the front threshold, aligned with the centered open doorway.
+			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 0.2, -5.7),
+			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -12.0)) + 2.7, -13.65),
+			"duration": 2.0
+		},
+		{
+			"id": "saloon_interior",
+			# The camera passes through the open doorway and frames the bar and back shelf.
+			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -10.3)) + 0.2, -10.3),
+			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -12.0)) + 3.0, -14.6),
+			"duration": 3.0
+		},
+		{
+			"id": "saloon_exit",
+			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 0.2, -5.7),
+			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 2.4, -1.5),
+			"duration": 2.0
+		},
+		{
+			"id": "town_street_clearance",
+			# Rejoin the open street before turning north; the diagonal from the saloon
+			# would otherwise clip the sheriff office footprint.
+			"position": Vector3(0.0, _terrain_height(Vector2(0.0, -2.0)) + 0.2, -2.0),
+			"target": Vector3(-12.0, 2.6, -12.0),
+			"duration": 1.0
 		},
 		{
 			"id": "town_north_exit",

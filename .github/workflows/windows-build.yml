@@ -122,7 +122,7 @@ jobs:
           fi
           echo "Gameplay preview waypoint trace:"
           grep -F "PREVIEW_WAYPOINT_COMPLETE:" game-runtime.log > preview-waypoints.log || true
-          for waypoint in town_establishing main_street town_north_exit west_ridge_approach herd_approach herd_close south_detour tyrannosaur_vista return_overlook town_return; do
+          for waypoint in town_establishing main_street saloon_approach saloon_interior saloon_exit town_street_clearance town_north_exit west_ridge_approach herd_approach herd_close herd_clearance south_detour tyrannosaur_vista return_overlook town_return; do
             if ! grep -Fq "$waypoint" preview-waypoints.log; then
               echo "Missing completed preview waypoint: $waypoint"
               cat game-runtime.log
