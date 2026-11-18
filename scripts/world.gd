@@ -1460,7 +1460,7 @@ func _build_building_interior(root: Node3D, sign_text: String, wall: Color) -> v
 	_interior_lantern(root, Vector3(0, 3.65, -0.65))
 	if sign_text == "SALOON":
 		# Long service bar, brass foot rail, bottle shelves and card tables.
-		var mirror_frame := _interior_solid_box(root, Vector3(0.0, 3.0, -3.25),
+		_interior_solid_box(root, Vector3(0.0, 3.0, -3.25),
 			Vector3(4.0, 0.78, 0.16), dark_wood, "SaloonMirrorFrame")
 		var mirror_material := StandardMaterial3D.new()
 		mirror_material.albedo_color = Color(0.20, 0.27, 0.29)
