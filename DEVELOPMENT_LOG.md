@@ -200,3 +200,24 @@ The first route regression correctly caught a new path from the saloon exit that
 The interior route and new vegetation have not yet been visually inspected in a successful post-change Windows gameplay capture. The CI host remains Mesa llvmpipe/OpenGL 3; target-GPU performance, high-quality Forward+ lighting, and independent whole-game visual review remain open blockers.
 
 AAA status remains **not achieved**. Next: merge only after the final PR validation, inspect the post-merge Windows preview and its saloon interior frame, then continue with rock/plant material integration and target-GPU measurement.
+
+
+## 2026-11-18 development passes 9–12 — saloon prop quality and pre-merge capture
+
+Continued from the measured #130 failure and the open preview-route PR rather than repeating the completed terrain, vegetation, and interior-shell work.
+
+1. Rebuilt the shared interior lantern as a recognizable iron-cage fixture: ceiling stem, upper/lower caps, four protective bars, and a warm emissive globe. The existing warm OmniLight remains the actual illumination source. The interior regression checks fixture components and emissive material.
+2. Replaced the five saloon shelf cylinders with one continuous lathed-style bottle mesh per prop, including a tapered shoulder/neck, separate cork and front-facing paper label. Five restrained glass colors distinguish the bottles without introducing unrelated clutter. The regression checks count, mesh surface, bounds, corks, and labels.
+3. Added a brass customer-side foot rail with three support brackets and a narrow brass counter inlay. The regression checks the rail mesh length/orientation, supports, and inlay.
+4. Enabled the Windows Build workflow on pull requests, not only pushes to main. The pre-merge workflow now requires all 15 named route stops, a route-complete marker, and an elapsed-time value no greater than 50 seconds. This lets the full software-rendered capture and Windows export reject a partial route before merge.
+
+The three saloon passes and the pre-merge CI wiring are committed on the existing PR branch. Their full Godot regression, 60-second capture, route-completion timing, and Windows export remain pending CI at this point. No new visual-quality claim is made until the resulting video is inspected. Mesa llvmpipe/OpenGL 3 remains a known limitation for lighting and target-GPU performance. AAA is not achieved.
+
+
+## 2026-11-18 development passes 13–14 — saloon light balance and route-complete capture
+
+Inspected the actual PR #131 frames and diagnostics rather than treating the uploaded file as a successful preview. The close saloon frame confirms the lantern fixture and shaped bottle props are present, but the back shelf remains too dark under the runner's OpenGL Compatibility fallback. Added a dedicated shadowless warm OmniLight at the saloon back bar only; its energy, range and shadow policy are covered by the interior regression. This avoids adding a second shadow-casting light to every building.
+
+The #131 Windows capture then provided a precise timing failure: the first 14 of 15 waypoints completed, but town_return was still missing at the 60-second capture boundary. The trace reached return_overlook at 60.18 seconds. The 50-second completion budget was therefore contradicted by measured evidence, not a scene-script error. Replaced the fixed 60-second recording with a recorder that polls for PREVIEW_ROUTE_COMPLETE, stops two seconds after the marker, and times out at 90 seconds. The route marker's accepted elapsed limit is now 85 seconds; video duration and start/end frame movement are still checked, and all 15 named stops remain mandatory.
+
+Godot validation #128 passed all regressions and Windows x86_64 export before this lighting addition. The new lighting regression and dynamic Windows capture are pending a fresh CI run. The #131 60-second preview is a real partial recording, not a complete gameplay artifact; no Windows executable was exported from that run. AAA remains not achieved.

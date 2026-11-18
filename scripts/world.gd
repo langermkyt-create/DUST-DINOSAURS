@@ -1,12 +1,13 @@
 extends Node3D
 const PlayerScript = preload("res://scripts/player.gd")
 const PREVIEW_TWEEN_SPEED_SCALE := 3.5
-const PREVIEW_WAYPOINT_HOLD_SECONDS := 0.2
+const PREVIEW_WAYPOINT_HOLD_SECONDS := 0.35
 const PREVIEW_CAMERA_FOV := 56.0
 const TERRAIN_MESH_SEGMENTS := 256
 const TERRAIN_COLLISION_SEGMENTS := 192
 var player: CharacterBody3D
 var message_label: Label
+var preview_started_at_msec: int = 0
 func _ready() -> void:
 	_build_atmosphere()
 	_build_landscape()
@@ -1417,17 +1418,99 @@ func _interior_table(root: Node3D, center: Vector3, width: float, depth: float, 
 
 func _interior_lantern(root: Node3D, position: Vector3) -> void:
 	var iron := _material(Color(0.075, 0.065, 0.05), 0.58, 0.62)
-	var glass := _material(Color(0.95, 0.55, 0.2), 0.25)
-	_cylinder(root, position, 0.12, 0.28, Color(0.08, 0.065, 0.045), 12)
-	_sphere(root, position + Vector3(0, -0.22, 0), Vector3(0.14, 0.24, 0.14), glass)
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(0.95, 0.55, 0.2)
+	glass.roughness = 0.28
+	glass.emission_enabled = true
+	glass.emission = Color(1.0, 0.36, 0.08)
+	glass.emission_energy_multiplier = 0.55
+	var stem := _cylinder(root, position + Vector3(0, 0.18, 0), 0.025, 0.24, iron, 8)
+	stem.name = "InteriorLanternStem"
+	var upper_cap := _cylinder(root, position, 0.13, 0.10, iron, 12)
+	upper_cap.name = "InteriorLanternUpperCap"
+	var globe := _sphere(root, position + Vector3(0, -0.22, 0), Vector3(0.14, 0.24, 0.14), glass)
+	globe.name = "InteriorLanternGlobe"
+	var lower_cap := _cylinder(root, position + Vector3(0, -0.43, 0), 0.09, 0.08, iron, 12)
+	lower_cap.name = "InteriorLanternLowerCap"
+	for offset in [
+		Vector3(-0.105, -0.22, -0.105),
+		Vector3(0.105, -0.22, -0.105),
+		Vector3(-0.105, -0.22, 0.105),
+		Vector3(0.105, -0.22, 0.105)
+	]:
+		var guard := _cylinder(root, position + offset, 0.012, 0.34, iron, 8)
+		guard.name = "InteriorLanternGuard"
 	var light := OmniLight3D.new()
 	light.name = "InteriorLanternLight"
 	light.position = position + Vector3(0, -0.28, 0)
 	light.light_color = Color(1.0, 0.58, 0.29)
-	light.light_energy = 0.65
-	light.omni_range = 8.0
+	light.light_energy = 1.1
+	light.omni_range = 10.0
 	light.shadow_enabled = true
 	root.add_child(light)
+
+func _make_saloon_bottle_mesh() -> ArrayMesh:
+	const RADIAL_SEGMENTS := 16
+	const BOTTLE_RADIUS := 0.055
+	const BOTTLE_HEIGHT := 0.27
+	var profile: Array[Vector2] = [
+		Vector2(0.58, 0.0),
+		Vector2(0.92, 0.04),
+		Vector2(1.0, 0.12),
+		Vector2(1.0, 0.58),
+		Vector2(0.86, 0.68),
+		Vector2(0.48, 0.79),
+		Vector2(0.34, 0.84),
+		Vector2(0.34, 0.96)
+	]
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for ring_index in range(profile.size() - 1):
+		var lower := profile[ring_index]
+		var upper := profile[ring_index + 1]
+		for side in range(RADIAL_SEGMENTS):
+			var angle0 := TAU * float(side) / float(RADIAL_SEGMENTS)
+			var angle1 := TAU * float(side + 1) / float(RADIAL_SEGMENTS)
+			var lower0 := Vector3(cos(angle0) * lower.x * BOTTLE_RADIUS,
+				lower.y * BOTTLE_HEIGHT, sin(angle0) * lower.x * BOTTLE_RADIUS)
+			var lower1 := Vector3(cos(angle1) * lower.x * BOTTLE_RADIUS,
+				lower.y * BOTTLE_HEIGHT, sin(angle1) * lower.x * BOTTLE_RADIUS)
+			var upper0 := Vector3(cos(angle0) * upper.x * BOTTLE_RADIUS,
+				upper.y * BOTTLE_HEIGHT, sin(angle0) * upper.x * BOTTLE_RADIUS)
+			var upper1 := Vector3(cos(angle1) * upper.x * BOTTLE_RADIUS,
+				upper.y * BOTTLE_HEIGHT, sin(angle1) * upper.x * BOTTLE_RADIUS)
+			surface.add_vertex(lower0)
+			surface.add_vertex(upper0)
+			surface.add_vertex(lower1)
+			surface.add_vertex(lower1)
+			surface.add_vertex(upper0)
+			surface.add_vertex(upper1)
+	var bottom_center := Vector3.ZERO
+	var bottom_radius := profile[0].x * BOTTLE_RADIUS
+	for side in range(RADIAL_SEGMENTS):
+		var angle0 := TAU * float(side) / float(RADIAL_SEGMENTS)
+		var angle1 := TAU * float(side + 1) / float(RADIAL_SEGMENTS)
+		var edge0 := Vector3(cos(angle0) * bottom_radius, 0.0, sin(angle0) * bottom_radius)
+		var edge1 := Vector3(cos(angle1) * bottom_radius, 0.0, sin(angle1) * bottom_radius)
+		surface.add_vertex(bottom_center)
+		surface.add_vertex(edge0)
+		surface.add_vertex(edge1)
+	var top_profile := profile[profile.size() - 1]
+	var top_center := Vector3(0.0, top_profile.y * BOTTLE_HEIGHT, 0.0)
+	var top_radius := top_profile.x * BOTTLE_RADIUS
+	for side in range(RADIAL_SEGMENTS):
+		var angle0 := TAU * float(side) / float(RADIAL_SEGMENTS)
+		var angle1 := TAU * float(side + 1) / float(RADIAL_SEGMENTS)
+		var edge0 := Vector3(cos(angle0) * top_radius, top_center.y,
+			sin(angle0) * top_radius)
+		var edge1 := Vector3(cos(angle1) * top_radius, top_center.y,
+			sin(angle1) * top_radius)
+		surface.add_vertex(top_center)
+		surface.add_vertex(edge1)
+		surface.add_vertex(edge0)
+	surface.generate_normals()
+	return surface.commit()
+
 
 func _build_building_interior(root: Node3D, sign_text: String, wall: Color) -> void:
 	var floor_wood := _weathered_wood_material(wall.darkened(0.38))
@@ -1459,6 +1542,16 @@ func _build_building_interior(root: Node3D, sign_text: String, wall: Color) -> v
 		front_wainscot.name = "InteriorWainscot"
 	_interior_lantern(root, Vector3(0, 3.65, -0.65))
 	if sign_text == "SALOON":
+		# A restrained second warm source lifts the bottle shelf and service surface
+		# without brightening every room or relying on unavailable software GI.
+		var back_bar_fill := OmniLight3D.new()
+		back_bar_fill.name = "SaloonBackBarFillLight"
+		back_bar_fill.position = Vector3(0.0, 2.7, -2.0)
+		back_bar_fill.light_color = Color(1.0, 0.67, 0.42)
+		back_bar_fill.light_energy = 0.8
+		back_bar_fill.omni_range = 7.5
+		back_bar_fill.shadow_enabled = false
+		root.add_child(back_bar_fill)
 		# Long service bar, brass foot rail, bottle shelves and card tables.
 		_interior_solid_box(root, Vector3(0.0, 3.0, -3.25),
 			Vector3(4.0, 0.78, 0.16), dark_wood, "SaloonMirrorFrame")
@@ -1470,14 +1563,46 @@ func _build_building_interior(root: Node3D, sign_text: String, wall: Color) -> v
 			Vector3(3.62, 0.50, 0.035), mirror_material, "SaloonMirror")
 		_interior_solid_box(root, Vector3(0.0, 2.55, -3.02),
 			Vector3(4.5, 0.12, 0.32), furniture, "SaloonBackShelf")
-		var shelf_bottle_material := _material(Color(0.25, 0.105, 0.045), 0.28, 0.08)
+		var bottle_mesh := _make_saloon_bottle_mesh()
+		var bottle_colors: Array[Color] = [
+			Color(0.24, 0.38, 0.18),
+			Color(0.42, 0.19, 0.07),
+			Color(0.16, 0.27, 0.22),
+			Color(0.34, 0.22, 0.10),
+			Color(0.20, 0.31, 0.15)
+		]
+		var label_material := _material(Color(0.78, 0.66, 0.44), 0.88, 0.0)
+		var cork_material := _material(Color(0.38, 0.24, 0.12), 0.94, 0.0)
 		for bottle_index in range(5):
 			var bottle_x := -1.7 + float(bottle_index) * 0.85
-			var bottle := _cylinder(root, Vector3(bottle_x, 2.75, -2.88),
-				0.055, 0.22, shelf_bottle_material, 8)
-			bottle.name = "SaloonShelfBottle"
+			var bottle_position := Vector3(bottle_x, 2.62, -2.88)
+			var bottle_material := StandardMaterial3D.new()
+			bottle_material.albedo_color = bottle_colors[bottle_index]
+			bottle_material.roughness = 0.24
+			bottle_material.metallic = 0.04
+			var bottle := _mesh(root, bottle_mesh, bottle_material, bottle_position)
+			bottle.name = "SaloonBottleMesh"
+			var label := _box(root, bottle_position + Vector3(0, 0.14, 0.052),
+				Vector3(0.064, 0.055, 0.008), label_material)
+			label.name = "SaloonBottleLabel"
+			var cork := _cylinder(root, bottle_position + Vector3(0, 0.267, 0),
+				0.018, 0.035, cork_material, 8)
+			cork.name = "SaloonBottleCork"
 		_interior_solid_box(root, Vector3(0, 1.15, -1.65), Vector3(6.0, 1.9, 0.72), furniture, "SaloonBar")
 		_interior_solid_box(root, Vector3(0, 2.15, -1.65), Vector3(6.2, 0.16, 0.86), dark_wood, "BarTop")
+		var brass := _material(Color(0.54, 0.34, 0.12), 0.34, 0.78)
+		var bar_inlay := _box(root, Vector3(0.0, 2.14, -1.215),
+			Vector3(6.05, 0.025, 0.025), brass)
+		bar_inlay.name = "SaloonBarBrassInlay"
+		var foot_rail := _cylinder(root, Vector3(0.0, 0.48, -0.98),
+			0.045, 4.8, brass, 16)
+		foot_rail.rotation.z = PI / 2.0
+		foot_rail.name = "SaloonFootRail"
+		for support_x in [-2.0, 0.0, 2.0]:
+			var bracket := _cylinder(root, Vector3(support_x, 0.48, -1.13),
+				0.022, 0.32, brass, 12)
+			bracket.rotation.x = PI / 2.0
+			bracket.name = "SaloonFootRailBracket"
 		for x in [-2.2, -1.1, 0.0, 1.1, 2.2]:
 			_cylinder(root, Vector3(x, 2.42, -1.65), 0.075, 0.42, iron, 10)
 			_sphere(root, Vector3(x, 2.65, -1.65), Vector3(0.16, 0.2, 0.16), _material(Color(0.32, 0.12, 0.06), 0.22))
@@ -2241,33 +2366,33 @@ func _preview_route() -> Array[Dictionary]:
 			"id": "town_establishing",
 			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 38.0)) + 0.2, 38.0),
 			"target": Vector3(-12.0, 2.6, -12.0),
-			"duration": 4.0
+			"duration": 2.0
 		},
 		{
 			"id": "main_street",
 			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 8.0)) + 0.2, 8.0),
 			"target": Vector3(12.0, 2.5, -8.0),
-			"duration": 4.0
+			"duration": 2.0
 		},
 		{
 			"id": "saloon_approach",
 			# Stop outside the front threshold, aligned with the centered open doorway.
 			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 0.2, -5.7),
 			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -12.0)) + 2.7, -13.65),
-			"duration": 2.0
+			"duration": 1.0
 		},
 		{
 			"id": "saloon_interior",
 			# The camera passes through the open doorway and frames the bar and back shelf.
-			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -10.3)) + 0.2, -10.3),
-			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -12.0)) + 3.0, -14.6),
-			"duration": 3.0
+			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -9.5)) + 0.2, -9.5),
+			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -12.0)) + 2.7, -13.8),
+			"duration": 2.0
 		},
 		{
 			"id": "saloon_exit",
 			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 0.2, -5.7),
 			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 2.4, -1.5),
-			"duration": 2.0
+			"duration": 1.0
 		},
 		{
 			"id": "town_street_clearance",
@@ -2281,19 +2406,19 @@ func _preview_route() -> Array[Dictionary]:
 			"id": "town_north_exit",
 			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 42.0)) + 0.2, 42.0),
 			"target": Vector3(-12.0, 2.6, -12.0),
-			"duration": 4.0
+			"duration": 2.0
 		},
 		{
 			"id": "west_ridge_approach",
 			"position": Vector3(-48.0, _terrain_height(Vector2(-48.0, 42.0)) + 0.2, 42.0),
 			"target": Vector3(-31.0, 2.2, -58.0),
-			"duration": 5.0
+			"duration": 2.0
 		},
 		{
 			"id": "herd_approach",
 			"position": Vector3(-42.0, _terrain_height(Vector2(-42.0, -30.0)) + 0.2, -30.0),
 			"target": Vector3(-31.0, 2.2, -57.0),
-			"duration": 5.0
+			"duration": 2.0
 		},
 		{
 			"id": "herd_close",
@@ -2301,7 +2426,7 @@ func _preview_route() -> Array[Dictionary]:
 			# clearance leg moves monotonically away from the family before turning south.
 			"position": Vector3(-37.0, _terrain_height(Vector2(-37.0, -50.0)) + 1.35, -50.0),
 			"target": Vector3(-31.0, _terrain_height(Vector2(-31.0, -52.0)) + 1.95, -54.2),
-			"duration": 4.0
+			"duration": 2.0
 		},
 		{
 			"id": "herd_clearance",
@@ -2314,26 +2439,26 @@ func _preview_route() -> Array[Dictionary]:
 			"id": "south_detour",
 			"position": Vector3(-52.0, _terrain_height(Vector2(-52.0, -95.0)) + 0.2, -95.0),
 			"target": Vector3(70.0, 5.2, -112.0),
-			"duration": 3.0
+			"duration": 1.5
 		},
 		{
 			"id": "tyrannosaur_vista",
 			# The overlook moves closer while keeping the full animal in the open mesa corridor.
 			"position": Vector3(82.0, _terrain_height(Vector2(82.0, -132.0)) + 1.2, -132.0),
 			"target": Vector3(70.0, 5.2, -112.0),
-			"duration": 5.0
+			"duration": 2.5
 		},
 		{
 			"id": "return_overlook",
 			"position": Vector3(8.0, _terrain_height(Vector2(8.0, -38.0)) + 0.2, -38.0),
 			"target": Vector3(-12.0, 2.6, -12.0),
-			"duration": 2.0
+			"duration": 1.0
 		},
 		{
 			"id": "town_return",
 			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 38.0)) + 0.2, 38.0),
 			"target": Vector3(-12.0, 2.6, -12.0),
-			"duration": 2.0
+			"duration": 1.0
 		}
 	]
 
@@ -2355,6 +2480,7 @@ func _start_preview_flythrough() -> void:
 	message_label.text = "AUTOMATED PREVIEW ROUTE — RED ROCK, ARIZONA 1897"
 	await RenderingServer.frame_post_draw
 	await get_tree().create_timer(1.5).timeout
+	preview_started_at_msec = Time.get_ticks_msec()
 	print("PREVIEW_READY")
 	_run_preview_route()
 
@@ -2378,9 +2504,13 @@ func _run_preview_route() -> void:
 		await segment.finished
 		_log_preview_waypoint(str(waypoint["id"]))
 		await get_tree().create_timer(PREVIEW_WAYPOINT_HOLD_SECONDS).timeout
+	var elapsed := float(Time.get_ticks_msec() - preview_started_at_msec) / 1000.0
+	print("PREVIEW_ROUTE_COMPLETE: elapsed=" + str(snappedf(elapsed, 0.01)))
 
 func _log_preview_waypoint(waypoint_id: String) -> void:
-	print("PREVIEW_WAYPOINT_COMPLETE: " + waypoint_id + " position=" + str(player.global_position))
+	var elapsed := float(Time.get_ticks_msec() - preview_started_at_msec) / 1000.0
+	print("PREVIEW_WAYPOINT_COMPLETE: " + waypoint_id + " elapsed=" +
+		str(snappedf(elapsed, 0.01)) + " position=" + str(player.global_position))
 
 func _build_player() -> void:
 	player = CharacterBody3D.new()

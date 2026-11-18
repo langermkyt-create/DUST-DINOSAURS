@@ -6,8 +6,8 @@ func _initialize() -> void:
 	world_under_test = Node3D.new()
 	world_under_test.set_script(load("res://scripts/world.gd"))
 	var route: Array = world_under_test.call("_preview_route")
-	if route.size() < 10:
-		_fail("Preview route must cover the town, herd, and distant predator.")
+	if route.size() != 15:
+		_fail("Preview route must preserve all 15 authored town, interior, herd, and predator stops.")
 		return
 
 	var waypoints: Dictionary = {}
@@ -68,7 +68,7 @@ func _initialize() -> void:
 		_fail("Saloon exit must rejoin the open main street before the northbound route.")
 		return
 	var expected_bar_target := Vector3(-12.0,
-		float(world_under_test.call("_terrain_height", Vector2(-12.0, -12.0))) + 3.0, -14.6)
+		float(world_under_test.call("_terrain_height", Vector2(-12.0, -12.0))) + 2.7, -13.8)
 	if waypoints["saloon_interior"]["target"].distance_to(expected_bar_target) > 0.1:
 		_fail("Saloon interior camera must frame the back bar and mirror, not the exterior street.")
 		return
@@ -111,8 +111,8 @@ func _initialize() -> void:
 	if predator_target.distance_to(Vector3(70.0, 5.2, -112.0)) > 0.1:
 		_fail("Distant predator vista must aim at the authored tyrannosaur location.")
 		return
-	if total_duration < 42.0 or total_duration > 48.0:
-		_fail("Preview route duration must remain between 42 and 48 seconds for the 60-second CI capture.")
+	if total_duration < 23.5 or total_duration > 24.5:
+		_fail("Preview route duration must remain inside the 24-second travel budget for the 60-second CI capture.")
 		return
 
 	print("Preview route regression passed: ", route.size(),
