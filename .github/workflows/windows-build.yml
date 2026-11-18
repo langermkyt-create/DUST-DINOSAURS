@@ -130,6 +130,11 @@ jobs:
             fi
             grep -F "$waypoint" preview-waypoints.log
           done
+          if ! grep -Fq "PREVIEW_ROUTE_COMPLETE:" game-runtime.log; then
+            echo "The complete 15-stop preview route did not finish inside the 60-second capture"
+            cat game-runtime.log
+            exit 1
+          fi
       - name: Export Windows executable
         run: |
           mkdir -p build
