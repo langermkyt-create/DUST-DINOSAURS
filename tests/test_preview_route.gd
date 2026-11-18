@@ -43,7 +43,7 @@ func _initialize() -> void:
 		waypoints[waypoint_id] = waypoint
 		total_duration += duration
 
-	for required_id in ["town_establishing", "main_street", "saloon_approach", "saloon_interior", "saloon_exit", "town_north_exit", "west_ridge_approach", "herd_close", "herd_clearance", "south_detour", "tyrannosaur_vista", "town_return"]:
+	for required_id in ["town_establishing", "main_street", "saloon_approach", "saloon_interior", "saloon_exit", "town_street_clearance", "town_north_exit", "west_ridge_approach", "herd_close", "herd_clearance", "south_detour", "tyrannosaur_vista", "town_return"]:
 		if not waypoints.has(required_id):
 			_fail("Preview route is missing required landmark: " + required_id)
 			return
@@ -62,6 +62,10 @@ func _initialize() -> void:
 		return
 	if saloon_exit.distance_to(saloon_approach) > 0.1:
 		_fail("Saloon exit must return through the same centered doorway.")
+		return
+	var street_clearance: Vector3 = waypoints["town_street_clearance"]["position"]
+	if absf(street_clearance.x) > 0.05 or street_clearance.z > -1.0 or street_clearance.z < -3.0:
+		_fail("Saloon exit must rejoin the open main street before the northbound route.")
 		return
 	var expected_bar_target := Vector3(-12.0,
 		float(world_under_test.call("_terrain_height", Vector2(-12.0, -12.0))) + 3.0, -14.6)
