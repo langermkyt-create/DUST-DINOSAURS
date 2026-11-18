@@ -1320,6 +1320,7 @@ func _make_roof_shingle_mesh(seed_value: int) -> ArrayMesh:
 
 func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) -> void:
 	var root := Node3D.new()
+	root.name = sign_text.replace(" ", "") + "Building"
 	root.position = pos + Vector3(0.0, _terrain_height(Vector2(pos.x, pos.z)), 0.0)
 	add_child(root)
 	var wall_surface := _weathered_wood_material(wall)
@@ -1420,6 +1421,7 @@ func _interior_lantern(root: Node3D, position: Vector3) -> void:
 	_cylinder(root, position, 0.12, 0.28, Color(0.08, 0.065, 0.045), 12)
 	_sphere(root, position + Vector3(0, -0.22, 0), Vector3(0.14, 0.24, 0.14), glass)
 	var light := OmniLight3D.new()
+	light.name = "InteriorLanternLight"
 	light.position = position + Vector3(0, -0.28, 0)
 	light.light_color = Color(1.0, 0.58, 0.29)
 	light.light_energy = 0.65
@@ -1438,9 +1440,42 @@ func _build_building_interior(root: Node3D, sign_text: String, wall: Color) -> v
 	for plank in range(15):
 		var z := -3.0 + float(plank) * 0.43
 		_box(root, Vector3(0, 0.052, z), Vector3(9.45, 0.018, 0.39), floor_wood)
+	# Exposed ceiling joists, corner studs and continuous lower wall trim give the
+	# room a readable timber structure instead of leaving the interior as a dark box.
+	for z in [-2.7, 0.0, 2.7]:
+		var joist := _box(root, Vector3(0.0, 3.92, z), Vector3(9.2, 0.18, 0.22), dark_wood)
+		joist.name = "InteriorCeilingJoist"
+	for x in [-4.62, 4.62]:
+		for z in [-3.1, 3.1]:
+			var stud := _box(root, Vector3(x, 2.0, z), Vector3(0.16, 3.75, 0.16), furniture)
+			stud.name = "InteriorWallStud"
+	for x in [-4.62, 4.62]:
+		var side_wainscot := _box(root, Vector3(x, 0.35, 0.0), Vector3(0.18, 0.42, 6.2), dark_wood)
+		side_wainscot.name = "InteriorWainscot"
+	var rear_wainscot := _box(root, Vector3(0.0, 0.35, -3.22), Vector3(9.2, 0.42, 0.16), dark_wood)
+	rear_wainscot.name = "InteriorWainscot"
+	for x in [-3.65, 3.65]:
+		var front_wainscot := _box(root, Vector3(x, 0.35, 3.22), Vector3(2.1, 0.42, 0.16), dark_wood)
+		front_wainscot.name = "InteriorWainscot"
 	_interior_lantern(root, Vector3(0, 3.65, -0.65))
 	if sign_text == "SALOON":
 		# Long service bar, brass foot rail, bottle shelves and card tables.
+		var mirror_frame := _interior_solid_box(root, Vector3(0.0, 3.0, -3.25),
+			Vector3(4.0, 0.78, 0.16), dark_wood, "SaloonMirrorFrame")
+		var mirror_material := StandardMaterial3D.new()
+		mirror_material.albedo_color = Color(0.20, 0.27, 0.29)
+		mirror_material.metallic = 0.58
+		mirror_material.roughness = 0.24
+		_interior_solid_box(root, Vector3(0.0, 3.0, -3.15),
+			Vector3(3.62, 0.50, 0.035), mirror_material, "SaloonMirror")
+		_interior_solid_box(root, Vector3(0.0, 2.55, -3.02),
+			Vector3(4.5, 0.12, 0.32), furniture, "SaloonBackShelf")
+		var shelf_bottle_material := _material(Color(0.25, 0.105, 0.045), 0.28, 0.08)
+		for bottle_index in range(5):
+			var bottle_x := -1.7 + float(bottle_index) * 0.85
+			var bottle := _cylinder(root, Vector3(bottle_x, 2.75, -2.88),
+				0.055, 0.22, shelf_bottle_material, 8)
+			bottle.name = "SaloonShelfBottle"
 		_interior_solid_box(root, Vector3(0, 1.15, -1.65), Vector3(6.0, 1.9, 0.72), furniture, "SaloonBar")
 		_interior_solid_box(root, Vector3(0, 2.15, -1.65), Vector3(6.2, 0.16, 0.86), dark_wood, "BarTop")
 		for x in [-2.2, -1.1, 0.0, 1.1, 2.2]:
@@ -2213,6 +2248,26 @@ func _preview_route() -> Array[Dictionary]:
 			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 8.0)) + 0.2, 8.0),
 			"target": Vector3(12.0, 2.5, -8.0),
 			"duration": 4.0
+		},
+		{
+			"id": "saloon_approach",
+			# Stop outside the front threshold, aligned with the centered open doorway.
+			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 0.2, -5.7),
+			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -12.0)) + 2.7, -13.65),
+			"duration": 2.0
+		},
+		{
+			"id": "saloon_interior",
+			# The camera passes through the open doorway and frames the bar and back shelf.
+			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -10.3)) + 0.2, -10.3),
+			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -12.0)) + 3.0, -14.6),
+			"duration": 3.0
+		},
+		{
+			"id": "saloon_exit",
+			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 0.2, -5.7),
+			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 2.4, -1.5),
+			"duration": 2.0
 		},
 		{
 			"id": "town_north_exit",
