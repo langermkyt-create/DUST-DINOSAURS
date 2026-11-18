@@ -20,7 +20,12 @@ func _terrain_material() -> ShaderMaterial:
 	shader.code = """
 shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx;
+uniform vec4 dust_tint : source_color = vec4(0.39, 0.27, 0.18, 1.0);
+uniform vec4 ochre_tint : source_color = vec4(0.58, 0.39, 0.24, 1.0);
+uniform vec4 pale_tint : source_color = vec4(0.68, 0.53, 0.36, 1.0);
+uniform float micro_normal_strength = 0.04;
 varying vec3 world_position;
+varying vec3 world_normal;
 float hash21(vec2 p) {
 	p = fract(p * vec2(123.34, 456.21));
 	p += dot(p, p + 45.32);
@@ -45,31 +50,45 @@ float fbm(vec2 p) {
 }
 void vertex() {
 	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);
 }
 void fragment() {
-	float broad = fbm(world_position.xz * 0.026);
-	float sediment = noise2(world_position.xz * vec2(0.065, 0.22));
-	float grain = noise2(world_position.xz * 1.35);
-	float flecks = noise2(world_position.xz * 8.5);
-	float fine_grain = noise2(world_position.xz * 31.0);
-	float wind_streak = sin(dot(world_position.xz, vec2(0.72, 0.69)) * 1.7
-		+ noise2(world_position.xz * 0.12) * 3.0) * 0.5 + 0.5;
-	vec3 dust = vec3(0.24, 0.145, 0.085);
-	vec3 ochre = vec3(0.43, 0.275, 0.17);
-	vec3 pale = vec3(0.59, 0.445, 0.30);
-	vec3 ground = mix(dust, ochre, smoothstep(0.2, 0.8, broad));
-	ground = mix(ground, pale, smoothstep(0.64, 0.9, grain) * 0.27);
-	ground *= 0.82 + flecks * 0.28 + fine_grain * 0.12;
-	float clay_streaks = smoothstep(0.72, 0.94, sediment);
-	ground = mix(ground, ground * vec3(0.72, 0.67, 0.58), clay_streaks * 0.18);
-	ground *= 0.96 + wind_streak * 0.06;
-	ALBEDO = ground;
-	ROUGHNESS = 0.94 + fine_grain * 0.05;
-	SPECULAR = 0.08;
+	float broad = fbm(world_position.xz * 0.014);
+	float sediment = noise2(world_position.xz * vec2(0.045, 0.16));
+	float grain = noise2(world_position.xz * 0.92);
+	float gravel = noise2(world_position.xz * 5.2);
+	float pores = noise2(world_position.xz * 22.0);
+	float fine_grain = noise2(world_position.xz * 54.0);
+	float wind_streak = sin(dot(world_position.xz, vec2(0.72, 0.69)) * 1.9
+		+ noise2(world_position.xz * 0.12) * 2.8) * 0.5 + 0.5;
+	float slope = 1.0 - clamp(world_normal.y, 0.0, 1.0);
+	float exposed_sandstone = smoothstep(0.12, 0.38, slope);
+	float wash_center = -76.0 + sin(world_position.x * 0.018) * 16.0;
+	float wash_mask = exp(-pow((world_position.z - wash_center) / 25.0, 2.0));
+	vec3 soil = mix(dust_tint.rgb, ochre_tint.rgb, smoothstep(0.18, 0.82, broad));
+	soil = mix(soil, pale_tint.rgb, smoothstep(0.62, 0.91, grain) * 0.30);
+	float clay_streaks = smoothstep(0.70, 0.94, sediment);
+	soil = mix(soil, soil * vec3(0.74, 0.69, 0.60), clay_streaks * 0.17);
+	soil = mix(soil, dust_tint.rgb * 0.82, wash_mask * 0.12);
+	vec3 sandstone = mix(vec3(0.42, 0.28, 0.20), vec3(0.56, 0.37, 0.25), broad);
+	soil = mix(soil, sandstone, exposed_sandstone * 0.58);
+	soil *= 0.88 + gravel * 0.16 + pores * 0.055 + fine_grain * 0.025;
+	soil *= 0.96 + wind_streak * 0.08;
+	vec2 micro_gradient = clamp(vec2(dFdx(fine_grain), dFdy(fine_grain)) * 0.18,
+		vec2(-0.04), vec2(0.04));
+	NORMAL = normalize(NORMAL + vec3(-micro_gradient.x, -micro_gradient.y, 0.0) * micro_normal_strength);
+	ALBEDO = soil;
+	ROUGHNESS = clamp(0.88 + pores * 0.11, 0.88, 0.99);
+	SPECULAR = 0.07;
+	AO = clamp(0.96 - (1.0 - gravel) * 0.05, 0.91, 1.0);
 }
 """
 	var material := ShaderMaterial.new()
 	material.shader = shader
+	material.set_shader_parameter("dust_tint", Color(0.39, 0.27, 0.18))
+	material.set_shader_parameter("ochre_tint", Color(0.58, 0.39, 0.24))
+	material.set_shader_parameter("pale_tint", Color(0.68, 0.53, 0.36))
+	material.set_shader_parameter("micro_normal_strength", 0.04)
 	return material
 
 func _material(color: Color, roughness := 0.9, metallic := 0.0) -> StandardMaterial3D:

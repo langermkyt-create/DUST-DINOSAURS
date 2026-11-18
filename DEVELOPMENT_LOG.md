@@ -126,3 +126,10 @@ AAA remains not achieved. Continue with the terrain material response, then nati
 ### Terrain regression correction
 
 The first terrain CI run (#105) confirmed import/parser success and all preceding regressions, but the new test's average generated-normal Y threshold failed. The test was relying on the engine's averaged vertex-normal representation as a proxy for triangle winding. Replaced that assumption with a direct geometric cross-product check on every emitted triangle, while retaining a non-zero generated-normal check. This tests the actual mesh winding independently of interpolation/normal averaging. The terrain change itself remains unchanged; rerun the full validation before proceeding.
+
+
+## 2026-11-18 development pass 2 — layered Arizona soil response
+
+The #122 and #124 baseline captures show a very dark, nearly uniform brown foreground. The first terrain-height pass adds measurable basin relief and a deeper arroyo, but the current shader still suppresses those forms visually. Replaced the single dark soil blend with a restrained sun-bleached dust/ochre/pale-sand palette, broad sediment variation, clay streaks, arroyo wash staining, slope-aware exposed sandstone, gravel/pores, fine-grain derivative normals, roughness variation and subtle AO. The shader derives slope from the world-space terrain normal, so exposed rock response follows the actual generated surface rather than a screen-space guess.
+
+Added `tests/test_terrain_material.gd` and wired it into the full Godot validation workflow. The regression verifies the material channels and palette ordering; shader compilation is exercised by Godot import and the next rendered Windows preview. No claim of visual success is made until that capture is inspected.
