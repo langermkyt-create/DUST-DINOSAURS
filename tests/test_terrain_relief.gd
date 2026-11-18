@@ -49,11 +49,11 @@ func _initialize() -> void:
 	var visual_vertices: PackedVector3Array = visual_mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
 	var collision_arrays := collision_mesh.surface_get_arrays(0)
 	var collision_vertices: PackedVector3Array = collision_arrays[Mesh.ARRAY_VERTEX]
-	var collision_normals: PackedVector3Array = collision_arrays[Mesh.ARRAY_NORMAL]
+	var collision_normals = collision_arrays[Mesh.ARRAY_NORMAL]
 	if visual_vertices.size() != 256 * 256 * 6 or collision_vertices.size() != 192 * 192 * 6:
 		_fail(world, "Visual and collision terrain grids must use their authored 256/192 segment budgets.")
 		return
-	if collision_vertices.size() >= visual_vertices.size() * 0.60 or not collision_normals.is_empty():
+	if collision_vertices.size() >= visual_vertices.size() * 0.60 or (collision_normals != null and not collision_normals.is_empty()):
 		_fail(world, "Collision terrain must reduce submitted vertices by at least 40% and omit unused normals.")
 		return
 	var maximum_collision_error := 0.0
