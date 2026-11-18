@@ -4,6 +4,7 @@ const PREVIEW_TWEEN_SPEED_SCALE := 3.5
 const PREVIEW_WAYPOINT_HOLD_SECONDS := 0.2
 const PREVIEW_CAMERA_FOV := 56.0
 const TERRAIN_MESH_SEGMENTS := 256
+const TERRAIN_COLLISION_SEGMENTS := 192
 var player: CharacterBody3D
 var message_label: Label
 func _ready() -> void:
@@ -307,7 +308,7 @@ func _is_predator_sightline(angle: float) -> bool:
 	var predator_bearing := Vector2(70.0, -112.0).angle()
 	return absf(wrapf(angle - predator_bearing, -PI, PI)) < 0.28
 
-func _make_terrain_mesh(segments: int) -> ArrayMesh:
+func _make_terrain_mesh(segments: int, generate_normals: bool = true) -> ArrayMesh:
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var half_extent := 260.0
@@ -336,7 +337,8 @@ func _make_terrain_mesh(segments: int) -> ArrayMesh:
 			surface.add_vertex(d)
 			surface.set_uv(Vector2(float(x) / segments, float(z + 1) / segments))
 			surface.add_vertex(c)
-	surface.generate_normals()
+	if generate_normals:
+		surface.generate_normals()
 	return surface.commit()
 
 func _build_landscape() -> void:
@@ -344,11 +346,14 @@ func _build_landscape() -> void:
 	# This removes the old mismatch where feet and rocks floated above a flat collision plane.
 	var ground := _make_terrain_mesh(TERRAIN_MESH_SEGMENTS)
 	ground.surface_set_material(0, _terrain_material())
+	# Keep the 2 m visual grid for silhouettes and shading, but use a 2.71 m
+	# collision grid from the same height function to cut static-triangle cost.
+	var collision_mesh := _make_terrain_mesh(TERRAIN_COLLISION_SEGMENTS, false)
 	var terrain := StaticBody3D.new()
 	terrain.name = "ProceduralTerrain"
 	add_child(terrain)
 	var ground_shape := CollisionShape3D.new()
-	ground_shape.shape = ground.create_trimesh_shape()
+	ground_shape.shape = collision_mesh.create_trimesh_shape()
 	terrain.add_child(ground_shape)
 	var ground_instance := MeshInstance3D.new()
 	ground_instance.name = "DuneSurface"
