@@ -151,3 +151,8 @@ The new #125 rendered capture was inspected. The foreground remains unusually da
 The #125 Windows preview also reached the final `return_overlook` but the 48-second recording ended before `town_return` completed. Increased the deterministic CI capture to 60 seconds and moved its end-frame comparison to 56 seconds, preserving the complete route rather than silently omitting its last waypoint.
 
 The first creosote regression (#108) reached the placement-height assertion and failed; expanded its diagnostic to report the exact instance, actual origin, expected terrain height and error, and made failure cleanup release both temporary test worlds. The next CI run must resolve this before the vegetation pass is considered verified. AAA remains not achieved.
+
+
+### Creosote placement regression correction
+
+The first placement assertion exposed that reading `MultiMesh.get_instance_transform()` from an off-tree `SceneTree` dummy-renderer test returns the default identity transform rather than the authored CPU-side placement record. The production placement loop already computes the root position before submitting it to the MultiMesh. It now retains those 30 source positions as lightweight node metadata; the regression compares deterministic source placements, verifies each root against the shared terrain-height function, and checks settlement/arroyo clearance without depending on a renderer-side RID buffer. The real Windows preview remains the visual check for the instanced output.

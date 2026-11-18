@@ -580,6 +580,7 @@ func _scatter_creosote_bushes() -> void:
 		bushes.multimesh = multimesh
 		bushes.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		add_child(bushes)
+		var placement_positions := PackedVector3Array()
 		for index in range(multimesh.instance_count):
 			var x := 0.0
 			var z := 0.0
@@ -613,8 +614,10 @@ func _scatter_creosote_bushes() -> void:
 				scale_factor * rng.randf_range(0.9, 1.1)
 			)
 			var position := Vector3(x, _terrain_height(Vector2(x, z)), z)
+			placement_positions.append(position)
 			multimesh.set_instance_transform(index,
 				Transform3D(Basis(Vector3.UP, yaw).scaled(scale), position))
+		bushes.set_meta("placement_positions", placement_positions)
 
 func _rock_surface_material() -> ShaderMaterial:
 	var rock_shader := Shader.new()

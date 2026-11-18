@@ -48,11 +48,14 @@ func _initialize() -> void:
 		if first == null or second == null or first.multimesh.instance_count != 30:
 			_fail(world, "Each creosote variant must contain thirty instanced shrubs.")
 			return
+		var first_positions: PackedVector3Array = first.get_meta("placement_positions")
+		var second_positions: PackedVector3Array = second.get_meta("placement_positions")
+		if first_positions.size() != 30 or second_positions.size() != 30:
+			_fail(world, "Each creosote batch must retain thirty authored placement records.")
+			return
 		for index in range(30):
-			var transform := first.multimesh.get_instance_transform(index)
-			var repeated_transform := second.multimesh.get_instance_transform(index)
-			var position := transform.origin
-			if position.distance_squared_to(repeated_transform.origin) > 0.000001:
+			var position: Vector3 = first_positions[index]
+			if position.distance_squared_to(second_positions[index]) > 0.000001:
 				_fail(world, "Seeded creosote placement must be deterministic.")
 				return
 			var expected_height: float = world.call("_terrain_height", Vector2(position.x, position.z))
