@@ -1425,8 +1425,8 @@ func _interior_lantern(root: Node3D, position: Vector3) -> void:
 	light.name = "InteriorLanternLight"
 	light.position = position + Vector3(0, -0.28, 0)
 	light.light_color = Color(1.0, 0.58, 0.29)
-	light.light_energy = 0.65
-	light.omni_range = 8.0
+	light.light_energy = 1.1
+	light.omni_range = 10.0
 	light.shadow_enabled = true
 	root.add_child(light)
 
