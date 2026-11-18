@@ -121,3 +121,8 @@ Changed `scripts/world.gd` to raise the terrain grid from 224 to 256 segments (a
 Expanded `tests/test_terrain_relief.gd` to check basin elevation range, arroyo bank/channel separation, generated normals, upward triangle winding and complete mesh topology. This is a geometry pass; no claim is made that the renderer has visually confirmed the new terrain yet. The existing CI already runs this regression, so the next push will validate it through the full Godot workflow and Windows export.
 
 AAA remains not achieved. Continue with the terrain material response, then native desert ground-cover variety.
+
+
+### Terrain regression correction
+
+The first terrain CI run (#105) confirmed import/parser success and all preceding regressions, but the new test's average generated-normal Y threshold failed. The test was relying on the engine's averaged vertex-normal representation as a proxy for triangle winding. Replaced that assumption with a direct geometric cross-product check on every emitted triangle, while retaining a non-zero generated-normal check. This tests the actual mesh winding independently of interpolation/normal averaging. The terrain change itself remains unchanged; rerun the full validation before proceeding.
