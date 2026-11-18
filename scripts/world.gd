@@ -1580,6 +1580,19 @@ func _build_building_interior(root: Node3D, sign_text: String, wall: Color) -> v
 			cork.name = "SaloonBottleCork"
 		_interior_solid_box(root, Vector3(0, 1.15, -1.65), Vector3(6.0, 1.9, 0.72), furniture, "SaloonBar")
 		_interior_solid_box(root, Vector3(0, 2.15, -1.65), Vector3(6.2, 0.16, 0.86), dark_wood, "BarTop")
+		var brass := _material(Color(0.54, 0.34, 0.12), 0.34, 0.78)
+		var bar_inlay := _box(root, Vector3(0.0, 2.14, -1.215),
+			Vector3(6.05, 0.025, 0.025), brass)
+		bar_inlay.name = "SaloonBarBrassInlay"
+		var foot_rail := _cylinder(root, Vector3(0.0, 0.48, -0.98),
+			0.045, 4.8, brass, 16)
+		foot_rail.rotation.z = PI / 2.0
+		foot_rail.name = "SaloonFootRail"
+		for support_x in [-2.0, 0.0, 2.0]:
+			var bracket := _cylinder(root, Vector3(support_x, 0.48, -1.13),
+				0.022, 0.32, brass, 12)
+			bracket.rotation.x = PI / 2.0
+			bracket.name = "SaloonFootRailBracket"
 		for x in [-2.2, -1.1, 0.0, 1.1, 2.2]:
 			_cylinder(root, Vector3(x, 2.42, -1.65), 0.075, 0.42, iron, 10)
 			_sphere(root, Vector3(x, 2.65, -1.65), Vector3(0.16, 0.2, 0.16), _material(Color(0.32, 0.12, 0.06), 0.22))

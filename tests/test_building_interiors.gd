@@ -64,6 +64,21 @@ func _initialize() -> void:
 	if _count_named_prefix(saloon, "SaloonBottleLabel") != 5:
 		_fail("Each saloon bottle must have a paper label facing the room.")
 		return
+	var foot_rail := _find_named(saloon, "SaloonFootRail") as MeshInstance3D
+	if foot_rail == null or not foot_rail.mesh is CylinderMesh:
+		_fail("Saloon service bar must have a continuous brass foot rail.")
+		return
+	var rail_mesh := foot_rail.mesh as CylinderMesh
+	if absf(rail_mesh.height - 4.8) > 0.01 or absf(foot_rail.rotation.z - PI / 2.0) > 0.01:
+		_fail("Saloon foot rail must span the customer side of the bar horizontally.")
+		return
+	if _count_named_prefix(saloon, "SaloonFootRailBracket") != 3:
+		_fail("Saloon foot rail must have three evenly spaced support brackets.")
+		return
+	var bar_inlay := _find_named(saloon, "SaloonBarBrassInlay") as MeshInstance3D
+	if bar_inlay == null:
+		_fail("Saloon bar must retain its narrow brass counter-edge inlay.")
+		return
 	for child in saloon.get_children():
 		if str(child.name) != "SaloonBottleMesh":
 			continue
