@@ -1,12 +1,13 @@
 extends Node3D
 const PlayerScript = preload("res://scripts/player.gd")
 const PREVIEW_TWEEN_SPEED_SCALE := 3.5
-const PREVIEW_WAYPOINT_HOLD_SECONDS := 0.2
+const PREVIEW_WAYPOINT_HOLD_SECONDS := 0.35
 const PREVIEW_CAMERA_FOV := 56.0
 const TERRAIN_MESH_SEGMENTS := 256
 const TERRAIN_COLLISION_SEGMENTS := 192
 var player: CharacterBody3D
 var message_label: Label
+var preview_started_at_msec: int = 0
 func _ready() -> void:
 	_build_atmosphere()
 	_build_landscape()
@@ -2241,33 +2242,33 @@ func _preview_route() -> Array[Dictionary]:
 			"id": "town_establishing",
 			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 38.0)) + 0.2, 38.0),
 			"target": Vector3(-12.0, 2.6, -12.0),
-			"duration": 4.0
+			"duration": 2.0
 		},
 		{
 			"id": "main_street",
 			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 8.0)) + 0.2, 8.0),
 			"target": Vector3(12.0, 2.5, -8.0),
-			"duration": 4.0
+			"duration": 2.0
 		},
 		{
 			"id": "saloon_approach",
 			# Stop outside the front threshold, aligned with the centered open doorway.
 			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 0.2, -5.7),
 			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -12.0)) + 2.7, -13.65),
-			"duration": 2.0
+			"duration": 1.0
 		},
 		{
 			"id": "saloon_interior",
 			# The camera passes through the open doorway and frames the bar and back shelf.
-			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -10.3)) + 0.2, -10.3),
-			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -12.0)) + 3.0, -14.6),
-			"duration": 3.0
+			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -9.5)) + 0.2, -9.5),
+			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -12.0)) + 2.7, -13.8),
+			"duration": 2.0
 		},
 		{
 			"id": "saloon_exit",
 			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 0.2, -5.7),
 			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 2.4, -1.5),
-			"duration": 2.0
+			"duration": 1.0
 		},
 		{
 			"id": "town_street_clearance",
@@ -2281,19 +2282,19 @@ func _preview_route() -> Array[Dictionary]:
 			"id": "town_north_exit",
 			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 42.0)) + 0.2, 42.0),
 			"target": Vector3(-12.0, 2.6, -12.0),
-			"duration": 4.0
+			"duration": 2.0
 		},
 		{
 			"id": "west_ridge_approach",
 			"position": Vector3(-48.0, _terrain_height(Vector2(-48.0, 42.0)) + 0.2, 42.0),
 			"target": Vector3(-31.0, 2.2, -58.0),
-			"duration": 5.0
+			"duration": 2.0
 		},
 		{
 			"id": "herd_approach",
 			"position": Vector3(-42.0, _terrain_height(Vector2(-42.0, -30.0)) + 0.2, -30.0),
 			"target": Vector3(-31.0, 2.2, -57.0),
-			"duration": 5.0
+			"duration": 2.0
 		},
 		{
 			"id": "herd_close",
@@ -2301,7 +2302,7 @@ func _preview_route() -> Array[Dictionary]:
 			# clearance leg moves monotonically away from the family before turning south.
 			"position": Vector3(-37.0, _terrain_height(Vector2(-37.0, -50.0)) + 1.35, -50.0),
 			"target": Vector3(-31.0, _terrain_height(Vector2(-31.0, -52.0)) + 1.95, -54.2),
-			"duration": 4.0
+			"duration": 2.0
 		},
 		{
 			"id": "herd_clearance",
@@ -2314,26 +2315,26 @@ func _preview_route() -> Array[Dictionary]:
 			"id": "south_detour",
 			"position": Vector3(-52.0, _terrain_height(Vector2(-52.0, -95.0)) + 0.2, -95.0),
 			"target": Vector3(70.0, 5.2, -112.0),
-			"duration": 3.0
+			"duration": 1.5
 		},
 		{
 			"id": "tyrannosaur_vista",
 			# The overlook moves closer while keeping the full animal in the open mesa corridor.
 			"position": Vector3(82.0, _terrain_height(Vector2(82.0, -132.0)) + 1.2, -132.0),
 			"target": Vector3(70.0, 5.2, -112.0),
-			"duration": 5.0
+			"duration": 2.5
 		},
 		{
 			"id": "return_overlook",
 			"position": Vector3(8.0, _terrain_height(Vector2(8.0, -38.0)) + 0.2, -38.0),
 			"target": Vector3(-12.0, 2.6, -12.0),
-			"duration": 2.0
+			"duration": 1.0
 		},
 		{
 			"id": "town_return",
 			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 38.0)) + 0.2, 38.0),
 			"target": Vector3(-12.0, 2.6, -12.0),
-			"duration": 2.0
+			"duration": 1.0
 		}
 	]
 
@@ -2355,6 +2356,7 @@ func _start_preview_flythrough() -> void:
 	message_label.text = "AUTOMATED PREVIEW ROUTE — RED ROCK, ARIZONA 1897"
 	await RenderingServer.frame_post_draw
 	await get_tree().create_timer(1.5).timeout
+	preview_started_at_msec = Time.get_ticks_msec()
 	print("PREVIEW_READY")
 	_run_preview_route()
 
@@ -2378,9 +2380,13 @@ func _run_preview_route() -> void:
 		await segment.finished
 		_log_preview_waypoint(str(waypoint["id"]))
 		await get_tree().create_timer(PREVIEW_WAYPOINT_HOLD_SECONDS).timeout
+	var elapsed := float(Time.get_ticks_msec() - preview_started_at_msec) / 1000.0
+	print("PREVIEW_ROUTE_COMPLETE: elapsed=" + str(snappedf(elapsed, 0.01)))
 
 func _log_preview_waypoint(waypoint_id: String) -> void:
-	print("PREVIEW_WAYPOINT_COMPLETE: " + waypoint_id + " position=" + str(player.global_position))
+	var elapsed := float(Time.get_ticks_msec() - preview_started_at_msec) / 1000.0
+	print("PREVIEW_WAYPOINT_COMPLETE: " + waypoint_id + " elapsed=" +
+		str(snappedf(elapsed, 0.01)) + " position=" + str(player.global_position))
 
 func _build_player() -> void:
 	player = CharacterBody3D.new()
