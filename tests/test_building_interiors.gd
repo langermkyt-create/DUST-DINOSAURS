@@ -54,9 +54,30 @@ func _initialize() -> void:
 	if _find_named(world_under_test.get_child(0), "SaloonBackShelf") == null:
 		_fail("Saloon interior must have a back-bar shelf.")
 		return
-	if _count_named_prefix(world_under_test.get_child(0), "SaloonShelfBottle") < 5:
-		_fail("Saloon back-bar shelf must carry five original bottle props.")
+	var saloon := world_under_test.get_child(0)
+	if _count_named_prefix(saloon, "SaloonBottleMesh") != 5:
+		_fail("Saloon back-bar shelf must carry five shaped glass bottles.")
 		return
+	if _count_named_prefix(saloon, "SaloonBottleCork") != 5:
+		_fail("Each saloon bottle must have a separate cork stopper.")
+		return
+	if _count_named_prefix(saloon, "SaloonBottleLabel") != 5:
+		_fail("Each saloon bottle must have a paper label facing the room.")
+		return
+	for child in saloon.get_children():
+		if str(child.name) != "SaloonBottleMesh":
+			continue
+		var bottle := child as MeshInstance3D
+		if bottle == null or bottle.mesh == null or bottle.mesh.get_surface_count() != 1:
+			_fail("Saloon bottle must use one continuous custom mesh surface.")
+			return
+		var bottle_bounds := bottle.mesh.get_aabb()
+		if bottle_bounds.size.y < 0.25 or bottle_bounds.size.y > 0.28:
+			_fail("Saloon bottle silhouette must retain its authored shoulder and neck height.")
+			return
+		if bottle_bounds.size.x < 0.10 or bottle_bounds.size.x > 0.12:
+			_fail("Saloon bottle body must retain a consistent glass diameter.")
+			return
 	print("Building interior regression passed: six walkable room archetypes, 18 exposed joists, 24 corner studs, 30 wall trims, six lantern lights, and a furnished saloon back bar.")
 	world_under_test.free()
 	world_under_test = null

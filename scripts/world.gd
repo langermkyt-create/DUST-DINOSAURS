@@ -1449,6 +1449,69 @@ func _interior_lantern(root: Node3D, position: Vector3) -> void:
 	light.shadow_enabled = true
 	root.add_child(light)
 
+func _make_saloon_bottle_mesh() -> ArrayMesh:
+	const RADIAL_SEGMENTS := 16
+	const BOTTLE_RADIUS := 0.055
+	const BOTTLE_HEIGHT := 0.27
+	var profile: Array[Vector2] = [
+		Vector2(0.58, 0.0),
+		Vector2(0.92, 0.04),
+		Vector2(1.0, 0.12),
+		Vector2(1.0, 0.58),
+		Vector2(0.86, 0.68),
+		Vector2(0.48, 0.79),
+		Vector2(0.34, 0.84),
+		Vector2(0.34, 0.96)
+	]
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for ring_index in range(profile.size() - 1):
+		var lower := profile[ring_index]
+		var upper := profile[ring_index + 1]
+		for side in range(RADIAL_SEGMENTS):
+			var angle0 := TAU * float(side) / float(RADIAL_SEGMENTS)
+			var angle1 := TAU * float(side + 1) / float(RADIAL_SEGMENTS)
+			var lower0 := Vector3(cos(angle0) * lower.x * BOTTLE_RADIUS,
+				lower.y * BOTTLE_HEIGHT, sin(angle0) * lower.x * BOTTLE_RADIUS)
+			var lower1 := Vector3(cos(angle1) * lower.x * BOTTLE_RADIUS,
+				lower.y * BOTTLE_HEIGHT, sin(angle1) * lower.x * BOTTLE_RADIUS)
+			var upper0 := Vector3(cos(angle0) * upper.x * BOTTLE_RADIUS,
+				upper.y * BOTTLE_HEIGHT, sin(angle0) * upper.x * BOTTLE_RADIUS)
+			var upper1 := Vector3(cos(angle1) * upper.x * BOTTLE_RADIUS,
+				upper.y * BOTTLE_HEIGHT, sin(angle1) * upper.x * BOTTLE_RADIUS)
+			surface.add_vertex(lower0)
+			surface.add_vertex(upper0)
+			surface.add_vertex(lower1)
+			surface.add_vertex(lower1)
+			surface.add_vertex(upper0)
+			surface.add_vertex(upper1)
+	var bottom_center := Vector3.ZERO
+	var bottom_radius := profile[0].x * BOTTLE_RADIUS
+	for side in range(RADIAL_SEGMENTS):
+		var angle0 := TAU * float(side) / float(RADIAL_SEGMENTS)
+		var angle1 := TAU * float(side + 1) / float(RADIAL_SEGMENTS)
+		var edge0 := Vector3(cos(angle0) * bottom_radius, 0.0, sin(angle0) * bottom_radius)
+		var edge1 := Vector3(cos(angle1) * bottom_radius, 0.0, sin(angle1) * bottom_radius)
+		surface.add_vertex(bottom_center)
+		surface.add_vertex(edge0)
+		surface.add_vertex(edge1)
+	var top_profile := profile[profile.size() - 1]
+	var top_center := Vector3(0.0, top_profile.y * BOTTLE_HEIGHT, 0.0)
+	var top_radius := top_profile.x * BOTTLE_RADIUS
+	for side in range(RADIAL_SEGMENTS):
+		var angle0 := TAU * float(side) / float(RADIAL_SEGMENTS)
+		var angle1 := TAU * float(side + 1) / float(RADIAL_SEGMENTS)
+		var edge0 := Vector3(cos(angle0) * top_radius, top_center.y,
+			sin(angle0) * top_radius)
+		var edge1 := Vector3(cos(angle1) * top_radius, top_center.y,
+			sin(angle1) * top_radius)
+		surface.add_vertex(top_center)
+		surface.add_vertex(edge1)
+		surface.add_vertex(edge0)
+	surface.generate_normals()
+	return surface.commit()
+
+
 func _build_building_interior(root: Node3D, sign_text: String, wall: Color) -> void:
 	var floor_wood := _weathered_wood_material(wall.darkened(0.38))
 	var furniture := _weathered_wood_material(Color(0.24, 0.135, 0.075))
@@ -1490,12 +1553,31 @@ func _build_building_interior(root: Node3D, sign_text: String, wall: Color) -> v
 			Vector3(3.62, 0.50, 0.035), mirror_material, "SaloonMirror")
 		_interior_solid_box(root, Vector3(0.0, 2.55, -3.02),
 			Vector3(4.5, 0.12, 0.32), furniture, "SaloonBackShelf")
-		var shelf_bottle_material := _material(Color(0.25, 0.105, 0.045), 0.28, 0.08)
+		var bottle_mesh := _make_saloon_bottle_mesh()
+		var bottle_colors: Array[Color] = [
+			Color(0.24, 0.38, 0.18),
+			Color(0.42, 0.19, 0.07),
+			Color(0.16, 0.27, 0.22),
+			Color(0.34, 0.22, 0.10),
+			Color(0.20, 0.31, 0.15)
+		]
+		var label_material := _material(Color(0.78, 0.66, 0.44), 0.88, 0.0)
+		var cork_material := _material(Color(0.38, 0.24, 0.12), 0.94, 0.0)
 		for bottle_index in range(5):
 			var bottle_x := -1.7 + float(bottle_index) * 0.85
-			var bottle := _cylinder(root, Vector3(bottle_x, 2.75, -2.88),
-				0.055, 0.22, shelf_bottle_material, 8)
-			bottle.name = "SaloonShelfBottle"
+			var bottle_position := Vector3(bottle_x, 2.62, -2.88)
+			var bottle_material := StandardMaterial3D.new()
+			bottle_material.albedo_color = bottle_colors[bottle_index]
+			bottle_material.roughness = 0.24
+			bottle_material.metallic = 0.04
+			var bottle := _mesh(root, bottle_mesh, bottle_material, bottle_position)
+			bottle.name = "SaloonBottleMesh"
+			var label := _box(root, bottle_position + Vector3(0, 0.14, 0.052),
+				Vector3(0.064, 0.055, 0.008), label_material)
+			label.name = "SaloonBottleLabel"
+			var cork := _cylinder(root, bottle_position + Vector3(0, 0.267, 0),
+				0.018, 0.035, cork_material, 8)
+			cork.name = "SaloonBottleCork"
 		_interior_solid_box(root, Vector3(0, 1.15, -1.65), Vector3(6.0, 1.9, 0.72), furniture, "SaloonBar")
 		_interior_solid_box(root, Vector3(0, 2.15, -1.65), Vector3(6.2, 0.16, 0.86), dark_wood, "BarTop")
 		for x in [-2.2, -1.1, 0.0, 1.1, 2.2]:
