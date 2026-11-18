@@ -2270,6 +2270,14 @@ func _preview_route() -> Array[Dictionary]:
 			"duration": 2.0
 		},
 		{
+			"id": "town_street_clearance",
+			# Rejoin the open street before turning north; the diagonal from the saloon
+			# would otherwise clip the sheriff office footprint.
+			"position": Vector3(0.0, _terrain_height(Vector2(0.0, -2.0)) + 0.2, -2.0),
+			"target": Vector3(-12.0, 2.6, -12.0),
+			"duration": 1.0
+		},
+		{
 			"id": "town_north_exit",
 			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 42.0)) + 0.2, 42.0),
 			"target": Vector3(-12.0, 2.6, -12.0),
