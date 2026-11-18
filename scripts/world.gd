@@ -1542,6 +1542,16 @@ func _build_building_interior(root: Node3D, sign_text: String, wall: Color) -> v
 		front_wainscot.name = "InteriorWainscot"
 	_interior_lantern(root, Vector3(0, 3.65, -0.65))
 	if sign_text == "SALOON":
+		# A restrained second warm source lifts the bottle shelf and service surface
+		# without brightening every room or relying on unavailable software GI.
+		var back_bar_fill := OmniLight3D.new()
+		back_bar_fill.name = "SaloonBackBarFillLight"
+		back_bar_fill.position = Vector3(0.0, 2.7, -2.0)
+		back_bar_fill.light_color = Color(1.0, 0.67, 0.42)
+		back_bar_fill.light_energy = 0.8
+		back_bar_fill.omni_range = 7.5
+		back_bar_fill.shadow_enabled = false
+		root.add_child(back_bar_fill)
 		# Long service bar, brass foot rail, bottle shelves and card tables.
 		_interior_solid_box(root, Vector3(0.0, 3.0, -3.25),
 			Vector3(4.0, 0.78, 0.16), dark_wood, "SaloonMirrorFrame")

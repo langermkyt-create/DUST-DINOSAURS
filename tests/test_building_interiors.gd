@@ -55,6 +55,13 @@ func _initialize() -> void:
 		_fail("Saloon interior must have a back-bar shelf.")
 		return
 	var saloon := world_under_test.get_child(0)
+	var bar_fill := _find_named(saloon, "SaloonBackBarFillLight") as OmniLight3D
+	if bar_fill == null or bar_fill.light_energy < 0.7 or bar_fill.omni_range < 7.0:
+		_fail("Saloon back-bar fill light must illuminate the bottle shelf and counter.")
+		return
+	if bar_fill.shadow_enabled:
+		_fail("The local saloon fill light must remain shadowless to avoid unnecessary per-frame shadow cost.")
+		return
 	if _count_named_prefix(saloon, "SaloonBottleMesh") != 5:
 		_fail("Saloon back-bar shelf must carry five shaped glass bottles.")
 		return
