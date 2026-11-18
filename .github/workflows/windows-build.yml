@@ -96,7 +96,7 @@ jobs:
             exit 1
           fi
           # The in-game --preview route drives a deterministic camera path; no fake input is injected.
-          ffmpeg -y -f x11grab -video_size 1280x720 -framerate 30 -i :99.0 -t 48 -pix_fmt yuv420p build-preview.mp4 >/tmp/ffmpeg-preview.log 2>&1 &
+          ffmpeg -y -f x11grab -video_size 1280x720 -framerate 30 -i :99.0 -t 60 -pix_fmt yuv420p build-preview.mp4 >/tmp/ffmpeg-preview.log 2>&1 &
           REC_PID=$!
           wait "$REC_PID"
           REC_PID=""
@@ -108,9 +108,9 @@ jobs:
           [ "$SIZE" -gt 100000 ]
           DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 build-preview.mp4)
           echo "Gameplay preview duration: $DURATION seconds"
-          awk -v duration="$DURATION" 'BEGIN { exit !(duration >= 47.0) }'
+          awk -v duration="$DURATION" 'BEGIN { exit !(duration >= 59.0) }'
           ffmpeg -y -ss 16 -i build-preview.mp4 -frames:v 1 preview-start.png >/dev/null 2>&1
-          ffmpeg -y -ss 44 -i build-preview.mp4 -frames:v 1 preview-end.png >/dev/null 2>&1
+          ffmpeg -y -ss 56 -i build-preview.mp4 -frames:v 1 preview-end.png >/dev/null 2>&1
           if cmp -s preview-start.png preview-end.png; then
             echo "Automated preview camera did not visibly move"
             exit 1

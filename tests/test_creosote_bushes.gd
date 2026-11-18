@@ -1,5 +1,7 @@
 extends SceneTree
 
+var second_world_under_test: Node3D
+
 func _initialize() -> void:
 	var world := Node3D.new()
 	world.set_script(load("res://scripts/world.gd"))
@@ -34,15 +36,15 @@ func _initialize() -> void:
 			return
 
 	world.call("_scatter_creosote_bushes")
-	var second_world := Node3D.new()
-	second_world.set_script(load("res://scripts/world.gd"))
-	second_world.call("_scatter_creosote_bushes")
-	if world.get_child_count() != 3 or second_world.get_child_count() != 3:
+	second_world_under_test = Node3D.new()
+	second_world_under_test.set_script(load("res://scripts/world.gd"))
+	second_world_under_test.call("_scatter_creosote_bushes")
+	if world.get_child_count() != 3 or second_world_under_test.get_child_count() != 3:
 		_fail(world, "Creosote variants must be batched into exactly three instanced nodes.")
 		return
 	for variant in range(3):
 		var first := world.get_child(variant) as MultiMeshInstance3D
-		var second := second_world.get_child(variant) as MultiMeshInstance3D
+		var second := second_world_under_test.get_child(variant) as MultiMeshInstance3D
 		if first == null or second == null or first.multimesh.instance_count != 30:
 			_fail(world, "Each creosote variant must contain thirty instanced shrubs.")
 			return
@@ -53,8 +55,12 @@ func _initialize() -> void:
 			if position.distance_squared_to(repeated_transform.origin) > 0.000001:
 				_fail(world, "Seeded creosote placement must be deterministic.")
 				return
-			if absf(position.y - float(world.call("_terrain_height", Vector2(position.x, position.z)))) > 0.001:
-				_fail(world, "Creosote roots must follow the same terrain height used by collision.")
+			var expected_height: float = world.call("_terrain_height", Vector2(position.x, position.z))
+			var height_error := absf(position.y - expected_height)
+			if height_error > 0.001:
+				_fail(world, "Creosote root height mismatch: variant=" + str(variant)
+					+ " index=" + str(index) + " actual=" + str(position.y)
+					+ " expected=" + str(expected_height) + " error=" + str(height_error))
 				return
 			if Vector2(position.x, position.z).length() < 36.0:
 				_fail(world, "Creosote shrubs must remain outside the settlement footprint.")
@@ -64,11 +70,15 @@ func _initialize() -> void:
 				return
 	print("Creosote regression passed: three deterministic meshes, 90 terrain-aligned shrubs, vertex color, normals and clear arroyo/settlement spacing.")
 	world.free()
-	second_world.free()
+	second_world_under_test.free()
+	second_world_under_test = null
 	quit(0)
 
 func _fail(world: Node3D, message: String) -> void:
 	if is_instance_valid(world):
 		world.free()
+	if is_instance_valid(second_world_under_test):
+		second_world_under_test.free()
+		second_world_under_test = null
 	push_error(message)
 	quit(1)

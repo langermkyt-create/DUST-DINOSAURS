@@ -142,3 +142,12 @@ The inspected #123 capture confirms the raised terrain mesh is still visually su
 Added an original procedural creosote-bush mesh with tapered woody stems and paired narrow leaves, vertex-color variation and generated normals. Added three deterministic shape variants and 90 instances in three MultiMesh batches. Placement samples the shared terrain height and explicitly avoids the settlement radius, herd members, tyrannosaur vista and arroyo channel; shrubs are non-colliding ground cover so they do not interfere with player or dinosaur movement.
 
 Added `tests/test_creosote_bushes.gd` and wired it into Godot validation. The regression checks complete mesh arrays, proportions, deterministic geometry and scatter, three draw batches, terrain-aligned roots and clearances. The next Windows capture must be inspected for silhouette quality and overdraw before increasing shrub density or adding more plant species.
+
+
+## 2026-11-18 development pass 4 — terrain lighting and capture reliability
+
+The new #125 rendered capture was inspected. The foreground remains unusually dark even after the layered soil palette was added. The earlier terrain regression had been corrected to test geometric triangle orientation but had not asserted the generated vertex-normal direction itself. The capture and shader's slope mask together indicate that the terrain normals need to be checked as a lighting input, not only as a triangle count. Reversed the terrain triangle winding to match Godot's front-face convention and strengthened the regression to require upward generated normals on every vertex.
+
+The #125 Windows preview also reached the final `return_overlook` but the 48-second recording ended before `town_return` completed. Increased the deterministic CI capture to 60 seconds and moved its end-frame comparison to 56 seconds, preserving the complete route rather than silently omitting its last waypoint.
+
+The first creosote regression (#108) reached the placement-height assertion and failed; expanded its diagnostic to report the exact instance, actual origin, expected terrain height and error, and made failure cleanup release both temporary test worlds. The next CI run must resolve this before the vegetation pass is considered verified. AAA remains not achieved.
