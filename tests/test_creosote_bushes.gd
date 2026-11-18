@@ -5,6 +5,7 @@ var second_world_under_test: Node3D
 func _initialize() -> void:
 	var world := Node3D.new()
 	world.set_script(load("res://scripts/world.gd"))
+	var total_instanced_vertices := 0
 	for variant in range(3):
 		var mesh: ArrayMesh = world.call("_make_creosote_mesh", variant)
 		var repeated: ArrayMesh = world.call("_make_creosote_mesh", variant)
@@ -17,8 +18,8 @@ func _initialize() -> void:
 		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 		var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
 		var repeated_vertices: PackedVector3Array = repeated_arrays[Mesh.ARRAY_VERTEX]
-		if vertices.size() < 4000 or vertices.size() % 3 != 0:
-			_fail(world, "Creosote shrub must contain a dense, complete woody branch-and-oval-leaf mesh.")
+		if vertices.size() < 3000 or vertices.size() > 4000 or vertices.size() % 3 != 0:
+			_fail(world, "Creosote mesh must retain a dense canopy within the 3,000–4,000 vertex performance budget.")
 			return
 		if normals.size() != vertices.size() or colors.size() != vertices.size():
 			_fail(world, "Creosote mesh must carry generated normals and per-leaf color variation.")
@@ -30,11 +31,15 @@ func _initialize() -> void:
 			if vertices[index].distance_squared_to(repeated_vertices[index]) > 0.000001:
 				_fail(world, "Creosote geometry changed for the same variant.")
 				return
+		total_instanced_vertices += vertices.size() * 42
 		var bounds := mesh.get_aabb()
 		if bounds.size.x < 0.9 or bounds.size.z < 0.9 or bounds.size.y < 0.6 or bounds.size.y > 1.8:
 			_fail(world, "Creosote shrub proportions must remain low, broad and grounded.")
 			return
 
+	if total_instanced_vertices > 470000:
+		_fail(world, "Three creosote batches exceed the 470k submitted-vertex budget: " + str(total_instanced_vertices))
+		return
 	world.call("_scatter_creosote_bushes")
 	second_world_under_test = Node3D.new()
 	second_world_under_test.set_script(load("res://scripts/world.gd"))
@@ -71,7 +76,8 @@ func _initialize() -> void:
 			if absf(position.z - float(world.call("_terrain_wash_center", position.x))) < 12.0:
 				_fail(world, "Creosote shrubs must not be scattered into the arroyo channel.")
 				return
-	print("Creosote regression passed: three dense leaf meshes, 126 deterministic terrain-aligned shrubs, and clear arroyo/settlement spacing.")
+	print("Creosote regression passed: three volumetric canopy variants, ", total_instanced_vertices,
+		" instanced source vertices, 126 deterministic terrain-aligned shrubs, and clear arroyo/settlement spacing.")
 	world.free()
 	second_world_under_test.free()
 	second_world_under_test = null
