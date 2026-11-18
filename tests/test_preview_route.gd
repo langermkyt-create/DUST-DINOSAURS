@@ -6,8 +6,8 @@ func _initialize() -> void:
 	world_under_test = Node3D.new()
 	world_under_test.set_script(load("res://scripts/world.gd"))
 	var route: Array = world_under_test.call("_preview_route")
-	if route.size() < 10:
-		_fail("Preview route must cover the town, herd, and distant predator.")
+	if route.size() != 15:
+		_fail("Preview route must preserve all 15 authored town, interior, herd, and predator stops.")
 		return
 
 	var waypoints: Dictionary = {}

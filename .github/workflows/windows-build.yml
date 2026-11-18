@@ -2,6 +2,8 @@ name: Windows Build
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 permissions:
   contents: read
@@ -135,6 +137,17 @@ jobs:
             cat game-runtime.log
             exit 1
           fi
+          ROUTE_ELAPSED=$(grep -F "PREVIEW_ROUTE_COMPLETE:" game-runtime.log | tail -n 1 | sed -E 's/.*elapsed=([0-9.]+).*/\1/')
+          if [ -z "$ROUTE_ELAPSED" ]; then
+            echo "The route completion marker did not include an elapsed-time measurement"
+            cat game-runtime.log
+            exit 1
+          fi
+          awk -v elapsed="$ROUTE_ELAPSED" 'BEGIN { exit !(elapsed > 0 && elapsed <= 50.0) }' || {
+            echo "Preview route exceeded the 50-second completion budget: $ROUTE_ELAPSED seconds"
+            cat game-runtime.log
+            exit 1
+          }
       - name: Export Windows executable
         run: |
           mkdir -p build
