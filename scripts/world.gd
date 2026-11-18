@@ -1418,9 +1418,28 @@ func _interior_table(root: Node3D, center: Vector3, width: float, depth: float, 
 
 func _interior_lantern(root: Node3D, position: Vector3) -> void:
 	var iron := _material(Color(0.075, 0.065, 0.05), 0.58, 0.62)
-	var glass := _material(Color(0.95, 0.55, 0.2), 0.25)
-	_cylinder(root, position, 0.12, 0.28, Color(0.08, 0.065, 0.045), 12)
-	_sphere(root, position + Vector3(0, -0.22, 0), Vector3(0.14, 0.24, 0.14), glass)
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(0.95, 0.55, 0.2)
+	glass.roughness = 0.28
+	glass.emission_enabled = true
+	glass.emission = Color(1.0, 0.36, 0.08)
+	glass.emission_energy_multiplier = 0.55
+	var stem := _cylinder(root, position + Vector3(0, 0.18, 0), 0.025, 0.24, iron, 8)
+	stem.name = "InteriorLanternStem"
+	var upper_cap := _cylinder(root, position, 0.13, 0.10, iron, 12)
+	upper_cap.name = "InteriorLanternUpperCap"
+	var globe := _sphere(root, position + Vector3(0, -0.22, 0), Vector3(0.14, 0.24, 0.14), glass)
+	globe.name = "InteriorLanternGlobe"
+	var lower_cap := _cylinder(root, position + Vector3(0, -0.43, 0), 0.09, 0.08, iron, 12)
+	lower_cap.name = "InteriorLanternLowerCap"
+	for offset in [
+		Vector3(-0.105, -0.22, -0.105),
+		Vector3(0.105, -0.22, -0.105),
+		Vector3(-0.105, -0.22, 0.105),
+		Vector3(0.105, -0.22, 0.105)
+	]:
+		var guard := _cylinder(root, position + offset, 0.012, 0.34, iron, 8)
+		guard.name = "InteriorLanternGuard"
 	var light := OmniLight3D.new()
 	light.name = "InteriorLanternLight"
 	light.position = position + Vector3(0, -0.28, 0)

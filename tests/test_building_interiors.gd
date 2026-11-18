@@ -33,6 +33,18 @@ func _initialize() -> void:
 		if lantern.light_energy < 1.0 or lantern.omni_range < 10.0:
 			_fail("Interior lantern must illuminate the timber trim and furniture: " + sign_text)
 			return
+		var globe := _find_named(building, "InteriorLanternGlobe") as MeshInstance3D
+		var stem := _find_named(building, "InteriorLanternStem")
+		if globe == null or stem == null:
+			_fail("Interior lantern must have a glass globe and ceiling stem: " + sign_text)
+			return
+		var globe_material := globe.material_override as StandardMaterial3D
+		if globe_material == null or not globe_material.emission_enabled:
+			_fail("Interior lantern globe must use a visible warm emissive glass material: " + sign_text)
+			return
+		if _count_named_prefix(building, "InteriorLanternGuard") != 4:
+			_fail("Interior lantern must have four protective iron cage bars: " + sign_text)
+			return
 	if _find_named(world_under_test.get_child(0), "SaloonBar") == null:
 		_fail("Saloon interior must retain its service bar.")
 		return
