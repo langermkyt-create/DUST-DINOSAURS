@@ -131,8 +131,8 @@ jobs:
             cat game-runtime.log
             exit 1
           fi
-          awk -v elapsed="$ROUTE_ELAPSED" 'BEGIN { exit !(elapsed > 0 && elapsed <= 85.0) }' || {
-            echo "Preview route exceeded the 85-second completion budget: $ROUTE_ELAPSED seconds"
+          awk -v elapsed="$ROUTE_ELAPSED" 'BEGIN { exit !(elapsed > 0 && elapsed <= 60.0) }' || {
+            echo "Preview route exceeded the 60-second completion budget: $ROUTE_ELAPSED seconds"
             cat game-runtime.log
             exit 1
           }
