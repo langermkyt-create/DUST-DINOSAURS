@@ -1261,6 +1261,7 @@ func _scatter_ground_detail() -> void:
 	grass.multimesh = grass_multimesh
 	grass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(grass)
+	var grass_positions := PackedVector3Array()
 	for i in range(520):
 		var x := 0.0
 		var z := 0.0
@@ -1275,11 +1276,8 @@ func _scatter_ground_detail() -> void:
 		var grass_position := Vector3(x, _terrain_height(Vector2(x, z)), z)
 		grass_multimesh.set_instance_transform(i, Transform3D(basis, grass_position))
 		grass_multimesh.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), 0.0, 1.0))
-		if not grass.has_meta("placement_positions"):
-			grass.set_meta("placement_positions", PackedVector3Array())
-		var grass_positions: PackedVector3Array = grass.get_meta("placement_positions")
 		grass_positions.append(grass_position)
-		grass.set_meta("placement_positions", grass_positions)
+	grass.set_meta("placement_positions", grass_positions)
 	for variant in range(2):
 		var stones := MultiMesh.new()
 		stones.transform_format = MultiMesh.TRANSFORM_3D
