@@ -16,7 +16,7 @@ func _initialize() -> void:
 	if not environment.fog_enabled:
 		_fail(world, "Distant Arizona mesas need restrained aerial perspective.")
 		return
-	if environment.fog_density < 0.0010 or environment.fog_density > 0.0012:
+	if environment.fog_density < 0.0003 or environment.fog_density > 0.0004:
 		_fail(world, "Aerial haze density must remain subtle and bounded.")
 		return
 	if environment.fog_light_color.r <= environment.fog_light_color.b:
