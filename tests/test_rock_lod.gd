@@ -40,7 +40,6 @@ func _initialize() -> void:
 	if high.mesh.get_aabb().size.length_squared() <= 0.0 or low.mesh.get_aabb().size.length_squared() <= 0.0:
 		_fail("Rock LOD meshes must have non-zero bounds.")
 		return
-	var high_arrays := high.mesh.surface_get_arrays(0)
 	var high_normals: PackedVector3Array = high_arrays[Mesh.ARRAY_NORMAL]
 	var high_colors: PackedColorArray = high_arrays[Mesh.ARRAY_COLOR]
 	if high_normals.size() != high_vertices.size() or high_colors.size() != high_vertices.size():
