@@ -718,14 +718,24 @@ void fragment() {
 	float broad = rock_noise(rock_world_pos * vec3(0.42, 0.19, 0.42));
 	float grain = rock_noise(rock_world_pos * vec3(5.8, 3.2, 5.8));
 	float pores = rock_noise(rock_world_pos * vec3(24.0, 15.0, 24.0));
-	float bedding = sin((rock_world_pos.y * 3.4 + broad * 0.7) * 6.28318) * 0.5 + 0.5;
+	float fine_grain = rock_noise(rock_world_pos * vec3(38.0, 22.0, 38.0));
+	float micro_relief = rock_noise(rock_world_pos * vec3(86.0, 54.0, 86.0));
+	float sediment = sin((rock_world_pos.y * 3.4 + broad * 0.7 + grain * 0.12) * 6.28318) * 0.5 + 0.5;
+	float bedding = smoothstep(0.56, 0.94, sediment);
+	float fracture_noise = rock_noise(rock_world_pos * vec3(9.0, 3.0, 9.0) + vec3(13.7, 2.1, 8.4));
+	float fracture = smoothstep(0.84, 0.97, fracture_noise);
 	float erosion = smoothstep(0.58, 0.88, pores);
-	vec3 stone = COLOR.rgb * (0.84 + broad * 0.2 + grain * 0.08);
-	stone = mix(stone, stone * vec3(0.68, 0.62, 0.55), smoothstep(0.68, 0.96, bedding) * 0.22);
+	vec3 stone = COLOR.rgb * (0.82 + broad * 0.2 + grain * 0.08 + fine_grain * 0.035);
+	stone = mix(stone, stone * vec3(0.68, 0.62, 0.55), bedding * 0.24);
+	stone = mix(stone, stone * vec3(0.56, 0.51, 0.46), fracture * 0.16);
 	stone *= 1.0 - erosion * 0.12;
+	vec2 relief_gradient = clamp(vec2(dFdx(micro_relief), dFdy(micro_relief)) * 0.22,
+		vec2(-0.08), vec2(0.08));
+	NORMAL = normalize(NORMAL + vec3(-relief_gradient.x, -relief_gradient.y, 0.0) * 0.028);
 	ALBEDO = stone;
-	ROUGHNESS = 0.91 + pores * 0.08;
-	SPECULAR = 0.12;
+	ROUGHNESS = clamp(0.86 + pores * 0.08 + fine_grain * 0.05, 0.86, 0.99);
+	SPECULAR = 0.10;
+	AO = clamp(0.95 - fracture * 0.10 - erosion * 0.04, 0.80, 1.0);
 }
 """
 	var rock_material := ShaderMaterial.new()
