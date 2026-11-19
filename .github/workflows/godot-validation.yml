@@ -72,6 +72,9 @@ jobs:
         run: godot --headless --path . --script tests/test_terrain_relief.gd
       - name: Test layered Arizona soil material response
         run: godot --headless --path . --script tests/test_terrain_material.gd
+
+      - name: Test faceted desert pebble geometry and placement
+        run: timeout 30s godot --headless --path . --script tests/test_desert_pebbles.gd
       - name: Test warm desert aerial perspective and sunset shadows
         run: godot --headless --path . --script tests/test_atmosphere_depth.gd
       - name: Test deterministic creosote bush geometry and scatter
