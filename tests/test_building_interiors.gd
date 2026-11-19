@@ -26,6 +26,36 @@ func _initialize() -> void:
 		if _count_named_prefix(building, "InteriorWainscot") != 5:
 			_fail("Every interior must have continuous lower wall trim without blocking the doorway: " + sign_text)
 			return
+		var wall_boards := _find_named(building, "InteriorWallBoards") as MultiMeshInstance3D
+		if wall_boards == null or wall_boards.multimesh == null or wall_boards.multimesh.instance_count != 21:
+			_fail("Every room must batch seven rear and fourteen side-wall timber courses: " + sign_text)
+			return
+		if wall_boards.multimesh.mesh == null or not wall_boards.multimesh.mesh is BoxMesh:
+			_fail("Interior wall boards must share one reusable box mesh instead of separate draw-call geometry: " + sign_text)
+			return
+		var board_positions: PackedVector3Array = wall_boards.get_meta("placement_positions")
+		var board_scales: PackedVector3Array = wall_boards.get_meta("placement_scales")
+		if board_positions.size() != 21 or board_scales.size() != 21:
+			_fail("Every interior wall-board instance must retain its deterministic placement record: " + sign_text)
+			return
+		for row in range(7):
+			var rear_index := row * 3
+			var rear_position := board_positions[rear_index]
+			var rear_scale := board_scales[rear_index]
+			if absf(rear_position.z + 3.27) > 0.01 or absf(rear_scale.x - 9.2) > 0.02 or absf(rear_scale.y - 0.4) > 0.02:
+				_fail("Rear timber courses must sit flush to the back wall with consistent board dimensions: " + sign_text)
+				return
+			for side_index in [1, 2]:
+				var side_index_in_batch: int = rear_index + int(side_index)
+				var side_position := board_positions[side_index_in_batch]
+				var side_scale := board_scales[side_index_in_batch]
+				if absf(absf(side_position.x) - 4.765) > 0.01 or absf(side_scale.z - 6.2) > 0.02 or absf(side_scale.y - 0.4) > 0.02:
+					_fail("Side timber courses must remain aligned to both interior elevations: " + sign_text)
+					return
+		var board_material := wall_boards.material_override as ShaderMaterial
+		if board_material == null or not board_material.shader.code.contains("wood_checks"):
+			_fail("Interior timber courses must use the shared weathered wood response: " + sign_text)
+			return
 		var lantern := _find_named(building, "InteriorLanternLight") as OmniLight3D
 		if lantern == null:
 			_fail("Every interior must have its warm lantern light: " + sign_text)
@@ -44,6 +74,19 @@ func _initialize() -> void:
 			return
 		if _count_named_prefix(building, "InteriorLanternGuard") != 4:
 			_fail("Interior lantern must have four protective iron cage bars: " + sign_text)
+			return
+		var door_pivot := _find_named(building, "FrontDoorPivot") as Node3D
+		if door_pivot == null or absf(door_pivot.rotation.y - PI / 2.0) > 0.01:
+			_fail("Every frontier entrance must park its open door leaf inward against the left jamb: " + sign_text)
+			return
+		if _count_named_prefix(door_pivot, "FrontDoorPlank") != 5:
+			_fail("Front door must use five individually weathered vertical boards: " + sign_text)
+			return
+		if _count_named_prefix(door_pivot, "FrontDoorCrossRail") != 2:
+			_fail("Front door must retain two structural cross rails: " + sign_text)
+			return
+		if _find_named(door_pivot, "FrontDoorDiagonalBrace") == null or _find_named(door_pivot, "FrontDoorLatch") == null:
+			_fail("Front door must retain a diagonal brace and iron latch: " + sign_text)
 			return
 	if _find_named(world_under_test.get_child(0), "SaloonBar") == null:
 		_fail("Saloon interior must retain its service bar.")

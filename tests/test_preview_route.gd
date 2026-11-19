@@ -54,8 +54,13 @@ func _initialize() -> void:
 	if absf(saloon_approach.x + 12.0) > 0.05 or absf(saloon_interior.x + 12.0) > 0.05:
 		_fail("Saloon interior route must stay centered on the open front doorway.")
 		return
-	if saloon_approach.z > -5.0 or saloon_approach.z < -6.5:
-		_fail("Saloon approach must stop outside the front threshold.")
+	if absf(saloon_approach.z + 2.7) > 0.05:
+		_fail("Saloon approach must hold beyond the porch to frame the full entrance.")
+		return
+	var expected_approach_target := Vector3(-12.0,
+		float(world_under_test.call("_terrain_height", Vector2(-12.0, -12.0))) + 2.35, -8.25)
+	if waypoints["saloon_approach"]["target"].distance_to(expected_approach_target) > 0.1:
+		_fail("Saloon approach must frame the centered doorway before entering the room.")
 		return
 	if saloon_interior.z > -9.5 or saloon_interior.z < -11.5:
 		_fail("Saloon interior camera must remain inside the room, behind the doorway.")

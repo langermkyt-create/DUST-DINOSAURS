@@ -1441,16 +1441,23 @@ void fragment() {
 	float fine = noise3(world_pos * vec3(3.2, 0.32, 3.2));
 	float fibers = sin((world_pos.x + world_pos.z * 0.31 + broad * 0.8) * grain_scale * 6.28318);
 	float grain = smoothstep(0.28, 0.82, fibers * 0.5 + 0.5);
+	float fine_fiber = sin((world_pos.x + world_pos.z * 0.31 + fine * 0.16) * grain_scale * 9.42478);
+	float grain_lines = smoothstep(0.76, 0.96, fine_fiber * 0.5 + 0.5);
 	float knots = smoothstep(0.76, 0.96, noise3(world_pos * 1.7 + vec3(4.2, 0.0, 8.1)));
 	float pores = noise3(world_pos * 18.0);
+	float wood_checks = smoothstep(0.78, 0.95, pores)
+		* (1.0 - smoothstep(0.82, 0.97, fine_fiber * 0.5 + 0.5));
 	vec3 color = mix(tint.rgb * 0.48, tint.rgb * (1.0 + grain * 0.22), 0.42 + broad * 0.38);
+	color = mix(color, tint.rgb * 0.54, grain_lines * 0.16);
+	color = mix(color, tint.rgb * 0.24, wood_checks * 0.34);
 	color = mix(color, tint.rgb * 0.34, knots * 0.42);
 	color *= 0.88 + fine * 0.18 + pores * 0.055;
 	float bleach = smoothstep(0.48, 0.92, noise3(world_pos * 0.42 + vec3(13.0))) * 0.6;
 	color = mix(color, color * vec3(1.24, 1.12, 0.88), bleach * 0.22);
 	ALBEDO = color;
-	ROUGHNESS = 0.78 + pores * 0.18;
-	SPECULAR = 0.18;
+	ROUGHNESS = clamp(0.76 + pores * 0.20 + wood_checks * 0.035, 0.76, 0.99);
+	SPECULAR = 0.12;
+	AO = clamp(0.98 - wood_checks * 0.12 - knots * 0.06, 0.78, 1.0);
 }
 """
 	var material := ShaderMaterial.new()
@@ -1572,12 +1579,36 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 	# Leave the entrance visibly traversable: the door is hinged and held open,
 	# rather than a flat decorative panel sealing the doorway.
 	var door_pivot := Node3D.new()
+	door_pivot.name = "FrontDoorPivot"
 	door_pivot.position = Vector3(-0.72, 0.0, 3.57)
-	door_pivot.rotation.y = -0.92
+	# Swing the leaf inward and park it parallel to the left jamb. The previous
+	# outward swing left the door in the preview camera's line through the entrance.
+	door_pivot.rotation.y = PI / 2.0
 	root.add_child(door_pivot)
 	var door_surface := _weathered_wood_material(Color(0.16, 0.1, 0.07))
-	_box(door_pivot, Vector3(0.72, 2.0, 0.0), Vector3(1.45, 2.8, 0.14), door_surface)
-	_sphere(door_pivot, Vector3(1.27, 1.45, -0.1), Vector3(0.07, 0.1, 0.07), _material(Color(0.58, 0.39, 0.14), 0.28, 0.72))
+	var door_edge_surface := _weathered_wood_material(Color(0.105, 0.065, 0.04))
+	for plank_index in range(5):
+		var plank_x := 0.15 + float(plank_index) * 0.29
+		var plank := _box(door_pivot, Vector3(plank_x, 2.0, 0.0),
+			Vector3(0.27, 2.76, 0.11), door_surface)
+		plank.name = "FrontDoorPlank"
+	for rail_y in [0.86, 3.14]:
+		var rail := _box(door_pivot, Vector3(0.72, rail_y, 0.085),
+			Vector3(1.38, 0.13, 0.09), door_edge_surface)
+		rail.name = "FrontDoorCrossRail"
+	var diagonal_brace := _box(door_pivot, Vector3(0.72, 2.0, 0.105),
+		Vector3(1.28, 0.105, 0.075), door_edge_surface, Vector3(0.0, 0.0, -0.78))
+	diagonal_brace.name = "FrontDoorDiagonalBrace"
+	var iron_hinge_material := _material(Color(0.075, 0.065, 0.052), 0.58, 0.72)
+	for hinge_y in [0.9, 3.1]:
+		var hinge := _box(door_pivot, Vector3(0.22, hinge_y, 0.16),
+			Vector3(0.42, 0.075, 0.035), iron_hinge_material)
+		hinge.name = "FrontDoorIronHinge"
+	var latch := _box(door_pivot, Vector3(1.24, 1.65, 0.16),
+		Vector3(0.12, 0.24, 0.07), iron_hinge_material)
+	latch.name = "FrontDoorLatch"
+	_sphere(door_pivot, Vector3(1.24, 1.65, 0.22), Vector3(0.065, 0.08, 0.065),
+		_material(Color(0.58, 0.39, 0.14), 0.28, 0.72))
 	
 	for x in [-3.3, 3.3]:
 		_box(root, Vector3(x, 2.1, 3.66), Vector3(1.25, 1.7, 0.18), Color(0.16, 0.29, 0.34))
@@ -1614,6 +1645,47 @@ func _interior_solid_box(root: Node3D, center: Vector3, size: Vector3, material:
 	collision.shape = shape
 	body.add_child(collision)
 	return body
+
+func _add_interior_wall_boards(root: Node3D, wall: Color) -> void:
+	# One batched timber surface dresses the rear and side walls without adding
+	# dozens of separate draw calls to each of the six frontier buildings.
+	var boards := MultiMeshInstance3D.new()
+	boards.name = "InteriorWallBoards"
+	var batch := MultiMesh.new()
+	batch.transform_format = MultiMesh.TRANSFORM_3D
+	var board_mesh := BoxMesh.new()
+	board_mesh.size = Vector3.ONE
+	batch.mesh = board_mesh
+	batch.instance_count = 21
+	var rear_scale := Vector3(9.2, 0.40, 0.045)
+	var side_scale := Vector3(0.045, 0.40, 6.2)
+	var y_levels: Array[float] = [0.8, 1.25, 1.7, 2.15, 2.6, 3.05, 3.5]
+	var placement_positions := PackedVector3Array()
+	var placement_scales := PackedVector3Array()
+	var instance_index := 0
+	for y in y_levels:
+		var rear_position := Vector3(0.0, y, -3.27)
+		batch.set_instance_transform(instance_index,
+			Transform3D(Basis.from_scale(rear_scale), rear_position))
+		placement_positions.append(rear_position)
+		placement_scales.append(rear_scale)
+		instance_index += 1
+		for side in [-1.0, 1.0]:
+			var side_position := Vector3(side * 4.765, y, 0.0)
+			batch.set_instance_transform(instance_index,
+				Transform3D(Basis.from_scale(side_scale), side_position))
+			placement_positions.append(side_position)
+			placement_scales.append(side_scale)
+			instance_index += 1
+	boards.multimesh = batch
+	# Keep deterministic source records because headless, unattached test roots do
+	# not expose MultiMesh instance transforms through get_instance_transform().
+	boards.set_meta("placement_positions", placement_positions)
+	boards.set_meta("placement_scales", placement_scales)
+	boards.material_override = _weathered_wood_material(wall.darkened(0.32))
+	boards.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	root.add_child(boards)
+
 
 func _interior_table(root: Node3D, center: Vector3, width: float, depth: float, wood: Material) -> void:
 	_interior_solid_box(root, center + Vector3(0, 0.82, 0), Vector3(width, 0.16, depth), wood, "TableTop")
@@ -1745,6 +1817,7 @@ func _build_building_interior(root: Node3D, sign_text: String, wall: Color) -> v
 	for x in [-3.65, 3.65]:
 		var front_wainscot := _box(root, Vector3(x, 0.35, 3.22), Vector3(2.1, 0.42, 0.16), dark_wood)
 		front_wainscot.name = "InteriorWainscot"
+	_add_interior_wall_boards(root, wall)
 	_interior_lantern(root, Vector3(0, 3.65, -0.65))
 	if sign_text == "SALOON":
 		# A restrained second warm source lifts the bottle shelf and service surface
@@ -2581,9 +2654,9 @@ func _preview_route() -> Array[Dictionary]:
 		},
 		{
 			"id": "saloon_approach",
-			# Stop outside the front threshold, aligned with the centered open doorway.
-			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 0.2, -5.7),
-			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -12.0)) + 2.7, -13.65),
+			# Hold beyond the porch so the full facade and doorway read before entry.
+			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -2.7)) + 0.2, -2.7),
+			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -12.0)) + 2.35, -8.25),
 			"duration": 1.0
 		},
 		{
@@ -2595,8 +2668,8 @@ func _preview_route() -> Array[Dictionary]:
 		},
 		{
 			"id": "saloon_exit",
-			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 0.2, -5.7),
-			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 2.4, -1.5),
+			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -2.7)) + 0.2, -2.7),
+			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -2.7)) + 2.4, -1.5),
 			"duration": 1.0
 		},
 		{
