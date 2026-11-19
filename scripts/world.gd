@@ -1285,6 +1285,7 @@ func _scatter_ground_detail() -> void:
 		stone_batch.multimesh = stones
 		stone_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(stone_batch)
+		var placement_positions := PackedVector3Array()
 		for i in range(170):
 			var x := 0.0
 			var z := 0.0
@@ -1301,9 +1302,11 @@ func _scatter_ground_detail() -> void:
 			)
 			var yaw := rng.randf_range(0.0, TAU)
 			var ground_height: float = _terrain_height(Vector2(x, z))
+			var position := Vector3(x, ground_height + 0.035, z)
+			placement_positions.append(position)
 			stones.set_instance_transform(i, Transform3D(
-				Basis(Vector3.UP, yaw).scaled(scale),
-				Vector3(x, ground_height + 0.035, z)))
+				Basis(Vector3.UP, yaw).scaled(scale), position))
+		stone_batch.set_meta("placement_positions", placement_positions)
 
 func _road_material() -> ShaderMaterial:
 	var shader := Shader.new()
