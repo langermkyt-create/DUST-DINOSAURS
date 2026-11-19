@@ -748,7 +748,7 @@ void fragment() {
 	return rock_material
 
 func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
-	# The distant silhouette keeps the same seeded profile but uses 6 sides and 3 tiers.
+	# The distant silhouette samples every second point from the sixteen-sided near mesh.
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var layer_indices := [0, 2, 4]
@@ -759,8 +759,8 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 	for layer in range(layer_indices.size() - 1):
 		var lower_ring: PackedVector3Array = rings[layer_indices[layer]]
 		var upper_ring: PackedVector3Array = rings[layer_indices[layer + 1]]
-		for segment in range(6):
-			var next_segment: int = (segment + 1) % 6
+		for segment in range(8):
+			var next_segment: int = (segment + 1) % 8
 			var lower_a: Vector3 = lower_ring[segment * 2]
 			var lower_b: Vector3 = lower_ring[next_segment * 2]
 			var upper_a: Vector3 = upper_ring[segment * 2]
@@ -777,8 +777,8 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 	for point in top_ring:
 		crown += point
 	crown /= float(top_ring.size())
-	for segment in range(6):
-		var next_segment: int = (segment + 1) % 6
+	for segment in range(8):
+		var next_segment: int = (segment + 1) % 8
 		surface.set_color(Color(0.52, 0.29, 0.21))
 		surface.add_vertex(crown)
 		surface.add_vertex(top_ring[next_segment * 2])
@@ -788,8 +788,8 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 	for point in base_ring:
 		base_center += point
 	base_center /= float(base_ring.size())
-	for segment in range(6):
-		var next_segment: int = (segment + 1) % 6
+	for segment in range(8):
+		var next_segment: int = (segment + 1) % 8
 		surface.set_color(Color(0.27, 0.12, 0.09))
 		surface.add_vertex(base_center)
 		surface.add_vertex(base_ring[segment * 2])
@@ -798,19 +798,24 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 	return surface.commit()
 
 func _rock_formation(pos: Vector3, factor: float) -> void:
-	# One continuous, faceted sandstone outcrop with a matching low-poly distance mesh.
+	# A sixteen-sided layered outcrop adds broken ledges and non-repeating weathered edges.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = abs(hash(Vector2i(roundi(pos.x * 10.0), roundi(pos.z * 10.0))))
 	var heights := [0.0, 2.2, 4.8, 7.1, 8.6]
 	var radii := [8.8, 8.1, 6.9, 5.5, 3.8]
+	var ring_segments := 16
 	var rings: Array = []
 	for layer in range(heights.size()):
 		var ring := PackedVector3Array()
-		for segment in range(12):
-			var angle: float = TAU * float(segment) / 12.0 + rng.randf_range(-0.055, 0.055)
-			var radius: float = float(radii[layer]) * rng.randf_range(0.88, 1.12)
-			var layer_height: float = float(heights[layer])
-			ring.append(Vector3(cos(angle) * radius, layer_height + rng.randf_range(-0.22, 0.22), sin(angle) * radius))
+		for segment in range(ring_segments):
+			var angle := TAU * float(segment) / float(ring_segments) + rng.randf_range(-0.025, 0.025)
+			var broad_ridge := sin(angle * 3.0 + float(layer) * 0.43) * 0.055
+			var broken_edge := sin(angle * 7.0 - float(layer) * 0.31) * 0.018
+			var radius := float(radii[layer]) * (
+				1.0 + broad_ridge + broken_edge + rng.randf_range(-0.045, 0.045))
+			var ledge := sin(angle * 2.0 + float(layer) * 0.38) * 0.12
+			var layer_height := float(heights[layer]) + ledge + rng.randf_range(-0.12, 0.12)
+			ring.append(Vector3(cos(angle) * radius, layer_height, sin(angle) * radius))
 		rings.append(ring)
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -821,8 +826,8 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 		Color(0.49, 0.255, 0.18)
 	]
 	for layer in range(heights.size() - 1):
-		for segment in range(12):
-			var next_segment: int = (segment + 1) % 12
+		for segment in range(ring_segments):
+			var next_segment: int = (segment + 1) % ring_segments
 			var lower_a: Vector3 = rings[layer][segment]
 			var lower_b: Vector3 = rings[layer][next_segment]
 			var upper_a: Vector3 = rings[layer + 1][segment]
@@ -835,13 +840,13 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 			surface.add_vertex(lower_b)
 			surface.add_vertex(upper_a)
 			surface.add_vertex(upper_b)
-	# Close both the crown and the base to avoid open backfaces at steep camera angles.
+	# Close both ends so the rock remains watertight at steep camera angles.
 	var crown := Vector3.ZERO
 	for point in rings[heights.size() - 1]:
 		crown += point
 	crown /= float(rings[heights.size() - 1].size())
-	for segment in range(rings[heights.size() - 1].size()):
-		var next_segment: int = (segment + 1) % rings[heights.size() - 1].size()
+	for segment in range(ring_segments):
+		var next_segment: int = (segment + 1) % ring_segments
 		surface.set_color(Color(0.52, 0.29, 0.21))
 		surface.add_vertex(crown)
 		surface.add_vertex(rings[heights.size() - 1][next_segment])
@@ -850,8 +855,8 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	for point in rings[0]:
 		base_center += point
 	base_center /= float(rings[0].size())
-	for segment in range(rings[0].size()):
-		var next_segment: int = (segment + 1) % rings[0].size()
+	for segment in range(ring_segments):
+		var next_segment: int = (segment + 1) % ring_segments
 		surface.set_color(Color(0.27, 0.12, 0.09))
 		surface.add_vertex(base_center)
 		surface.add_vertex(rings[0][segment])
