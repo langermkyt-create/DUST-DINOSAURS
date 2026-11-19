@@ -245,3 +245,11 @@ Corrected the two issues using that evidence:
 - Reduced the sandstone shader from six 3D noise evaluations per fragment to four. The high-frequency field is now shared by color and derivative-based micro-normal detail; the fracture mask reuses the existing grain/pores fields. The rock regression now enforces this reuse so future detail additions do not silently double the fragment-noise budget.
 
 This is a corrective iteration, not a visual-quality sign-off. A fresh full Godot validation, Windows capture, and frame-time/route-time comparison are pending. Target-GPU performance remains unmeasured; AAA remains not achieved.
+
+## 2026-11-19 visual review — corrected horizon and tighter preview budget
+
+Inspected the corrected #136 capture after reducing fog density and rock shader noise. The complete 15-stop route now measures **37.45 seconds**, down from 69.52 seconds on #135 and close to the previous 33.33-second baseline on #134. This is a CI route-time comparison on the same Mesa llvmpipe/OpenGL Compatibility runner, not a target-GPU FPS benchmark. The 1280×720 video confirms the scene and route still launch, but the sky remains too uniformly beige because the engine applies fog to the sky as well as distant geometry.
+
+The next correction sets Environment.fog_sky_affect to 0.0 so the authored blue-to-ochre procedural sky remains intact while aerial haze still affects distant world geometry. The atmosphere regression now checks that setting. The saguaro close frame showed the new areole/spine flecks but the ribs were too subtle at normal video scale, so the tube rib amplitude and shader contrast were increased modestly. The Windows preview workflow route-time guard is tightened from 85 to 60 seconds; the 37.45-second run leaves useful runner headroom while catching another major shader-cost regression.
+
+The sky-affect and stronger saguaro pass require fresh CI and a new inspected capture. AAA remains not achieved; target-GPU performance and independent full-game review remain blockers.
