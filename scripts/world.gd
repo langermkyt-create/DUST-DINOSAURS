@@ -233,9 +233,9 @@ func _build_atmosphere() -> void:
 	# A restrained warm aerial haze separates distant mesas from the town and
 	# keeps the sunset horizon readable without enabling costly volumetric fog.
 	e.fog_enabled = true
-	e.fog_light_color = Color(0.76, 0.59, 0.44)
-	e.fog_density = 0.0011
-	e.fog_sun_scatter = 0.18
+	e.fog_light_color = Color(0.75, 0.58, 0.44)
+	e.fog_density = 0.00035
+	e.fog_sun_scatter = 0.14
 	e.volumetric_fog_enabled = false
 	e.volumetric_fog_density = 0.0035
 	e.volumetric_fog_albedo = Color(0.78, 0.68, 0.56)
@@ -721,11 +721,12 @@ void fragment() {
 	float grain = rock_noise(rock_world_pos * vec3(5.8, 3.2, 5.8));
 	float pores = rock_noise(rock_world_pos * vec3(24.0, 15.0, 24.0));
 	float fine_grain = rock_noise(rock_world_pos * vec3(38.0, 22.0, 38.0));
-	float micro_relief = rock_noise(rock_world_pos * vec3(86.0, 54.0, 86.0));
+	# Use the same fine-grain field for normal detail; avoid a second high-frequency
+	# noise evaluation on every rock fragment in the software-rendered preview.
+	float micro_relief = fine_grain;
 	float sediment = sin((rock_world_pos.y * 3.4 + broad * 0.7 + grain * 0.12) * 6.28318) * 0.5 + 0.5;
 	float bedding = smoothstep(0.56, 0.94, sediment);
-	float fracture_noise = rock_noise(rock_world_pos * vec3(9.0, 3.0, 9.0) + vec3(13.7, 2.1, 8.4));
-	float fracture = smoothstep(0.84, 0.97, fracture_noise);
+	float fracture = smoothstep(0.80, 0.95, grain * 0.42 + pores * 0.58);
 	float erosion = smoothstep(0.58, 0.88, pores);
 	vec3 stone = COLOR.rgb * (0.82 + broad * 0.2 + grain * 0.08 + fine_grain * 0.035);
 	stone = mix(stone, stone * vec3(0.68, 0.62, 0.55), bedding * 0.24);
