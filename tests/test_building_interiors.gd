@@ -46,7 +46,7 @@ func _initialize() -> void:
 				_fail("Rear timber courses must sit flush to the back wall with consistent board dimensions: " + sign_text)
 				return
 			for side_index in [1, 2]:
-				var side_index_in_batch := rear_index + side_index
+				var side_index_in_batch: int = rear_index + int(side_index)
 				var side_position := board_positions[side_index_in_batch]
 				var side_scale := board_scales[side_index_in_batch]
 				if absf(absf(side_position.x) - 4.765) > 0.01 or absf(side_scale.z - 6.2) > 0.02 or absf(side_scale.y - 0.4) > 0.02:
