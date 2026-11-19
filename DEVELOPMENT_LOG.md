@@ -235,3 +235,13 @@ Three substantive passes were completed on branch automation/2026-11-19-saguaro-
 The Godot validation workflow now runs the new saguaro and atmosphere regressions in addition to the expanded sandstone checks. CI and the PR-triggered Windows capture/export are pending; no new shader/render claim is considered visually verified until the resulting artifact is inspected.
 
 **Next:** inspect the new capture for saguaro ribs/spines, rock strata/micro-relief and horizon haze; correct any shader compile/runtime issues; then continue the whole-world art pass (particularly more natural rock formations, non-cactus vegetation, settlement/interior material variation and animal silhouettes). Target-GPU frame-time/memory measurements and independent whole-game review remain blockers. AAA status: **not achieved**.
+
+## 2026-11-19 visual correction — haze strength and shader cost
+
+Inspected the complete PR #6 Windows preview and its diagnostic bundle before merging. All 15 waypoints completed and the 1280×720 H.264 file is 70.63 seconds; the route marker measured 69.52 seconds versus 33.33 seconds on the previous #134 capture. The new warm fog also washed the whole distant skyline toward beige and reduced separation between mesas and sky. The software renderer was again Mesa llvmpipe/OpenGL Compatibility.
+
+Corrected the two issues using that evidence:
+- Reduced aerial fog density from 0.0011 to 0.00035 and lowered sun scatter, retaining a warm but much more restrained horizon tint.
+- Reduced the sandstone shader from six 3D noise evaluations per fragment to four. The high-frequency field is now shared by color and derivative-based micro-normal detail; the fracture mask reuses the existing grain/pores fields. The rock regression now enforces this reuse so future detail additions do not silently double the fragment-noise budget.
+
+This is a corrective iteration, not a visual-quality sign-off. A fresh full Godot validation, Windows capture, and frame-time/route-time comparison are pending. Target-GPU performance remains unmeasured; AAA remains not achieved.
