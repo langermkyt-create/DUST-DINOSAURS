@@ -53,10 +53,18 @@ func _initialize() -> void:
 	if absf(phase_data.r - repeated_phase_data.r) > 0.0001 or absf(phase_data.g - repeated_phase_data.g) > 0.0001:
 		_fail(world, repeated_world, "Per-instance wind phases must be deterministic between runs.")
 		return
+	var grass_positions: PackedVector3Array = grass.get_meta("placement_positions")
+	var repeated_grass_positions: PackedVector3Array = repeated_grass.get_meta("placement_positions")
+	if grass_positions.size() != 520 or repeated_grass_positions.size() != 520:
+		_fail(world, repeated_world, "The grass batch must retain all 520 terrain placement records.")
+		return
 	for index in range(520):
-		var transform := grass.multimesh.get_instance_transform(index)
-		var expected_height: float = float(world.call("_terrain_height", Vector2(transform.origin.x, transform.origin.z)))
-		if absf(transform.origin.y - expected_height) > 0.001:
+		var position: Vector3 = grass_positions[index]
+		if position.distance_squared_to(repeated_grass_positions[index]) > 0.000001:
+			_fail(world, repeated_world, "Seeded grass placement must remain deterministic.")
+			return
+		var expected_height: float = float(world.call("_terrain_height", Vector2(position.x, position.z)))
+		if absf(position.y - expected_height) > 0.001:
 			_fail(world, repeated_world, "Grass roots must remain attached to the procedural terrain.")
 			return
 	for variant in range(2):
