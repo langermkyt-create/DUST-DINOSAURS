@@ -1243,7 +1243,6 @@ func _make_desert_pebble_mesh(variant: int) -> ArrayMesh:
 	var material := StandardMaterial3D.new()
 	material.vertex_color_use_as_albedo = true
 	material.roughness = 0.98
-	material.specular = 0.08
 	mesh.surface_set_material(0, material)
 	return mesh
 
