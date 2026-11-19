@@ -50,7 +50,7 @@ func _initialize() -> void:
 		return
 	var phase_data := grass.multimesh.get_instance_custom_data(0)
 	var repeated_phase_data := repeated_grass.multimesh.get_instance_custom_data(0)
-	if phase_data.distance_to(repeated_phase_data) > 0.0001:
+	if absf(phase_data.r - repeated_phase_data.r) > 0.0001 or absf(phase_data.g - repeated_phase_data.g) > 0.0001:
 		_fail(world, repeated_world, "Per-instance wind phases must be deterministic between runs.")
 		return
 	for index in range(520):
