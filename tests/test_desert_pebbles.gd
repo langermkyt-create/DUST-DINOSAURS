@@ -38,8 +38,11 @@ func _initialize() -> void:
 		if material == null or not material.vertex_color_use_as_albedo or material.roughness < 0.9:
 			_fail(world, repeated_world, "Pebbles must use rough layered sediment colors rather than a smooth sphere material.")
 			return
+	root.add_child(world)
+	root.add_child(repeated_world)
 	world.call("_scatter_ground_detail")
 	repeated_world.call("_scatter_ground_detail")
+	await process_frame
 	if world.get_child_count() != 3 or repeated_world.get_child_count() != 3:
 		_fail(world, repeated_world, "Ground detail must remain batched into one tuft node and two pebble nodes.")
 		return
