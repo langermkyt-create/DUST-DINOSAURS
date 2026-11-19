@@ -1572,12 +1572,36 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 	# Leave the entrance visibly traversable: the door is hinged and held open,
 	# rather than a flat decorative panel sealing the doorway.
 	var door_pivot := Node3D.new()
+	door_pivot.name = "FrontDoorPivot"
 	door_pivot.position = Vector3(-0.72, 0.0, 3.57)
-	door_pivot.rotation.y = -0.92
+	# Swing the leaf inward and park it parallel to the left jamb. The previous
+	# outward swing left the door in the preview camera's line through the entrance.
+	door_pivot.rotation.y = PI / 2.0
 	root.add_child(door_pivot)
 	var door_surface := _weathered_wood_material(Color(0.16, 0.1, 0.07))
-	_box(door_pivot, Vector3(0.72, 2.0, 0.0), Vector3(1.45, 2.8, 0.14), door_surface)
-	_sphere(door_pivot, Vector3(1.27, 1.45, -0.1), Vector3(0.07, 0.1, 0.07), _material(Color(0.58, 0.39, 0.14), 0.28, 0.72))
+	var door_edge_surface := _weathered_wood_material(Color(0.105, 0.065, 0.04))
+	for plank_index in range(5):
+		var plank_x := 0.15 + float(plank_index) * 0.29
+		var plank := _box(door_pivot, Vector3(plank_x, 2.0, 0.0),
+			Vector3(0.27, 2.76, 0.11), door_surface)
+		plank.name = "FrontDoorPlank"
+	for rail_y in [0.86, 3.14]:
+		var rail := _box(door_pivot, Vector3(0.72, rail_y, 0.085),
+			Vector3(1.38, 0.13, 0.09), door_edge_surface)
+		rail.name = "FrontDoorCrossRail"
+	var diagonal_brace := _box(door_pivot, Vector3(0.72, 2.0, 0.105),
+		Vector3(1.28, 0.105, 0.075), door_edge_surface, Vector3(0.0, 0.0, -0.78))
+	diagonal_brace.name = "FrontDoorDiagonalBrace"
+	var iron_hinge_material := _material(Color(0.075, 0.065, 0.052), 0.58, 0.72)
+	for hinge_y in [0.9, 3.1]:
+		var hinge := _box(door_pivot, Vector3(0.22, hinge_y, 0.16),
+			Vector3(0.42, 0.075, 0.035), iron_hinge_material)
+		hinge.name = "FrontDoorIronHinge"
+	var latch := _box(door_pivot, Vector3(1.24, 1.65, 0.16),
+		Vector3(0.12, 0.24, 0.07), iron_hinge_material)
+	latch.name = "FrontDoorLatch"
+	_sphere(door_pivot, Vector3(1.24, 1.65, 0.22), Vector3(0.065, 0.08, 0.065),
+		_material(Color(0.58, 0.39, 0.14), 0.28, 0.72))
 	
 	for x in [-3.3, 3.3]:
 		_box(root, Vector3(x, 2.1, 3.66), Vector3(1.25, 1.7, 0.18), Color(0.16, 0.29, 0.34))
@@ -2581,9 +2605,9 @@ func _preview_route() -> Array[Dictionary]:
 		},
 		{
 			"id": "saloon_approach",
-			# Stop outside the front threshold, aligned with the centered open doorway.
-			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 0.2, -5.7),
-			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -12.0)) + 2.7, -13.65),
+			# Hold beyond the porch so the full facade and doorway read before entry.
+			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -2.7)) + 0.2, -2.7),
+			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -12.0)) + 2.35, -8.25),
 			"duration": 1.0
 		},
 		{
@@ -2595,8 +2619,8 @@ func _preview_route() -> Array[Dictionary]:
 		},
 		{
 			"id": "saloon_exit",
-			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 0.2, -5.7),
-			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -5.7)) + 2.4, -1.5),
+			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -2.7)) + 0.2, -2.7),
+			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -2.7)) + 2.4, -1.5),
 			"duration": 1.0
 		},
 		{
