@@ -1122,6 +1122,87 @@ void fragment() {
 	mesh.surface_set_material(0, material)
 	return mesh
 
+func _make_desert_pebble_mesh(variant: int) -> ArrayMesh:
+	# A single icosphere subdivision keeps the stones angular without the cost of spheres.
+	var phi := (1.0 + sqrt(5.0)) * 0.5
+	var vertices := PackedVector3Array([
+		Vector3(-1, phi, 0), Vector3(1, phi, 0), Vector3(-1, -phi, 0), Vector3(1, -phi, 0),
+		Vector3(0, -1, phi), Vector3(0, 1, phi), Vector3(0, -1, -phi), Vector3(0, 1, -phi),
+		Vector3(phi, 0, -1), Vector3(phi, 0, 1), Vector3(-phi, 0, -1), Vector3(-phi, 0, 1)
+	])
+	var faces := PackedInt32Array([
+		0,11,5, 0,5,1, 0,1,7, 0,7,10, 0,10,11,
+		1,5,9, 5,11,4, 11,10,2, 10,7,6, 7,1,8,
+		3,9,4, 3,4,2, 3,2,6, 3,6,8, 3,8,9,
+		4,9,5, 2,4,11, 6,2,10, 8,6,7, 9,8,1
+	])
+	for index in range(vertices.size()):
+		vertices[index] = vertices[index].normalized()
+	var refined := PackedInt32Array()
+	var midpoint_cache: Dictionary = {}
+	for face_index in range(0, faces.size(), 3):
+		var a: int = faces[face_index]
+		var b: int = faces[face_index + 1]
+		var c: int = faces[face_index + 2]
+		var edge_keys := [
+			mini(a, b) * 10000 + maxi(a, b),
+			mini(b, c) * 10000 + maxi(b, c),
+			mini(c, a) * 10000 + maxi(c, a)
+		]
+		var midpoint_indices: Array[int] = []
+		var edge_vertices := [[a, b], [b, c], [c, a]]
+		for edge_index in range(3):
+			var key: int = edge_keys[edge_index]
+			if midpoint_cache.has(key):
+				midpoint_indices.append(int(midpoint_cache[key]))
+			else:
+				var pair: Array = edge_vertices[edge_index]
+				vertices.append((vertices[pair[0]] + vertices[pair[1]]).normalized())
+				var midpoint_index := vertices.size() - 1
+				midpoint_cache[key] = midpoint_index
+				midpoint_indices.append(midpoint_index)
+		var ab: int = midpoint_indices[0]
+		var bc: int = midpoint_indices[1]
+		var ca: int = midpoint_indices[2]
+		refined.append_array(PackedInt32Array([a, ab, ca, b, bc, ab, c, ca, bc, ab, bc, ca]))
+	faces = refined
+	var shapes: Array[Vector3] = [
+		Vector3(0.56, 0.24, 0.43),
+		Vector3(0.48, 0.29, 0.53)
+	]
+	var shape: Vector3 = shapes[clampi(variant, 0, shapes.size() - 1)]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 189700 + clampi(variant, 0, 1) * 7919
+	var weathered_vertices := PackedVector3Array()
+	var vertex_colors := PackedColorArray()
+	for vertex in vertices:
+		var direction := vertex.normalized()
+		var radial := rng.randf_range(0.93, 1.07)
+		weathered_vertices.append(Vector3(
+			direction.x * shape.x,
+			direction.y * shape.y,
+			direction.z * shape.z
+		) * radial)
+		var sediment := clampf((direction.y + 1.0) * 0.5 + rng.randf_range(-0.12, 0.12), 0.0, 1.0)
+		vertex_colors.append(
+			Color(0.30, 0.18, 0.12).lerp(Color(0.57, 0.39, 0.25), sediment * 0.48))
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for face_index in range(0, faces.size(), 3):
+		for corner in range(3):
+			var vertex_index: int = faces[face_index + corner]
+			var tint: Color = vertex_colors[vertex_index] * rng.randf_range(0.96, 1.04)
+			surface.set_color(tint)
+			surface.add_vertex(weathered_vertices[vertex_index])
+	surface.generate_normals()
+	var mesh := surface.commit()
+	var material := StandardMaterial3D.new()
+	material.vertex_color_use_as_albedo = true
+	material.roughness = 0.98
+	material.specular = 0.08
+	mesh.surface_set_material(0, material)
+	return mesh
+
 func _scatter_ground_detail() -> void:
 	# Keep hundreds of small ground accents in a handful of instanced draw calls.
 	var rng := RandomNumberGenerator.new()
@@ -1147,19 +1228,15 @@ func _scatter_ground_detail() -> void:
 		var yaw := rng.randf_range(0.0, TAU)
 		var basis := Basis(Vector3.UP, yaw).scaled(Vector3(scale_factor, scale_factor, scale_factor))
 		grass_multimesh.set_instance_transform(i, Transform3D(basis, Vector3(x, _terrain_height(Vector2(x, z)), z)))
-	var pebble_mesh := SphereMesh.new()
-	pebble_mesh.radial_segments = 16
-	pebble_mesh.rings = 10
-	var stone_material := _material(Color(0.55, 0.42, 0.3), 1.0)
 	for variant in range(2):
 		var stones := MultiMesh.new()
 		stones.transform_format = MultiMesh.TRANSFORM_3D
-		stones.mesh = pebble_mesh
+		stones.mesh = _make_desert_pebble_mesh(variant)
 		stones.instance_count = 170
 		stones.custom_aabb = AABB(Vector3(-130, -1, -130), Vector3(260, 3, 260))
 		var stone_batch := MultiMeshInstance3D.new()
+		stone_batch.name = "DesertPebbles_" + str(variant)
 		stone_batch.multimesh = stones
-		stone_batch.material_override = stone_material
 		stone_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(stone_batch)
 		for i in range(170):
@@ -1177,7 +1254,10 @@ func _scatter_ground_detail() -> void:
 				size_factor * rng.randf_range(0.75, 1.25)
 			)
 			var yaw := rng.randf_range(0.0, TAU)
-			stones.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw).scaled(scale), Vector3(x, _terrain_height(Vector2(x, z)) + 0.035, z)))
+			var ground_height: float = _terrain_height(Vector2(x, z))
+			stones.set_instance_transform(i, Transform3D(
+				Basis(Vector3.UP, yaw).scaled(scale),
+				Vector3(x, ground_height + 0.035, z)))
 
 func _road_material() -> ShaderMaterial:
 	var shader := Shader.new()
