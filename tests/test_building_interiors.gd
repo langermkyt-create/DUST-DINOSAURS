@@ -37,7 +37,8 @@ func _initialize() -> void:
 			var rear_board := wall_boards.multimesh.get_instance_transform(row * 3)
 			var rear_scale := rear_board.basis.get_scale()
 			if absf(rear_board.origin.z + 3.27) > 0.01 or absf(rear_scale.x - 9.2) > 0.02 or absf(rear_scale.y - 0.4) > 0.02:
-				_fail("Rear timber courses must sit flush to the back wall with consistent board dimensions: " + sign_text)
+				_fail("Rear timber courses must sit flush to the back wall with consistent board dimensions: " + sign_text
+					+ " origin=" + str(rear_board.origin) + " scale=" + str(rear_scale))
 				return
 			for side_index in [1, 2]:
 				var side_board := wall_boards.multimesh.get_instance_transform(row * 3 + side_index)
