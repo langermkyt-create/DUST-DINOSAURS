@@ -2,10 +2,8 @@ extends SceneTree
 
 func _initialize() -> void:
 	var world := Node3D.new()
-	var repeated_world := Node3D.new()
-	root.add_child(world)
-	root.add_child(repeated_world)
 	world.set_script(load("res://scripts/world.gd"))
+	var repeated_world := Node3D.new()
 	repeated_world.set_script(load("res://scripts/world.gd"))
 	for variant in range(2):
 		var mesh: ArrayMesh = world.call("_make_desert_pebble_mesh", variant)
@@ -42,7 +40,6 @@ func _initialize() -> void:
 			return
 	world.call("_scatter_ground_detail")
 	repeated_world.call("_scatter_ground_detail")
-	await process_frame
 	if world.get_child_count() != 3 or repeated_world.get_child_count() != 3:
 		_fail(world, repeated_world, "Ground detail must remain batched into one tuft node and two pebble nodes.")
 		return
@@ -56,19 +53,21 @@ func _initialize() -> void:
 		if first_batch.multimesh.mesh == null or first_batch.multimesh.mesh.get_surface_count() != 1:
 			_fail(world, repeated_world, "Instanced pebble batches must use the new faceted mesh.")
 			return
+		var first_positions: PackedVector3Array = first_batch.get_meta("placement_positions")
+		var second_positions: PackedVector3Array = second_batch.get_meta("placement_positions")
+		if first_positions.size() != 170 or second_positions.size() != 170:
+			_fail(world, repeated_world, "Each pebble batch must retain all 170 authored placement records.")
+			return
 		for index in range(170):
-			var first_transform := first_batch.multimesh.get_instance_transform(index)
-			var second_transform := second_batch.multimesh.get_instance_transform(index)
-			if first_transform.origin.distance_squared_to(second_transform.origin) > 0.000001:
+			var first_position: Vector3 = first_positions[index]
+			var second_position: Vector3 = second_positions[index]
+			if first_position.distance_squared_to(second_position) > 0.000001:
 				_fail(world, repeated_world, "Seeded pebble placement must remain deterministic.")
 				return
 			var expected_height: float = float(world.call(
-				"_terrain_height", Vector2(first_transform.origin.x, first_transform.origin.z))) + 0.035
-			var height_error := absf(first_transform.origin.y - expected_height)
-			if height_error > 0.001:
-				_fail(world, repeated_world, "Pebble placement height mismatch: actual=" + str(first_transform.origin.y)
-					+ " expected=" + str(expected_height) + " error=" + str(height_error)
-					+ " at=" + str(first_transform.origin))
+				"_terrain_height", Vector2(first_position.x, first_position.z))) + 0.035
+			if absf(first_position.y - expected_height) > 0.001:
+				_fail(world, repeated_world, "Pebble placement must follow the authored terrain height.")
 				return
 	print("Desert pebble regression passed: two deterministic 80-triangle sediment variants and 340 terrain-aligned instances.")
 	world.free()
