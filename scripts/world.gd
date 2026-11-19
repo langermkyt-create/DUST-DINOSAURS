@@ -1067,35 +1067,75 @@ func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
 		light.omni_range = 5.0
 		root.add_child(light)
 
+func _append_desert_grass_blade(surface: SurfaceTool, root: Vector3, direction: Vector3,
+		height: float, width: float, bend: float, tint: Color) -> void:
+	var forward := Vector3(direction.x, 0.0, direction.z).normalized()
+	var side := Vector3.UP.cross(forward).normalized()
+	var longitudinal := [0.0, 0.32, 0.70, 1.0]
+	var width_profile := [0.12, 0.72, 0.42, 0.015]
+	var left_edges: Array[Vector3] = []
+	var center_ridges: Array[Vector3] = []
+	var right_edges: Array[Vector3] = []
+	for ring in range(longitudinal.size()):
+		var t: float = longitudinal[ring]
+		var center := root + Vector3.UP * (height * t)
+		center += forward * (bend * t * t) + side * (bend * 0.18 * t * t)
+		var half_width := width * float(width_profile[ring]) * 0.5
+		left_edges.append(center - side * half_width)
+		center_ridges.append(center + Vector3.UP * (width * 0.12 * (1.0 - t)))
+		right_edges.append(center + side * half_width)
+	for segment in range(longitudinal.size() - 1):
+		var t := float(segment) / float(longitudinal.size() - 1)
+		var blade_tint := tint.lerp(Color(0.66, 0.59, 0.31), t * 0.22)
+		var left_a: Vector3 = left_edges[segment]
+		var ridge_a: Vector3 = center_ridges[segment]
+		var right_a: Vector3 = right_edges[segment]
+		var left_b: Vector3 = left_edges[segment + 1]
+		var ridge_b: Vector3 = center_ridges[segment + 1]
+		var right_b: Vector3 = right_edges[segment + 1]
+		surface.set_color(blade_tint.darkened(0.10))
+		surface.add_vertex(left_a)
+		surface.set_color(blade_tint.lightened(0.06))
+		surface.add_vertex(ridge_a)
+		surface.set_color(blade_tint.darkened(0.06))
+		surface.add_vertex(left_b)
+		surface.set_color(blade_tint.lightened(0.06))
+		surface.add_vertex(ridge_a)
+		surface.set_color(blade_tint.lightened(0.12))
+		surface.add_vertex(ridge_b)
+		surface.set_color(blade_tint.darkened(0.06))
+		surface.add_vertex(left_b)
+		surface.set_color(blade_tint.lightened(0.06))
+		surface.add_vertex(ridge_a)
+		surface.set_color(blade_tint)
+		surface.add_vertex(right_a)
+		surface.set_color(blade_tint.lightened(0.12))
+		surface.add_vertex(ridge_b)
+		surface.set_color(blade_tint)
+		surface.add_vertex(right_a)
+		surface.set_color(blade_tint.darkened(0.02))
+		surface.add_vertex(right_b)
+		surface.set_color(blade_tint.lightened(0.12))
+		surface.add_vertex(ridge_b)
+
 func _make_desert_tuft_mesh() -> ArrayMesh:
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var blade_colors := [
 		Color(0.38, 0.34, 0.19),
 		Color(0.49, 0.42, 0.23),
-		Color(0.29, 0.3, 0.17)
+		Color(0.29, 0.30, 0.17),
+		Color(0.55, 0.46, 0.26)
 	]
-	for blade in range(5):
-		var angle := TAU * float(blade) / 5.0
+	for blade in range(7):
+		var angle := TAU * float(blade) / 7.0
 		var direction := Vector3(cos(angle), 0.0, sin(angle))
-		var side := Vector3(-direction.z, 0.0, direction.x) * 0.035
-		var lean := direction * (0.06 + 0.025 * float(blade % 2))
-		var height := 0.24 + 0.075 * float((blade * 3) % 4) / 3.0
-		var root := direction * 0.025
-		var tip := root + lean + Vector3(0.0, height, 0.0)
-		var color: Color = blade_colors[blade % blade_colors.size()]
-		surface.set_color(color.darkened(0.12))
-		surface.add_vertex(root - side)
-		surface.set_color(color.lightened(0.12))
-		surface.add_vertex(tip)
-		surface.set_color(color)
-		surface.add_vertex(root + side)
-		surface.set_color(color.darkened(0.12))
-		surface.add_vertex(root + side)
-		surface.set_color(color.lightened(0.12))
-		surface.add_vertex(tip)
-		surface.set_color(color)
-		surface.add_vertex(root - side)
+		var height := 0.25 + 0.075 * float((blade * 3) % 5) / 4.0
+		var width := 0.07 + 0.018 * float(blade % 3)
+		var bend := 0.045 + 0.025 * float((blade + 1) % 3)
+		var root := direction * (0.018 + 0.012 * float(blade % 2))
+		var tint: Color = blade_colors[(blade * 3) % blade_colors.size()]
+		_append_desert_grass_blade(surface, root, direction, height, width, bend, tint)
 	surface.generate_normals()
 	var mesh := surface.commit()
 	var grass_shader := Shader.new()
@@ -1105,16 +1145,20 @@ render_mode cull_disabled, diffuse_burley, specular_schlick_ggx;
 varying vec3 world_position;
 void vertex() {
 	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	float phase = TIME * 1.25 + world_position.x * 0.16 + world_position.z * 0.11;
-	float bend = cos(phase) * 0.065;
-	VERTEX.x += sin(phase) * 0.065 * VERTEX.y;
-	NORMAL = normalize(vec3(NORMAL.x - bend * NORMAL.y, NORMAL.y, NORMAL.z));
+	float phase = TIME * 1.25 + INSTANCE_CUSTOM.r * 6.28318
+		+ world_position.x * 0.16 + world_position.z * 0.11;
+	float gust = sin(TIME * 0.32 + INSTANCE_CUSTOM.g * 6.28318) * 0.5;
+	float sway = cos(phase) * 0.038 + gust * 0.012;
+	VERTEX.x += sin(phase) * 0.048 * VERTEX.y;
+	VERTEX.z += cos(phase * 0.83) * 0.024 * VERTEX.y;
+	NORMAL = normalize(vec3(NORMAL.x - sway * NORMAL.y, NORMAL.y,
+		NORMAL.z - sway * 0.45 * NORMAL.y));
 }
 void fragment() {
 	float sun_bleach = clamp(world_position.y * 0.8, 0.0, 0.12);
 	ALBEDO = COLOR.rgb + vec3(sun_bleach, sun_bleach * 0.82, sun_bleach * 0.5);
-	ROUGHNESS = 1.0;
-	SPECULAR = 0.04;
+	ROUGHNESS = 0.98;
+	SPECULAR = 0.03;
 }
 """
 	var material := ShaderMaterial.new()
@@ -1209,10 +1253,12 @@ func _scatter_ground_detail() -> void:
 	rng.seed = 189711
 	var grass_multimesh := MultiMesh.new()
 	grass_multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	grass_multimesh.use_custom_data = true
 	grass_multimesh.mesh = _make_desert_tuft_mesh()
 	grass_multimesh.instance_count = 520
 	grass_multimesh.custom_aabb = AABB(Vector3(-130, -1, -130), Vector3(260, 4, 260))
 	var grass := MultiMeshInstance3D.new()
+	grass.name = "DesertGrassTufts"
 	grass.multimesh = grass_multimesh
 	grass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(grass)
@@ -1228,6 +1274,7 @@ func _scatter_ground_detail() -> void:
 		var yaw := rng.randf_range(0.0, TAU)
 		var basis := Basis(Vector3.UP, yaw).scaled(Vector3(scale_factor, scale_factor, scale_factor))
 		grass_multimesh.set_instance_transform(i, Transform3D(basis, Vector3(x, _terrain_height(Vector2(x, z)), z)))
+		grass_multimesh.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), 0.0, 1.0))
 	for variant in range(2):
 		var stones := MultiMesh.new()
 		stones.transform_format = MultiMesh.TRANSFORM_3D
