@@ -33,17 +33,23 @@ func _initialize() -> void:
 		if wall_boards.multimesh.mesh == null or not wall_boards.multimesh.mesh is BoxMesh:
 			_fail("Interior wall boards must share one reusable box mesh instead of separate draw-call geometry: " + sign_text)
 			return
+		var board_positions: PackedVector3Array = wall_boards.get_meta("placement_positions")
+		var board_scales: PackedVector3Array = wall_boards.get_meta("placement_scales")
+		if board_positions.size() != 21 or board_scales.size() != 21:
+			_fail("Every interior wall-board instance must retain its deterministic placement record: " + sign_text)
+			return
 		for row in range(7):
-			var rear_board := wall_boards.multimesh.get_instance_transform(row * 3)
-			var rear_scale := rear_board.basis.get_scale()
-			if absf(rear_board.origin.z + 3.27) > 0.01 or absf(rear_scale.x - 9.2) > 0.02 or absf(rear_scale.y - 0.4) > 0.02:
-				_fail("Rear timber courses must sit flush to the back wall with consistent board dimensions: " + sign_text
-					+ " origin=" + str(rear_board.origin) + " scale=" + str(rear_scale))
+			var rear_index := row * 3
+			var rear_position := board_positions[rear_index]
+			var rear_scale := board_scales[rear_index]
+			if absf(rear_position.z + 3.27) > 0.01 or absf(rear_scale.x - 9.2) > 0.02 or absf(rear_scale.y - 0.4) > 0.02:
+				_fail("Rear timber courses must sit flush to the back wall with consistent board dimensions: " + sign_text)
 				return
 			for side_index in [1, 2]:
-				var side_board := wall_boards.multimesh.get_instance_transform(row * 3 + side_index)
-				var side_scale := side_board.basis.get_scale()
-				if absf(absf(side_board.origin.x) - 4.765) > 0.01 or absf(side_scale.z - 6.2) > 0.02 or absf(side_scale.y - 0.4) > 0.02:
+				var side_index_in_batch := rear_index + side_index
+				var side_position := board_positions[side_index_in_batch]
+				var side_scale := board_scales[side_index_in_batch]
+				if absf(absf(side_position.x) - 4.765) > 0.01 or absf(side_scale.z - 6.2) > 0.02 or absf(side_scale.y - 0.4) > 0.02:
 					_fail("Side timber courses must remain aligned to both interior elevations: " + sign_text)
 					return
 		var board_material := wall_boards.material_override as ShaderMaterial
