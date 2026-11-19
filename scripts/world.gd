@@ -721,8 +721,8 @@ void fragment() {
 	float grain = rock_noise(rock_world_pos * vec3(5.8, 3.2, 5.8));
 	float pores = rock_noise(rock_world_pos * vec3(24.0, 15.0, 24.0));
 	float fine_grain = rock_noise(rock_world_pos * vec3(38.0, 22.0, 38.0));
-	# Use the same fine-grain field for normal detail; avoid a second high-frequency
-	# noise evaluation on every rock fragment in the software-rendered preview.
+	// Reuse the fine-grain field for normal detail; avoid another high-frequency
+	// noise evaluation on every rock fragment in the software-rendered preview.
 	float micro_relief = fine_grain;
 	float sediment = sin((rock_world_pos.y * 3.4 + broad * 0.7 + grain * 0.12) * 6.28318) * 0.5 + 0.5;
 	float bedding = smoothstep(0.56, 0.94, sediment);
