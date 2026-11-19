@@ -61,8 +61,11 @@ func _initialize() -> void:
 				return
 			var expected_height: float = float(world.call(
 				"_terrain_height", Vector2(first_transform.origin.x, first_transform.origin.z))) + 0.035
-			if absf(first_transform.origin.y - expected_height) > 0.001:
-				_fail(world, repeated_world, "Pebble placement must follow the authored terrain height.")
+			var height_error := absf(first_transform.origin.y - expected_height)
+			if height_error > 0.001:
+				_fail(world, repeated_world, "Pebble placement height mismatch: actual=" + str(first_transform.origin.y)
+					+ " expected=" + str(expected_height) + " error=" + str(height_error)
+					+ " at=" + str(first_transform.origin))
 				return
 	print("Desert pebble regression passed: two deterministic 80-triangle sediment variants and 340 terrain-aligned instances.")
 	world.free()
