@@ -236,6 +236,8 @@ func _build_atmosphere() -> void:
 	e.fog_light_color = Color(0.75, 0.58, 0.44)
 	e.fog_density = 0.00035
 	e.fog_sun_scatter = 0.14
+	# Keep the procedural blue-to-ochre sky gradient visible above the dusty horizon.
+	e.fog_sky_affect = 0.0
 	e.volumetric_fog_enabled = false
 	e.volumetric_fog_density = 0.0035
 	e.volumetric_fog_albedo = Color(0.78, 0.68, 0.56)
@@ -394,7 +396,7 @@ func _append_cactus_tube(surface: SurfaceTool, points: PackedVector3Array, radii
 		var ring := PackedVector3Array()
 		for segment in range(side_count):
 			var angle := TAU * float(segment) / float(side_count)
-			var rib := 1.0 + 0.045 * cos(angle * 6.0)
+			var rib := 1.0 + 0.065 * cos(angle * 6.0)
 			var radial := (axis_x * cos(angle) + axis_z * sin(angle)) * radii[ring_index] * rib
 			ring.append(points[ring_index] + radial)
 		rings.append(ring)
@@ -464,15 +466,15 @@ void vertex() {
 }
 void fragment() {
 	float rib_phase = cos(cactus_uv.x * 37.6991118);
-	float rib_highlight = smoothstep(-0.2, 0.95, rib_phase);
-	float rib_shadow = 1.0 - smoothstep(-0.82, -0.15, rib_phase);
+	float rib_highlight = smoothstep(-0.1, 0.82, rib_phase);
+	float rib_shadow = 1.0 - smoothstep(-0.72, -0.10, rib_phase);
 	float rib_center = abs(fract(cactus_uv.x * 6.0 + 0.5) - 0.5);
 	float row_center = abs(fract(cactus_uv.y * 18.0) - 0.5);
 	float areole_distance = length(vec2(rib_center * 6.0, row_center * 18.0));
-	float areole = 1.0 - smoothstep(0.045, 0.14, areole_distance);
+	float areole = 1.0 - smoothstep(0.055, 0.18, areole_distance);
 	float spine_cell = cactus_hash(floor(cactus_uv * vec2(144.0, 144.0)));
-	float spine_fleck = step(0.76, spine_cell) * areole;
-	vec3 cactus = COLOR.rgb * (0.91 + rib_highlight * 0.11 - rib_shadow * 0.035);
+	float spine_fleck = step(0.58, spine_cell) * areole;
+	vec3 cactus = COLOR.rgb * (0.88 + rib_highlight * 0.16 - rib_shadow * 0.07);
 	cactus = mix(cactus, vec3(0.68, 0.64, 0.48), areole * 0.42);
 	cactus = mix(cactus, vec3(0.88, 0.83, 0.69), spine_fleck * 0.62);
 	ALBEDO = cactus;
