@@ -62,6 +62,9 @@ jobs:
       - name: Test deterministic roof shingle geometry
         run: godot --headless --path . --script tests/test_roof_shingles.gd
 
+      - name: Test stratified sandstone outcrop geometry and LOD
+        run: timeout 30s godot --headless --path . --script tests/test_rock_formation.gd
+
       - name: Test walkable frontier building interiors
         run: timeout 30s godot --headless --path . --script tests/test_building_interiors.gd
 
