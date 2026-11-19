@@ -22,6 +22,9 @@ func _initialize() -> void:
 	if environment.fog_light_color.r <= environment.fog_light_color.b:
 		_fail(world, "Aerial haze must retain a warm desert-sand tint.")
 		return
+	if absf(environment.fog_sky_affect) > 0.001:
+		_fail(world, "Aerial haze must preserve the authored blue-to-ochre sky gradient.")
+		return
 	if environment.volumetric_fog_enabled:
 		_fail(world, "The compatibility-safe atmosphere must not force volumetric fog.")
 		return
