@@ -2,8 +2,10 @@ extends SceneTree
 
 func _initialize() -> void:
 	var world := Node3D.new()
-	world.set_script(load("res://scripts/world.gd"))
 	var repeated_world := Node3D.new()
+	root.add_child(world)
+	root.add_child(repeated_world)
+	world.set_script(load("res://scripts/world.gd"))
 	repeated_world.set_script(load("res://scripts/world.gd"))
 	for variant in range(2):
 		var mesh: ArrayMesh = world.call("_make_desert_pebble_mesh", variant)
@@ -38,8 +40,6 @@ func _initialize() -> void:
 		if material == null or not material.vertex_color_use_as_albedo or material.roughness < 0.9:
 			_fail(world, repeated_world, "Pebbles must use rough layered sediment colors rather than a smooth sphere material.")
 			return
-	root.add_child(world)
-	root.add_child(repeated_world)
 	world.call("_scatter_ground_detail")
 	repeated_world.call("_scatter_ground_detail")
 	await process_frame
