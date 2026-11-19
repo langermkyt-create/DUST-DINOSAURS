@@ -45,6 +45,19 @@ func _initialize() -> void:
 		if _count_named_prefix(building, "InteriorLanternGuard") != 4:
 			_fail("Interior lantern must have four protective iron cage bars: " + sign_text)
 			return
+		var door_pivot := _find_named(building, "FrontDoorPivot") as Node3D
+		if door_pivot == null or absf(door_pivot.rotation.y - PI / 2.0) > 0.01:
+			_fail("Every frontier entrance must park its open door leaf inward against the left jamb: " + sign_text)
+			return
+		if _count_named_prefix(door_pivot, "FrontDoorPlank") != 5:
+			_fail("Front door must use five individually weathered vertical boards: " + sign_text)
+			return
+		if _count_named_prefix(door_pivot, "FrontDoorCrossRail") != 2:
+			_fail("Front door must retain two structural cross rails: " + sign_text)
+			return
+		if _find_named(door_pivot, "FrontDoorDiagonalBrace") == null or _find_named(door_pivot, "FrontDoorLatch") == null:
+			_fail("Front door must retain a diagonal brace and iron latch: " + sign_text)
+			return
 	if _find_named(world_under_test.get_child(0), "SaloonBar") == null:
 		_fail("Saloon interior must retain its service bar.")
 		return
