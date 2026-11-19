@@ -1660,16 +1660,28 @@ func _add_interior_wall_boards(root: Node3D, wall: Color) -> void:
 	var rear_scale := Vector3(9.2, 0.40, 0.045)
 	var side_scale := Vector3(0.045, 0.40, 6.2)
 	var y_levels: Array[float] = [0.8, 1.25, 1.7, 2.15, 2.6, 3.05, 3.5]
+	var placement_positions := PackedVector3Array()
+	var placement_scales := PackedVector3Array()
 	var instance_index := 0
 	for y in y_levels:
+		var rear_position := Vector3(0.0, y, -3.27)
 		batch.set_instance_transform(instance_index,
-			Transform3D(Basis.from_scale(rear_scale), Vector3(0.0, y, -3.27)))
+			Transform3D(Basis.from_scale(rear_scale), rear_position))
+		placement_positions.append(rear_position)
+		placement_scales.append(rear_scale)
 		instance_index += 1
 		for side in [-1.0, 1.0]:
+			var side_position := Vector3(side * 4.765, y, 0.0)
 			batch.set_instance_transform(instance_index,
-				Transform3D(Basis.from_scale(side_scale), Vector3(side * 4.765, y, 0.0)))
+				Transform3D(Basis.from_scale(side_scale), side_position))
+			placement_positions.append(side_position)
+			placement_scales.append(side_scale)
 			instance_index += 1
 	boards.multimesh = batch
+	# Keep deterministic source records because headless, unattached test roots do
+	# not expose MultiMesh instance transforms through get_instance_transform().
+	boards.set_meta("placement_positions", placement_positions)
+	boards.set_meta("placement_scales", placement_scales)
 	boards.material_override = _weathered_wood_material(wall.darkened(0.32))
 	boards.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	root.add_child(boards)
