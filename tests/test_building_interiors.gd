@@ -26,6 +26,29 @@ func _initialize() -> void:
 		if _count_named_prefix(building, "InteriorWainscot") != 5:
 			_fail("Every interior must have continuous lower wall trim without blocking the doorway: " + sign_text)
 			return
+		var wall_boards := _find_named(building, "InteriorWallBoards") as MultiMeshInstance3D
+		if wall_boards == null or wall_boards.multimesh == null or wall_boards.multimesh.instance_count != 21:
+			_fail("Every room must batch seven rear and fourteen side-wall timber courses: " + sign_text)
+			return
+		if wall_boards.multimesh.mesh == null or not wall_boards.multimesh.mesh is BoxMesh:
+			_fail("Interior wall boards must share one reusable box mesh instead of separate draw-call geometry: " + sign_text)
+			return
+		for row in range(7):
+			var rear_board := wall_boards.multimesh.get_instance_transform(row * 3)
+			var rear_scale := rear_board.basis.get_scale()
+			if absf(rear_board.origin.z + 3.27) > 0.01 or absf(rear_scale.x - 9.2) > 0.02 or absf(rear_scale.y - 0.4) > 0.02:
+				_fail("Rear timber courses must sit flush to the back wall with consistent board dimensions: " + sign_text)
+				return
+			for side_index in [1, 2]:
+				var side_board := wall_boards.multimesh.get_instance_transform(row * 3 + side_index)
+				var side_scale := side_board.basis.get_scale()
+				if absf(absf(side_board.origin.x) - 4.765) > 0.01 or absf(side_scale.z - 6.2) > 0.02 or absf(side_scale.y - 0.4) > 0.02:
+					_fail("Side timber courses must remain aligned to both interior elevations: " + sign_text)
+					return
+		var board_material := wall_boards.material_override as ShaderMaterial
+		if board_material == null or not board_material.shader.code.contains("wood_checks"):
+			_fail("Interior timber courses must use the shared weathered wood response: " + sign_text)
+			return
 		var lantern := _find_named(building, "InteriorLanternLight") as OmniLight3D
 		if lantern == null:
 			_fail("Every interior must have its warm lantern light: " + sign_text)
