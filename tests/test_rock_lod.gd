@@ -40,6 +40,29 @@ func _initialize() -> void:
 	if high.mesh.get_aabb().size.length_squared() <= 0.0 or low.mesh.get_aabb().size.length_squared() <= 0.0:
 		_fail("Rock LOD meshes must have non-zero bounds.")
 		return
+	var high_normals: PackedVector3Array = high_arrays[Mesh.ARRAY_NORMAL]
+	var high_colors: PackedColorArray = high_arrays[Mesh.ARRAY_COLOR]
+	if high_normals.size() != high_vertices.size() or high_colors.size() != high_vertices.size():
+		_fail("Near sandstone mesh must retain generated normals and layered vertex strata.")
+		return
+	var high_material := high.material_override as ShaderMaterial
+	var low_material := low.material_override as ShaderMaterial
+	if high_material == null or low_material == null or high_material.shader == null or low_material.shader == null:
+		_fail("Both sandstone LODs must share the procedural sediment and erosion material.")
+		return
+	if high_material.shader.code != low_material.shader.code:
+		_fail("Near and distant sandstone LODs must use the same surface response.")
+		return
+	for token in ["fine_grain", "micro_relief", "sediment", "fracture", "NORMAL", "ROUGHNESS"]:
+		if not high_material.shader.code.contains(token):
+			_fail("Sandstone material is missing its multi-scale erosion detail: " + token)
+			return
+	if not high_material.shader.code.contains("micro_relief = fine_grain"):
+		_fail("Sandstone micro-normal must reuse the fine-grain field instead of evaluating another noise octave.")
+		return
+	if high_material.shader.code.contains("fracture_noise"):
+		_fail("Sandstone fracture mask must reuse existing material fields to stay inside the fragment-noise budget.")
+		return
 
 	print("Rock LOD regression passed: high=", high_vertices.size() / 3,
 		" triangles, low=", low_vertices.size() / 3, " triangles, detailed collision present.")
