@@ -230,10 +230,12 @@ func _build_atmosphere() -> void:
 	e.sdfgi_bounce_feedback = 0.72
 	e.ssil_enabled = true
 	e.ssil_intensity = 0.65
-	e.fog_enabled = false
-	e.fog_light_color = Color(0.72, 0.56, 0.42)
-	e.fog_density = 0.0009
-	e.fog_sun_scatter = 0.2
+	# A restrained warm aerial haze separates distant mesas from the town and
+	# keeps the sunset horizon readable without enabling costly volumetric fog.
+	e.fog_enabled = true
+	e.fog_light_color = Color(0.76, 0.59, 0.44)
+	e.fog_density = 0.0011
+	e.fog_sun_scatter = 0.18
 	e.volumetric_fog_enabled = false
 	e.volumetric_fog_density = 0.0035
 	e.volumetric_fog_albedo = Color(0.78, 0.68, 0.56)
