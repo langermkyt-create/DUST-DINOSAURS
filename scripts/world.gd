@@ -399,34 +399,89 @@ func _append_cactus_tube(surface: SurfaceTool, points: PackedVector3Array, radii
 	for ring_index in range(rings.size() - 1):
 		for segment in range(side_count):
 			var next_segment := (segment + 1) % side_count
-			var height_tint := 0.94 + 0.08 * float(ring_index) / float(maxi(1, rings.size() - 1))
-			var rib_tint := 0.96 + 0.04 * cos(TAU * float(segment) / float(side_count) * 6.0)
+			var next_u := 1.0 if next_segment == 0 else float(next_segment) / float(side_count)
+			var u := float(segment) / float(side_count)
+			var v0 := float(ring_index) / float(maxi(1, rings.size() - 1))
+			var v1 := float(ring_index + 1) / float(maxi(1, rings.size() - 1))
+			var height_tint := 0.94 + 0.08 * v0
+			var rib_tint := 0.96 + 0.04 * cos(TAU * u * 6.0)
 			var tint := base_color * height_tint * rib_tint
 			var a: Vector3 = rings[ring_index][segment]
 			var b: Vector3 = rings[ring_index][next_segment]
 			var c: Vector3 = rings[ring_index + 1][segment]
 			var d: Vector3 = rings[ring_index + 1][next_segment]
 			surface.set_color(tint)
+			surface.set_uv(Vector2(u, v0))
 			surface.add_vertex(a)
+			surface.set_uv(Vector2(next_u, v0))
 			surface.add_vertex(b)
+			surface.set_uv(Vector2(u, v1))
 			surface.add_vertex(c)
 			surface.set_color(tint)
+			surface.set_uv(Vector2(next_u, v0))
 			surface.add_vertex(b)
+			surface.set_uv(Vector2(next_u, v1))
 			surface.add_vertex(d)
+			surface.set_uv(Vector2(u, v1))
 			surface.add_vertex(c)
 	# Cap the exposed ends so the cactus does not have hollow cut surfaces.
 	var bottom_center := points[0]
 	var top_center := points[points.size() - 1]
 	for segment in range(side_count):
 		var next_segment := (segment + 1) % side_count
+		var u := float(segment) / float(side_count)
+		var next_u := 1.0 if next_segment == 0 else float(next_segment) / float(side_count)
 		surface.set_color(base_color * 0.88)
+		surface.set_uv(Vector2(0.5, 0.0))
 		surface.add_vertex(bottom_center)
+		surface.set_uv(Vector2(next_u, 0.0))
 		surface.add_vertex(rings[0][next_segment])
+		surface.set_uv(Vector2(u, 0.0))
 		surface.add_vertex(rings[0][segment])
 		surface.set_color(base_color * 0.96)
+		surface.set_uv(Vector2(0.5, 1.0))
 		surface.add_vertex(top_center)
+		surface.set_uv(Vector2(u, 1.0))
 		surface.add_vertex(rings[rings.size() - 1][segment])
+		surface.set_uv(Vector2(next_u, 1.0))
 		surface.add_vertex(rings[rings.size() - 1][next_segment])
+
+func _saguaro_surface_material() -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode diffuse_burley, specular_schlick_ggx;
+varying vec2 cactus_uv;
+float cactus_hash(vec2 p) {
+	p = fract(p * vec2(123.34, 456.21));
+	p += dot(p, p + 45.32);
+	return fract(p.x * p.y);
+}
+void vertex() {
+	cactus_uv = UV;
+}
+void fragment() {
+	float rib_phase = cos(cactus_uv.x * 37.6991118);
+	float rib_highlight = smoothstep(-0.2, 0.95, rib_phase);
+	float rib_shadow = 1.0 - smoothstep(-0.82, -0.15, rib_phase);
+	float rib_center = abs(fract(cactus_uv.x * 6.0 + 0.5) - 0.5);
+	float row_center = abs(fract(cactus_uv.y * 18.0) - 0.5);
+	float areole_distance = length(vec2(rib_center * 6.0, row_center * 18.0));
+	float areole = 1.0 - smoothstep(0.045, 0.14, areole_distance);
+	float spine_cell = cactus_hash(floor(cactus_uv * vec2(144.0, 144.0)));
+	float spine_fleck = step(0.76, spine_cell) * areole;
+	vec3 cactus = COLOR.rgb * (0.91 + rib_highlight * 0.11 - rib_shadow * 0.035);
+	cactus = mix(cactus, vec3(0.68, 0.64, 0.48), areole * 0.42);
+	cactus = mix(cactus, vec3(0.88, 0.83, 0.69), spine_fleck * 0.62);
+	ALBEDO = cactus;
+	ROUGHNESS = clamp(0.87 + areole * 0.07 + spine_fleck * 0.04, 0.86, 0.98);
+	SPECULAR = 0.08;
+	AO = clamp(0.96 - areole * 0.08, 0.88, 1.0);
+}
+"""
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	return material
 
 func _make_saguaro_mesh(variant: int) -> ArrayMesh:
 	var surface := SurfaceTool.new()
@@ -457,10 +512,7 @@ func _make_saguaro_mesh(variant: int) -> ArrayMesh:
 			_append_cactus_tube(surface, other_points, PackedFloat32Array([0.15, 0.13, 0.115, 0.09, 0.065]), green * 1.035)
 	surface.generate_normals()
 	var mesh := surface.commit()
-	var material := StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.roughness = 0.92
-	mesh.surface_set_material(0, material)
+	mesh.surface_set_material(0, _saguaro_surface_material())
 	return mesh
 
 func _scatter_saguaros() -> void:
