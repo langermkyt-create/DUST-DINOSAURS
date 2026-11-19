@@ -71,6 +71,8 @@ jobs:
         run: godot --headless --path . --script tests/test_terrain_material.gd
       - name: Test deterministic creosote bush geometry and scatter
         run: godot --headless --path . --script tests/test_creosote_bushes.gd
+      - name: Test procedural saguaro ribs and spine detail
+        run: godot --headless --path . --script tests/test_saguaro_detail.gd
 
       - name: Test continuous tyrannosaur body anatomy
         run: godot --headless --path . --script tests/test_tyrannosaur_anatomy.gd
