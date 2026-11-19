@@ -1441,16 +1441,23 @@ void fragment() {
 	float fine = noise3(world_pos * vec3(3.2, 0.32, 3.2));
 	float fibers = sin((world_pos.x + world_pos.z * 0.31 + broad * 0.8) * grain_scale * 6.28318);
 	float grain = smoothstep(0.28, 0.82, fibers * 0.5 + 0.5);
+	float fine_fiber = sin((world_pos.x + world_pos.z * 0.31 + fine * 0.16) * grain_scale * 9.42478);
+	float grain_lines = smoothstep(0.76, 0.96, fine_fiber * 0.5 + 0.5);
 	float knots = smoothstep(0.76, 0.96, noise3(world_pos * 1.7 + vec3(4.2, 0.0, 8.1)));
 	float pores = noise3(world_pos * 18.0);
+	float wood_checks = smoothstep(0.78, 0.95, pores)
+		* (1.0 - smoothstep(0.82, 0.97, fine_fiber * 0.5 + 0.5));
 	vec3 color = mix(tint.rgb * 0.48, tint.rgb * (1.0 + grain * 0.22), 0.42 + broad * 0.38);
+	color = mix(color, tint.rgb * 0.54, grain_lines * 0.16);
+	color = mix(color, tint.rgb * 0.24, wood_checks * 0.34);
 	color = mix(color, tint.rgb * 0.34, knots * 0.42);
 	color *= 0.88 + fine * 0.18 + pores * 0.055;
 	float bleach = smoothstep(0.48, 0.92, noise3(world_pos * 0.42 + vec3(13.0))) * 0.6;
 	color = mix(color, color * vec3(1.24, 1.12, 0.88), bleach * 0.22);
 	ALBEDO = color;
-	ROUGHNESS = 0.78 + pores * 0.18;
-	SPECULAR = 0.18;
+	ROUGHNESS = clamp(0.76 + pores * 0.20 + wood_checks * 0.035, 0.76, 0.99);
+	SPECULAR = 0.12;
+	AO = clamp(0.98 - wood_checks * 0.12 - knots * 0.06, 0.78, 1.0);
 }
 """
 	var material := ShaderMaterial.new()
