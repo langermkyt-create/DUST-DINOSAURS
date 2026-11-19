@@ -1272,8 +1272,14 @@ func _scatter_ground_detail() -> void:
 		var scale_factor := rng.randf_range(0.55, 1.45)
 		var yaw := rng.randf_range(0.0, TAU)
 		var basis := Basis(Vector3.UP, yaw).scaled(Vector3(scale_factor, scale_factor, scale_factor))
-		grass_multimesh.set_instance_transform(i, Transform3D(basis, Vector3(x, _terrain_height(Vector2(x, z)), z)))
+		var grass_position := Vector3(x, _terrain_height(Vector2(x, z)), z)
+		grass_multimesh.set_instance_transform(i, Transform3D(basis, grass_position))
 		grass_multimesh.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), 0.0, 1.0))
+		if not grass.has_meta("placement_positions"):
+			grass.set_meta("placement_positions", PackedVector3Array())
+		var grass_positions: PackedVector3Array = grass.get_meta("placement_positions")
+		grass_positions.append(grass_position)
+		grass.set_meta("placement_positions", grass_positions)
 	for variant in range(2):
 		var stones := MultiMesh.new()
 		stones.transform_format = MultiMesh.TRANSFORM_3D
