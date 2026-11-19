@@ -1646,6 +1646,35 @@ func _interior_solid_box(root: Node3D, center: Vector3, size: Vector3, material:
 	body.add_child(collision)
 	return body
 
+func _add_interior_wall_boards(root: Node3D, wall: Color) -> void:
+	# One batched timber surface dresses the rear and side walls without adding
+	# dozens of separate draw calls to each of the six frontier buildings.
+	var boards := MultiMeshInstance3D.new()
+	boards.name = "InteriorWallBoards"
+	var batch := MultiMesh.new()
+	batch.transform_format = MultiMesh.TRANSFORM_3D
+	var board_mesh := BoxMesh.new()
+	board_mesh.size = Vector3.ONE
+	batch.mesh = board_mesh
+	batch.instance_count = 21
+	var rear_scale := Vector3(9.2, 0.40, 0.045)
+	var side_scale := Vector3(0.045, 0.40, 6.2)
+	var y_levels: Array[float] = [0.8, 1.25, 1.7, 2.15, 2.6, 3.05, 3.5]
+	var instance_index := 0
+	for y in y_levels:
+		batch.set_instance_transform(instance_index,
+			Transform3D(Basis.from_scale(rear_scale), Vector3(0.0, y, -3.27)))
+		instance_index += 1
+		for side in [-1.0, 1.0]:
+			batch.set_instance_transform(instance_index,
+				Transform3D(Basis.from_scale(side_scale), Vector3(side * 4.765, y, 0.0)))
+			instance_index += 1
+	boards.multimesh = batch
+	boards.material_override = _weathered_wood_material(wall.darkened(0.32))
+	boards.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	root.add_child(boards)
+
+
 func _interior_table(root: Node3D, center: Vector3, width: float, depth: float, wood: Material) -> void:
 	_interior_solid_box(root, center + Vector3(0, 0.82, 0), Vector3(width, 0.16, depth), wood, "TableTop")
 	for x in [-1.0, 1.0]:
@@ -1776,6 +1805,7 @@ func _build_building_interior(root: Node3D, sign_text: String, wall: Color) -> v
 	for x in [-3.65, 3.65]:
 		var front_wainscot := _box(root, Vector3(x, 0.35, 3.22), Vector3(2.1, 0.42, 0.16), dark_wood)
 		front_wainscot.name = "InteriorWainscot"
+	_add_interior_wall_boards(root, wall)
 	_interior_lantern(root, Vector3(0, 3.65, -0.65))
 	if sign_text == "SALOON":
 		# A restrained second warm source lifts the bottle shelf and service surface
