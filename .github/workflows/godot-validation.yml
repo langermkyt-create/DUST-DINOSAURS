@@ -62,6 +62,9 @@ jobs:
       - name: Test deterministic roof shingle geometry
         run: godot --headless --path . --script tests/test_roof_shingles.gd
 
+      - name: Test stratified sandstone outcrop geometry and LOD
+        run: timeout 30s godot --headless --path . --script tests/test_rock_formation.gd
+
       - name: Test walkable frontier building interiors
         run: timeout 30s godot --headless --path . --script tests/test_building_interiors.gd
 
@@ -69,10 +72,16 @@ jobs:
         run: godot --headless --path . --script tests/test_terrain_relief.gd
       - name: Test layered Arizona soil material response
         run: godot --headless --path . --script tests/test_terrain_material.gd
+
+      - name: Test faceted desert pebble geometry and placement
+        run: timeout 30s godot --headless --path . --script tests/test_desert_pebbles.gd
       - name: Test warm desert aerial perspective and sunset shadows
         run: godot --headless --path . --script tests/test_atmosphere_depth.gd
       - name: Test deterministic creosote bush geometry and scatter
         run: godot --headless --path . --script tests/test_creosote_bushes.gd
+
+      - name: Test curved desert grass geometry and per-instance wind
+        run: timeout 30s godot --headless --path . --script tests/test_desert_tufts.gd
       - name: Test procedural saguaro ribs and spine detail
         run: godot --headless --path . --script tests/test_saguaro_detail.gd
 

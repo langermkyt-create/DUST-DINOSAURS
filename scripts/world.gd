@@ -748,7 +748,7 @@ void fragment() {
 	return rock_material
 
 func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
-	# The distant silhouette keeps the same seeded profile but uses 6 sides and 3 tiers.
+	# The distant silhouette samples every second point from the sixteen-sided near mesh.
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var layer_indices := [0, 2, 4]
@@ -759,8 +759,8 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 	for layer in range(layer_indices.size() - 1):
 		var lower_ring: PackedVector3Array = rings[layer_indices[layer]]
 		var upper_ring: PackedVector3Array = rings[layer_indices[layer + 1]]
-		for segment in range(6):
-			var next_segment: int = (segment + 1) % 6
+		for segment in range(8):
+			var next_segment: int = (segment + 1) % 8
 			var lower_a: Vector3 = lower_ring[segment * 2]
 			var lower_b: Vector3 = lower_ring[next_segment * 2]
 			var upper_a: Vector3 = upper_ring[segment * 2]
@@ -777,8 +777,8 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 	for point in top_ring:
 		crown += point
 	crown /= float(top_ring.size())
-	for segment in range(6):
-		var next_segment: int = (segment + 1) % 6
+	for segment in range(8):
+		var next_segment: int = (segment + 1) % 8
 		surface.set_color(Color(0.52, 0.29, 0.21))
 		surface.add_vertex(crown)
 		surface.add_vertex(top_ring[next_segment * 2])
@@ -788,8 +788,8 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 	for point in base_ring:
 		base_center += point
 	base_center /= float(base_ring.size())
-	for segment in range(6):
-		var next_segment: int = (segment + 1) % 6
+	for segment in range(8):
+		var next_segment: int = (segment + 1) % 8
 		surface.set_color(Color(0.27, 0.12, 0.09))
 		surface.add_vertex(base_center)
 		surface.add_vertex(base_ring[segment * 2])
@@ -798,19 +798,24 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 	return surface.commit()
 
 func _rock_formation(pos: Vector3, factor: float) -> void:
-	# One continuous, faceted sandstone outcrop with a matching low-poly distance mesh.
+	# A sixteen-sided layered outcrop adds broken ledges and non-repeating weathered edges.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = abs(hash(Vector2i(roundi(pos.x * 10.0), roundi(pos.z * 10.0))))
 	var heights := [0.0, 2.2, 4.8, 7.1, 8.6]
 	var radii := [8.8, 8.1, 6.9, 5.5, 3.8]
+	var ring_segments := 16
 	var rings: Array = []
 	for layer in range(heights.size()):
 		var ring := PackedVector3Array()
-		for segment in range(12):
-			var angle: float = TAU * float(segment) / 12.0 + rng.randf_range(-0.055, 0.055)
-			var radius: float = float(radii[layer]) * rng.randf_range(0.88, 1.12)
-			var layer_height: float = float(heights[layer])
-			ring.append(Vector3(cos(angle) * radius, layer_height + rng.randf_range(-0.22, 0.22), sin(angle) * radius))
+		for segment in range(ring_segments):
+			var angle := TAU * float(segment) / float(ring_segments) + rng.randf_range(-0.025, 0.025)
+			var broad_ridge := sin(angle * 3.0 + float(layer) * 0.43) * 0.055
+			var broken_edge := sin(angle * 7.0 - float(layer) * 0.31) * 0.018
+			var radius := float(radii[layer]) * (
+				1.0 + broad_ridge + broken_edge + rng.randf_range(-0.045, 0.045))
+			var ledge := sin(angle * 2.0 + float(layer) * 0.38) * 0.12
+			var layer_height := float(heights[layer]) + ledge + rng.randf_range(-0.12, 0.12)
+			ring.append(Vector3(cos(angle) * radius, layer_height, sin(angle) * radius))
 		rings.append(ring)
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -821,8 +826,8 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 		Color(0.49, 0.255, 0.18)
 	]
 	for layer in range(heights.size() - 1):
-		for segment in range(12):
-			var next_segment: int = (segment + 1) % 12
+		for segment in range(ring_segments):
+			var next_segment: int = (segment + 1) % ring_segments
 			var lower_a: Vector3 = rings[layer][segment]
 			var lower_b: Vector3 = rings[layer][next_segment]
 			var upper_a: Vector3 = rings[layer + 1][segment]
@@ -835,13 +840,13 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 			surface.add_vertex(lower_b)
 			surface.add_vertex(upper_a)
 			surface.add_vertex(upper_b)
-	# Close both the crown and the base to avoid open backfaces at steep camera angles.
+	# Close both ends so the rock remains watertight at steep camera angles.
 	var crown := Vector3.ZERO
 	for point in rings[heights.size() - 1]:
 		crown += point
 	crown /= float(rings[heights.size() - 1].size())
-	for segment in range(rings[heights.size() - 1].size()):
-		var next_segment: int = (segment + 1) % rings[heights.size() - 1].size()
+	for segment in range(ring_segments):
+		var next_segment: int = (segment + 1) % ring_segments
 		surface.set_color(Color(0.52, 0.29, 0.21))
 		surface.add_vertex(crown)
 		surface.add_vertex(rings[heights.size() - 1][next_segment])
@@ -850,8 +855,8 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	for point in rings[0]:
 		base_center += point
 	base_center /= float(rings[0].size())
-	for segment in range(rings[0].size()):
-		var next_segment: int = (segment + 1) % rings[0].size()
+	for segment in range(ring_segments):
+		var next_segment: int = (segment + 1) % ring_segments
 		surface.set_color(Color(0.27, 0.12, 0.09))
 		surface.add_vertex(base_center)
 		surface.add_vertex(rings[0][segment])
@@ -1062,35 +1067,75 @@ func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
 		light.omni_range = 5.0
 		root.add_child(light)
 
+func _append_desert_grass_blade(surface: SurfaceTool, root: Vector3, direction: Vector3,
+		height: float, width: float, bend: float, tint: Color) -> void:
+	var forward := Vector3(direction.x, 0.0, direction.z).normalized()
+	var side := Vector3.UP.cross(forward).normalized()
+	var longitudinal := [0.0, 0.32, 0.70, 1.0]
+	var width_profile := [0.12, 0.72, 0.42, 0.015]
+	var left_edges: Array[Vector3] = []
+	var center_ridges: Array[Vector3] = []
+	var right_edges: Array[Vector3] = []
+	for ring in range(longitudinal.size()):
+		var t: float = longitudinal[ring]
+		var center := root + Vector3.UP * (height * t)
+		center += forward * (bend * t * t) + side * (bend * 0.18 * t * t)
+		var half_width := width * float(width_profile[ring]) * 0.5
+		left_edges.append(center - side * half_width)
+		center_ridges.append(center + Vector3.UP * (width * 0.12 * (1.0 - t)))
+		right_edges.append(center + side * half_width)
+	for segment in range(longitudinal.size() - 1):
+		var t := float(segment) / float(longitudinal.size() - 1)
+		var blade_tint := tint.lerp(Color(0.66, 0.59, 0.31), t * 0.22)
+		var left_a: Vector3 = left_edges[segment]
+		var ridge_a: Vector3 = center_ridges[segment]
+		var right_a: Vector3 = right_edges[segment]
+		var left_b: Vector3 = left_edges[segment + 1]
+		var ridge_b: Vector3 = center_ridges[segment + 1]
+		var right_b: Vector3 = right_edges[segment + 1]
+		surface.set_color(blade_tint.darkened(0.10))
+		surface.add_vertex(left_a)
+		surface.set_color(blade_tint.lightened(0.06))
+		surface.add_vertex(ridge_a)
+		surface.set_color(blade_tint.darkened(0.06))
+		surface.add_vertex(left_b)
+		surface.set_color(blade_tint.lightened(0.06))
+		surface.add_vertex(ridge_a)
+		surface.set_color(blade_tint.lightened(0.12))
+		surface.add_vertex(ridge_b)
+		surface.set_color(blade_tint.darkened(0.06))
+		surface.add_vertex(left_b)
+		surface.set_color(blade_tint.lightened(0.06))
+		surface.add_vertex(ridge_a)
+		surface.set_color(blade_tint)
+		surface.add_vertex(right_a)
+		surface.set_color(blade_tint.lightened(0.12))
+		surface.add_vertex(ridge_b)
+		surface.set_color(blade_tint)
+		surface.add_vertex(right_a)
+		surface.set_color(blade_tint.darkened(0.02))
+		surface.add_vertex(right_b)
+		surface.set_color(blade_tint.lightened(0.12))
+		surface.add_vertex(ridge_b)
+
 func _make_desert_tuft_mesh() -> ArrayMesh:
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var blade_colors := [
 		Color(0.38, 0.34, 0.19),
 		Color(0.49, 0.42, 0.23),
-		Color(0.29, 0.3, 0.17)
+		Color(0.29, 0.30, 0.17),
+		Color(0.55, 0.46, 0.26)
 	]
-	for blade in range(5):
-		var angle := TAU * float(blade) / 5.0
+	for blade in range(7):
+		var angle := TAU * float(blade) / 7.0
 		var direction := Vector3(cos(angle), 0.0, sin(angle))
-		var side := Vector3(-direction.z, 0.0, direction.x) * 0.035
-		var lean := direction * (0.06 + 0.025 * float(blade % 2))
-		var height := 0.24 + 0.075 * float((blade * 3) % 4) / 3.0
-		var root := direction * 0.025
-		var tip := root + lean + Vector3(0.0, height, 0.0)
-		var color: Color = blade_colors[blade % blade_colors.size()]
-		surface.set_color(color.darkened(0.12))
-		surface.add_vertex(root - side)
-		surface.set_color(color.lightened(0.12))
-		surface.add_vertex(tip)
-		surface.set_color(color)
-		surface.add_vertex(root + side)
-		surface.set_color(color.darkened(0.12))
-		surface.add_vertex(root + side)
-		surface.set_color(color.lightened(0.12))
-		surface.add_vertex(tip)
-		surface.set_color(color)
-		surface.add_vertex(root - side)
+		var height := 0.25 + 0.075 * float((blade * 3) % 5) / 4.0
+		var width := 0.07 + 0.018 * float(blade % 3)
+		var bend := 0.045 + 0.025 * float((blade + 1) % 3)
+		var root := direction * (0.018 + 0.012 * float(blade % 2))
+		var tint: Color = blade_colors[(blade * 3) % blade_colors.size()]
+		_append_desert_grass_blade(surface, root, direction, height, width, bend, tint)
 	surface.generate_normals()
 	var mesh := surface.commit()
 	var grass_shader := Shader.new()
@@ -1100,20 +1145,104 @@ render_mode cull_disabled, diffuse_burley, specular_schlick_ggx;
 varying vec3 world_position;
 void vertex() {
 	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	float phase = TIME * 1.25 + world_position.x * 0.16 + world_position.z * 0.11;
-	float bend = cos(phase) * 0.065;
-	VERTEX.x += sin(phase) * 0.065 * VERTEX.y;
-	NORMAL = normalize(vec3(NORMAL.x - bend * NORMAL.y, NORMAL.y, NORMAL.z));
+	float phase = TIME * 1.25 + INSTANCE_CUSTOM.r * 6.28318
+		+ world_position.x * 0.16 + world_position.z * 0.11;
+	float gust = sin(TIME * 0.32 + INSTANCE_CUSTOM.g * 6.28318) * 0.5;
+	float sway = cos(phase) * 0.038 + gust * 0.012;
+	VERTEX.x += sin(phase) * 0.048 * VERTEX.y;
+	VERTEX.z += cos(phase * 0.83) * 0.024 * VERTEX.y;
+	NORMAL = normalize(vec3(NORMAL.x - sway * NORMAL.y, NORMAL.y,
+		NORMAL.z - sway * 0.45 * NORMAL.y));
 }
 void fragment() {
 	float sun_bleach = clamp(world_position.y * 0.8, 0.0, 0.12);
 	ALBEDO = COLOR.rgb + vec3(sun_bleach, sun_bleach * 0.82, sun_bleach * 0.5);
-	ROUGHNESS = 1.0;
-	SPECULAR = 0.04;
+	ROUGHNESS = 0.98;
+	SPECULAR = 0.03;
 }
 """
 	var material := ShaderMaterial.new()
 	material.shader = grass_shader
+	mesh.surface_set_material(0, material)
+	return mesh
+
+func _make_desert_pebble_mesh(variant: int) -> ArrayMesh:
+	# A single icosphere subdivision keeps the stones angular without the cost of spheres.
+	var phi := (1.0 + sqrt(5.0)) * 0.5
+	var vertices := PackedVector3Array([
+		Vector3(-1, phi, 0), Vector3(1, phi, 0), Vector3(-1, -phi, 0), Vector3(1, -phi, 0),
+		Vector3(0, -1, phi), Vector3(0, 1, phi), Vector3(0, -1, -phi), Vector3(0, 1, -phi),
+		Vector3(phi, 0, -1), Vector3(phi, 0, 1), Vector3(-phi, 0, -1), Vector3(-phi, 0, 1)
+	])
+	var faces := PackedInt32Array([
+		0,11,5, 0,5,1, 0,1,7, 0,7,10, 0,10,11,
+		1,5,9, 5,11,4, 11,10,2, 10,7,6, 7,1,8,
+		3,9,4, 3,4,2, 3,2,6, 3,6,8, 3,8,9,
+		4,9,5, 2,4,11, 6,2,10, 8,6,7, 9,8,1
+	])
+	for index in range(vertices.size()):
+		vertices[index] = vertices[index].normalized()
+	var refined := PackedInt32Array()
+	var midpoint_cache: Dictionary = {}
+	for face_index in range(0, faces.size(), 3):
+		var a: int = faces[face_index]
+		var b: int = faces[face_index + 1]
+		var c: int = faces[face_index + 2]
+		var edge_keys := [
+			mini(a, b) * 10000 + maxi(a, b),
+			mini(b, c) * 10000 + maxi(b, c),
+			mini(c, a) * 10000 + maxi(c, a)
+		]
+		var midpoint_indices: Array[int] = []
+		var edge_vertices := [[a, b], [b, c], [c, a]]
+		for edge_index in range(3):
+			var key: int = edge_keys[edge_index]
+			if midpoint_cache.has(key):
+				midpoint_indices.append(int(midpoint_cache[key]))
+			else:
+				var pair: Array = edge_vertices[edge_index]
+				vertices.append((vertices[pair[0]] + vertices[pair[1]]).normalized())
+				var midpoint_index := vertices.size() - 1
+				midpoint_cache[key] = midpoint_index
+				midpoint_indices.append(midpoint_index)
+		var ab: int = midpoint_indices[0]
+		var bc: int = midpoint_indices[1]
+		var ca: int = midpoint_indices[2]
+		refined.append_array(PackedInt32Array([a, ab, ca, b, bc, ab, c, ca, bc, ab, bc, ca]))
+	faces = refined
+	var shapes: Array[Vector3] = [
+		Vector3(0.56, 0.24, 0.43),
+		Vector3(0.48, 0.29, 0.53)
+	]
+	var shape: Vector3 = shapes[clampi(variant, 0, shapes.size() - 1)]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 189700 + clampi(variant, 0, 1) * 7919
+	var weathered_vertices := PackedVector3Array()
+	var vertex_colors := PackedColorArray()
+	for vertex in vertices:
+		var direction := vertex.normalized()
+		var radial := rng.randf_range(0.93, 1.07)
+		weathered_vertices.append(Vector3(
+			direction.x * shape.x,
+			direction.y * shape.y,
+			direction.z * shape.z
+		) * radial)
+		var sediment := clampf((direction.y + 1.0) * 0.5 + rng.randf_range(-0.12, 0.12), 0.0, 1.0)
+		vertex_colors.append(
+			Color(0.30, 0.18, 0.12).lerp(Color(0.57, 0.39, 0.25), sediment * 0.48))
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for face_index in range(0, faces.size(), 3):
+		for corner in range(3):
+			var vertex_index: int = faces[face_index + corner]
+			var tint: Color = vertex_colors[vertex_index] * rng.randf_range(0.96, 1.04)
+			surface.set_color(tint)
+			surface.add_vertex(weathered_vertices[vertex_index])
+	surface.generate_normals()
+	var mesh := surface.commit()
+	var material := StandardMaterial3D.new()
+	material.vertex_color_use_as_albedo = true
+	material.roughness = 0.98
 	mesh.surface_set_material(0, material)
 	return mesh
 
@@ -1123,13 +1252,16 @@ func _scatter_ground_detail() -> void:
 	rng.seed = 189711
 	var grass_multimesh := MultiMesh.new()
 	grass_multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	grass_multimesh.use_custom_data = true
 	grass_multimesh.mesh = _make_desert_tuft_mesh()
 	grass_multimesh.instance_count = 520
 	grass_multimesh.custom_aabb = AABB(Vector3(-130, -1, -130), Vector3(260, 4, 260))
 	var grass := MultiMeshInstance3D.new()
+	grass.name = "DesertGrassTufts"
 	grass.multimesh = grass_multimesh
 	grass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(grass)
+	var grass_positions := PackedVector3Array()
 	for i in range(520):
 		var x := 0.0
 		var z := 0.0
@@ -1141,22 +1273,23 @@ func _scatter_ground_detail() -> void:
 		var scale_factor := rng.randf_range(0.55, 1.45)
 		var yaw := rng.randf_range(0.0, TAU)
 		var basis := Basis(Vector3.UP, yaw).scaled(Vector3(scale_factor, scale_factor, scale_factor))
-		grass_multimesh.set_instance_transform(i, Transform3D(basis, Vector3(x, _terrain_height(Vector2(x, z)), z)))
-	var pebble_mesh := SphereMesh.new()
-	pebble_mesh.radial_segments = 16
-	pebble_mesh.rings = 10
-	var stone_material := _material(Color(0.55, 0.42, 0.3), 1.0)
+		var grass_position := Vector3(x, _terrain_height(Vector2(x, z)), z)
+		grass_multimesh.set_instance_transform(i, Transform3D(basis, grass_position))
+		grass_multimesh.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), 0.0, 1.0))
+		grass_positions.append(grass_position)
+	grass.set_meta("placement_positions", grass_positions)
 	for variant in range(2):
 		var stones := MultiMesh.new()
 		stones.transform_format = MultiMesh.TRANSFORM_3D
-		stones.mesh = pebble_mesh
+		stones.mesh = _make_desert_pebble_mesh(variant)
 		stones.instance_count = 170
 		stones.custom_aabb = AABB(Vector3(-130, -1, -130), Vector3(260, 3, 260))
 		var stone_batch := MultiMeshInstance3D.new()
+		stone_batch.name = "DesertPebbles_" + str(variant)
 		stone_batch.multimesh = stones
-		stone_batch.material_override = stone_material
 		stone_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(stone_batch)
+		var placement_positions := PackedVector3Array()
 		for i in range(170):
 			var x := 0.0
 			var z := 0.0
@@ -1172,7 +1305,12 @@ func _scatter_ground_detail() -> void:
 				size_factor * rng.randf_range(0.75, 1.25)
 			)
 			var yaw := rng.randf_range(0.0, TAU)
-			stones.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw).scaled(scale), Vector3(x, _terrain_height(Vector2(x, z)) + 0.035, z)))
+			var ground_height: float = _terrain_height(Vector2(x, z))
+			var position := Vector3(x, ground_height + 0.035, z)
+			placement_positions.append(position)
+			stones.set_instance_transform(i, Transform3D(
+				Basis(Vector3.UP, yaw).scaled(scale), position))
+		stone_batch.set_meta("placement_positions", placement_positions)
 
 func _road_material() -> ShaderMaterial:
 	var shader := Shader.new()
