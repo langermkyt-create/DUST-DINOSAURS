@@ -253,3 +253,11 @@ Inspected the corrected #136 capture after reducing fog density and rock shader 
 The next correction sets Environment.fog_sky_affect to 0.0 so the authored blue-to-ochre procedural sky remains intact while aerial haze still affects distant world geometry. The atmosphere regression now checks that setting. The saguaro close frame showed the new areole/spine flecks but the ribs were too subtle at normal video scale, so the tube rib amplitude and shader contrast were increased modestly. The Windows preview workflow route-time guard is tightened from 85 to 60 seconds; the 37.45-second run leaves useful runner headroom while catching another major shader-cost regression.
 
 The sky-affect and stronger saguaro pass require fresh CI and a new inspected capture. AAA remains not achieved; target-GPU performance and independent full-game review remain blockers.
+
+## 2026-11-19 preview review — sky gradient restored; timing guard recalibrated
+
+Inspected the full #137 capture produced after setting fog_sky_affect to 0.0 and strengthening the saguaro ribs. The sky now retains a blue upper gradient and warm ochre horizon instead of being uniformly beige. The saguaro's longitudinal ribs and pale areole/spine flecks are more legible in the close pass, although the cactus remains a stylized procedural model rather than a photoreal asset. The saloon, herd and tyrannosaur route sections remain present.
+
+All 15 waypoints completed and the route marker reached **66.21 seconds**; the 1280×720 H.264 file is 65.53 seconds. The Windows workflow failed only because the newly tightened 60-second hard budget was exceeded; it did not fail due to a missing waypoint, shader compile error or scene crash. This run confirms that llvmpipe runner timing varies substantially (37.45 seconds on #136 versus 66.21 on #137), so 60 seconds is not a reliable hard gate. The workflow now emits a warning above 60 seconds and retains the established 85-second hard timeout. This route-time metric is not a target-GPU frame-rate measurement.
+
+Godot validation and Windows export passed on the same source revision; the Windows capture artifact is available despite the advisory-budget failure. A fresh Windows workflow is required after this guard correction. AAA remains not achieved.
