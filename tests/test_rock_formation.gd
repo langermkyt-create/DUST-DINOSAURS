@@ -46,7 +46,7 @@ func _initialize() -> void:
 	if low_vertices.size() >= high_vertices.size():
 		_fail(first, second, "Distant outcrop LOD must be cheaper than the near silhouette.")
 		return
-	if collision.shape == null or not collision.shape is ConcavePolygonShape3D:
+	if collision.shape == null or not (collision.shape is ConcavePolygonShape3D):
 		_fail(first, second, "Near outcrop collision must follow its detailed faceted surface.")
 		return
 	if high.visibility_range_end <= low.visibility_range_begin:
