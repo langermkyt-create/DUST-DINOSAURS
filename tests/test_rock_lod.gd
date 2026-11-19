@@ -57,6 +57,12 @@ func _initialize() -> void:
 		if not high_material.shader.code.contains(token):
 			_fail("Sandstone material is missing its multi-scale erosion detail: " + token)
 			return
+	if not high_material.shader.code.contains("micro_relief = fine_grain"):
+		_fail("Sandstone micro-normal must reuse the fine-grain field instead of evaluating another noise octave.")
+		return
+	if high_material.shader.code.contains("fracture_noise"):
+		_fail("Sandstone fracture mask must reuse existing material fields to stay inside the fragment-noise budget.")
+		return
 
 	print("Rock LOD regression passed: high=", high_vertices.size() / 3,
 		" triangles, low=", low_vertices.size() / 3, " triangles, detailed collision present.")
