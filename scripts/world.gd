@@ -1735,6 +1735,7 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 				Vector3(0.075, 0.075, 0.045), sign_iron)
 			bolt.name = "BuildingSignboardBolt"
 	var sign := Label3D.new()
+	sign.name = "BuildingTradeLabel"
 	sign.text = sign_text
 	sign.font_size = 42
 	sign.pixel_size = 0.012
