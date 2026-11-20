@@ -1034,14 +1034,30 @@ func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
 		_box(root, Vector3(x, 1.07, 3.92), Vector3(1.75, 0.16, 0.22), trim)
 	for x in [-4.0, -2.0, -1.0, 1.0, 2.0, 4.0]:
 		_box(root, Vector3(x, 2.1, 3.62), Vector3(0.045, 4.0, 0.055), wood)
-	# Side elevations receive the same hand-laid board rhythm as the street-facing facade.
+	# Side elevations use separate corner posts and belt rails. The previous
+	# full-height trim slab hid the weathered siding and made every side read as a
+	# featureless dark panel in the oblique town view.
 	for side in [-1.0, 1.0]:
 		for y in [0.55, 1.0, 1.45, 1.9, 2.35, 2.8, 3.25]:
 			_box(root, Vector3(side * 5.02, y, 0.0), Vector3(0.035, 0.055, 6.85), wood)
-		_box(root, Vector3(side * 5.06, 2.1, 0.0), Vector3(0.12, 4.0, 7.0), trim)
-		for z in [-3.25, 3.25]:
-			_box(root, Vector3(side * 5.08, 2.1, z), Vector3(0.12, 4.0, 0.12), trim)
-	# Layered fascia and exposed rafter ends break up the single-piece roof silhouette.
+		for z in [-3.36, 0.0, 3.36]:
+			var side_post := _box(root, Vector3(side * 5.07, 2.05, z),
+				Vector3(0.15, 3.95, 0.17), trim)
+			side_post.name = "SideElevationPost"
+		for y in [0.42, 3.72]:
+			var side_rail := _box(root, Vector3(side * 5.07, y, 0.0),
+				Vector3(0.16, 0.18, 6.95), trim)
+			side_rail.name = "SideElevationBeltRail"
+		# Continuous eaves fascia and five exposed rafter tails give the side roof
+		# a legible load-bearing transition instead of a floating flat overhang.
+		var side_fascia := _box(root, Vector3(side * 5.48, 5.35, 0.0),
+			Vector3(0.18, 0.22, 8.15), trim)
+		side_fascia.name = "SideEavesFascia"
+		for z in [-3.75, -1.875, 0.0, 1.875, 3.75]:
+			var rafter_tail := _box(root, Vector3(side * 5.20, 5.14, z),
+				Vector3(0.48, 0.18, 0.20), wood)
+			rafter_tail.name = "SideRafterTail"
+	# Layered front fascia and exposed rafter ends break up the street roof silhouette.
 	for z in [-4.02, 4.02]:
 		_box(root, Vector3(0, 5.35, z), Vector3(11.2, 0.22, 0.18), trim)
 	for x in [-4.7, -2.35, 0.0, 2.35, 4.7]:
