@@ -57,7 +57,34 @@ func _initialize() -> void:
 			if panel_position.z < 4.0 or absf(panel_position.y - 2.1) > 0.01:
 				_fail("Shutters must sit on the exterior side of the front window frames.")
 				return
-	print("Frontier exterior regression pass 1: six buildings retain exposed siding, six side posts, four belt rails, two eaves fascias and ten rafter tails per building.")
+		var sign_board := _find_named(building, "BuildingSignboard") as MeshInstance3D
+		var trade_label := _find_named(building, "BuildingTradeLabel") as Label3D
+		if sign_board == null or sign_board.mesh == null or trade_label == null:
+			_fail("Every storefront must have a physical signboard carrying its trade label.")
+			return
+		if _count_named_prefix(building, "BuildingSignboardTopRail") != 1:
+			_fail("Trade signboard must have a continuous top timber rail.")
+			return
+		if _count_named_prefix(building, "BuildingSignboardBottomRail") != 1:
+			_fail("Trade signboard must have a continuous lower timber rail.")
+			return
+		if _count_named_prefix(building, "BuildingSignboardSideRail") != 2:
+			_fail("Trade signboard must have two framed vertical ends.")
+			return
+		if _count_named_prefix(building, "BuildingSignboardHanger") != 2 or _count_named_prefix(building, "BuildingSignboardBrace") != 2:
+			_fail("Trade signboard must be supported by paired iron hangers and braces.")
+			return
+		if _count_named_prefix(building, "BuildingSignboardBolt") != 4:
+			_fail("Trade signboard must retain four visible corner fasteners.")
+			return
+		var board_bounds := sign_board.mesh.get_aabb()
+		if board_bounds.size.x < 4.5 or board_bounds.size.y < 0.7:
+			_fail("Trade signboard backing must be a broad framed timber panel.")
+			return
+		if trade_label.text != building_types[index] or absf(trade_label.position.y - 4.75) > 0.01:
+			_fail("Trade lettering must remain centered on the new physical signboard.")
+			return
+	print("Frontier exterior regression: six buildings retain exposed side framing, batched shutter sets and framed, supported trade signboards.")
 	world_under_test.free()
 	world_under_test = null
 	quit(0)
