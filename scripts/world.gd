@@ -1703,11 +1703,42 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 		_box(root, Vector3(0, 1.7, 5.0), Vector3(11, 0.25, 3), _weathered_wood_material(Color(0.3, 0.2, 0.13)))
 		for x in [-4.7, 0, 4.7]:
 			_cylinder(root, Vector3(x, 1.5, 6.2), 0.12, 3, Color(0.25, 0.16, 0.1), 8)
+	# A framed signboard gives each 1897 storefront a readable trade identity
+	# and anchors the floating lettering to actual timber and iron joinery.
+	var sign_board_surface := _weathered_wood_material(wall.darkened(0.34))
+	var sign_trim_surface := _weathered_wood_material(wall.lightened(0.10))
+	var sign_board := _box(root, Vector3(0.0, 4.75, 4.08),
+		Vector3(4.6, 0.72, 0.16), sign_board_surface)
+	sign_board.name = "BuildingSignboard"
+	var sign_top := _box(root, Vector3(0.0, 5.13, 4.12),
+		Vector3(4.82, 0.10, 0.22), sign_trim_surface)
+	sign_top.name = "BuildingSignboardTopRail"
+	var sign_bottom := _box(root, Vector3(0.0, 4.37, 4.12),
+		Vector3(4.82, 0.10, 0.22), sign_trim_surface)
+	sign_bottom.name = "BuildingSignboardBottomRail"
+	for x in [-2.34, 2.34]:
+		var sign_side := _box(root, Vector3(x, 4.75, 4.12),
+			Vector3(0.10, 0.82, 0.22), sign_trim_surface)
+		sign_side.name = "BuildingSignboardSideRail"
+	var sign_iron := _material(Color(0.075, 0.065, 0.052), 0.58, 0.72)
+	for x in [-1.9, 1.9]:
+		var hanger := _box(root, Vector3(x, 5.28, 3.98),
+			Vector3(0.075, 0.34, 0.075), sign_iron)
+		hanger.name = "BuildingSignboardHanger"
+		var brace := _box(root, Vector3(x, 5.08, 4.00),
+			Vector3(0.075, 0.42, 0.075), sign_iron,
+			Vector3(0.0, 0.0, -0.48 if x < 0.0 else 0.48))
+		brace.name = "BuildingSignboardBrace"
+	for x in [-2.16, 2.16]:
+		for y in [4.52, 4.98]:
+			var bolt := _sphere(root, Vector3(x, y, 4.205),
+				Vector3(0.075, 0.075, 0.045), sign_iron)
+			bolt.name = "BuildingSignboardBolt"
 	var sign := Label3D.new()
 	sign.text = sign_text
 	sign.font_size = 42
 	sign.pixel_size = 0.012
-	sign.position = Vector3(0, 4.0, 4.08)
+	sign.position = Vector3(0, 4.75, 4.19)
 	sign.rotation_degrees.y = 0
 	sign.modulate = Color(1.0, 0.79, 0.48)
 	root.add_child(sign)
