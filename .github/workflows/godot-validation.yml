@@ -69,6 +69,8 @@ jobs:
 
       - name: Test walkable frontier building interiors
         run: timeout 30s godot --headless --path . --script tests/test_building_interiors.gd
+      - name: Test framed frontier side elevations, shutters and trade signs
+        run: timeout 30s godot --headless --path . --script tests/test_frontier_exterior.gd
 
       - name: Test desert terrain relief and arroyo profile
         run: godot --headless --path . --script tests/test_terrain_relief.gd
