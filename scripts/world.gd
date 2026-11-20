@@ -1032,16 +1032,102 @@ func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
 		_box(root, Vector3(x, 2.1, 4.03), Vector3(1.3, 0.09, 0.045), wood)
 		_box(root, Vector3(x, 3.13, 3.92), Vector3(1.75, 0.16, 0.22), trim)
 		_box(root, Vector3(x, 1.07, 3.92), Vector3(1.75, 0.16, 0.22), trim)
+
+	# Paired plank shutters sit outside the glass line. Panels, slats and iron
+	# straps are batched separately so the six-building street front gains depth
+	# without multiplying dozens of individual draw calls per facade.
+	var shutter_panel_batch := MultiMesh.new()
+	shutter_panel_batch.transform_format = MultiMesh.TRANSFORM_3D
+	var shutter_panel_mesh := BoxMesh.new()
+	shutter_panel_mesh.size = Vector3.ONE
+	shutter_panel_batch.mesh = shutter_panel_mesh
+	shutter_panel_batch.instance_count = 4
+	var shutter_slat_batch := MultiMesh.new()
+	shutter_slat_batch.transform_format = MultiMesh.TRANSFORM_3D
+	var shutter_slat_mesh := BoxMesh.new()
+	shutter_slat_mesh.size = Vector3.ONE
+	shutter_slat_batch.mesh = shutter_slat_mesh
+	shutter_slat_batch.instance_count = 16
+	var shutter_hinge_batch := MultiMesh.new()
+	shutter_hinge_batch.transform_format = MultiMesh.TRANSFORM_3D
+	var shutter_hinge_mesh := BoxMesh.new()
+	shutter_hinge_mesh.size = Vector3.ONE
+	shutter_hinge_batch.mesh = shutter_hinge_mesh
+	shutter_hinge_batch.instance_count = 8
+	var shutter_positions := PackedVector3Array()
+	var slat_positions := PackedVector3Array()
+	var hinge_positions := PackedVector3Array()
+	var panel_index := 0
+	var slat_index := 0
+	var hinge_index := 0
+	for window_x in [-3.3, 3.3]:
+		for side in [-1.0, 1.0]:
+			var shutter_x: float = float(window_x) + float(side) * 0.95
+			var panel_position := Vector3(shutter_x, 2.1, 4.075)
+			var panel_size := Vector3(0.30, 1.56, 0.09)
+			shutter_panel_batch.set_instance_transform(panel_index,
+				Transform3D(Basis.from_scale(panel_size), panel_position))
+			shutter_positions.append(panel_position)
+			panel_index += 1
+			for slat_y in [-0.48, -0.16, 0.16, 0.48]:
+				var slat_position := Vector3(shutter_x, 2.1 + slat_y, 4.135)
+				var slat_size := Vector3(0.34, 0.075, 0.12)
+				shutter_slat_batch.set_instance_transform(slat_index,
+					Transform3D(Basis.from_scale(slat_size), slat_position))
+				slat_positions.append(slat_position)
+				slat_index += 1
+			for hinge_y in [-0.48, 0.48]:
+				var hinge_position := Vector3(window_x + side * 0.79,
+					2.1 + hinge_y, 4.17)
+				var hinge_size := Vector3(0.055, 0.22, 0.035)
+				shutter_hinge_batch.set_instance_transform(hinge_index,
+					Transform3D(Basis.from_scale(hinge_size), hinge_position))
+				hinge_positions.append(hinge_position)
+				hinge_index += 1
+	var shutter_panels := MultiMeshInstance3D.new()
+	shutter_panels.name = "FrontWindowShutterPanels"
+	shutter_panels.multimesh = shutter_panel_batch
+	shutter_panels.material_override = _weathered_wood_material(wall.darkened(0.36))
+	shutter_panels.set_meta("source_positions", shutter_positions)
+	root.add_child(shutter_panels)
+	var shutter_slats := MultiMeshInstance3D.new()
+	shutter_slats.name = "FrontWindowShutterSlats"
+	shutter_slats.multimesh = shutter_slat_batch
+	shutter_slats.material_override = wood
+	shutter_slats.set_meta("source_positions", slat_positions)
+	root.add_child(shutter_slats)
+	var shutter_hinges := MultiMeshInstance3D.new()
+	shutter_hinges.name = "FrontWindowShutterHinges"
+	shutter_hinges.multimesh = shutter_hinge_batch
+	shutter_hinges.material_override = _material(Color(0.075, 0.065, 0.052), 0.58, 0.72)
+	shutter_hinges.set_meta("source_positions", hinge_positions)
+	root.add_child(shutter_hinges)
 	for x in [-4.0, -2.0, -1.0, 1.0, 2.0, 4.0]:
 		_box(root, Vector3(x, 2.1, 3.62), Vector3(0.045, 4.0, 0.055), wood)
-	# Side elevations receive the same hand-laid board rhythm as the street-facing facade.
+	# Side elevations use separate corner posts and belt rails. The previous
+	# full-height trim slab hid the weathered siding and made every side read as a
+	# featureless dark panel in the oblique town view.
 	for side in [-1.0, 1.0]:
 		for y in [0.55, 1.0, 1.45, 1.9, 2.35, 2.8, 3.25]:
 			_box(root, Vector3(side * 5.02, y, 0.0), Vector3(0.035, 0.055, 6.85), wood)
-		_box(root, Vector3(side * 5.06, 2.1, 0.0), Vector3(0.12, 4.0, 7.0), trim)
-		for z in [-3.25, 3.25]:
-			_box(root, Vector3(side * 5.08, 2.1, z), Vector3(0.12, 4.0, 0.12), trim)
-	# Layered fascia and exposed rafter ends break up the single-piece roof silhouette.
+		for z in [-3.36, 0.0, 3.36]:
+			var side_post := _box(root, Vector3(side * 5.07, 2.05, z),
+				Vector3(0.15, 3.95, 0.17), trim)
+			side_post.name = "SideElevationPost"
+		for y in [0.42, 3.72]:
+			var side_rail := _box(root, Vector3(side * 5.07, y, 0.0),
+				Vector3(0.16, 0.18, 6.95), trim)
+			side_rail.name = "SideElevationBeltRail"
+		# Continuous eaves fascia and five exposed rafter tails give the side roof
+		# a legible load-bearing transition instead of a floating flat overhang.
+		var side_fascia := _box(root, Vector3(side * 5.48, 5.35, 0.0),
+			Vector3(0.18, 0.22, 8.15), trim)
+		side_fascia.name = "SideEavesFascia"
+		for z in [-3.75, -1.875, 0.0, 1.875, 3.75]:
+			var rafter_tail := _box(root, Vector3(side * 5.20, 5.14, z),
+				Vector3(0.48, 0.18, 0.20), wood)
+			rafter_tail.name = "SideRafterTail"
+	# Layered front fascia and exposed rafter ends break up the street roof silhouette.
 	for z in [-4.02, 4.02]:
 		_box(root, Vector3(0, 5.35, z), Vector3(11.2, 0.22, 0.18), trim)
 	for x in [-4.7, -2.35, 0.0, 2.35, 4.7]:
@@ -1617,11 +1703,43 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 		_box(root, Vector3(0, 1.7, 5.0), Vector3(11, 0.25, 3), _weathered_wood_material(Color(0.3, 0.2, 0.13)))
 		for x in [-4.7, 0, 4.7]:
 			_cylinder(root, Vector3(x, 1.5, 6.2), 0.12, 3, Color(0.25, 0.16, 0.1), 8)
+	# A framed signboard gives each 1897 storefront a readable trade identity
+	# and anchors the floating lettering to actual timber and iron joinery.
+	var sign_board_surface := _weathered_wood_material(wall.darkened(0.34))
+	var sign_trim_surface := _weathered_wood_material(wall.lightened(0.10))
+	var sign_board := _box(root, Vector3(0.0, 4.75, 4.08),
+		Vector3(4.6, 0.72, 0.16), sign_board_surface)
+	sign_board.name = "BuildingSignboard"
+	var sign_top := _box(root, Vector3(0.0, 5.13, 4.12),
+		Vector3(4.82, 0.10, 0.22), sign_trim_surface)
+	sign_top.name = "BuildingSignboardTopRail"
+	var sign_bottom := _box(root, Vector3(0.0, 4.37, 4.12),
+		Vector3(4.82, 0.10, 0.22), sign_trim_surface)
+	sign_bottom.name = "BuildingSignboardBottomRail"
+	for x in [-2.34, 2.34]:
+		var sign_side := _box(root, Vector3(x, 4.75, 4.12),
+			Vector3(0.10, 0.82, 0.22), sign_trim_surface)
+		sign_side.name = "BuildingSignboardSideRail"
+	var sign_iron := _material(Color(0.075, 0.065, 0.052), 0.58, 0.72)
+	for x in [-1.9, 1.9]:
+		var hanger := _box(root, Vector3(x, 5.28, 3.98),
+			Vector3(0.075, 0.34, 0.075), sign_iron)
+		hanger.name = "BuildingSignboardHanger"
+		var brace := _box(root, Vector3(x, 5.08, 4.00),
+			Vector3(0.075, 0.42, 0.075), sign_iron,
+			Vector3(0.0, 0.0, -0.48 if x < 0.0 else 0.48))
+		brace.name = "BuildingSignboardBrace"
+	for x in [-2.16, 2.16]:
+		for y in [4.52, 4.98]:
+			var bolt := _sphere(root, Vector3(x, y, 4.205),
+				Vector3(0.075, 0.075, 0.045), sign_iron)
+			bolt.name = "BuildingSignboardBolt"
 	var sign := Label3D.new()
+	sign.name = "BuildingTradeLabel"
 	sign.text = sign_text
 	sign.font_size = 42
 	sign.pixel_size = 0.012
-	sign.position = Vector3(0, 4.0, 4.08)
+	sign.position = Vector3(0, 4.75, 4.19)
 	sign.rotation_degrees.y = 0
 	sign.modulate = Color(1.0, 0.79, 0.48)
 	root.add_child(sign)
