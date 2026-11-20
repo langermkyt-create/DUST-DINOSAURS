@@ -13,26 +13,26 @@ func _initialize() -> void:
 			Vector3(float(index) * 30.0, 0.0, 0.0),
 			building_types[index], Color(0.43, 0.25, 0.16), index % 2 == 0)
 		var building := world_under_test.get_child(index)
-		if _count_named_prefix(building, "SideElevationPost") != 6:
-			_fail("Each building must expose three structural side posts on both long elevations.")
+		var side_trim := _find_named(building, "SideElevationTrimBatch") as MultiMeshInstance3D
+		var side_rafters := _find_named(building, "SideRafterTailBatch") as MultiMeshInstance3D
+		if side_trim == null or side_rafters == null:
+			_fail("Side elevations must keep structural trim and exposed rafter tails in explicit batches.")
 			return
-		if _count_named_prefix(building, "SideElevationBeltRail") != 4:
-			_fail("Each side elevation must have lower and upper continuous timber belt rails.")
+		if side_trim.multimesh == null or side_trim.multimesh.instance_count != 12:
+			_fail("Both side elevations must batch six posts, four belt rails and two eaves fascias.")
 			return
-		if _count_named_prefix(building, "SideEavesFascia") != 2:
-			_fail("Both roof eaves must have a continuous side fascia.")
+		if side_rafters.multimesh == null or side_rafters.multimesh.instance_count != 10:
+			_fail("Both side eaves must batch five exposed rafter tails each.")
 			return
-		if _count_named_prefix(building, "SideRafterTail") != 10:
-			_fail("Each building must expose five rafter tails on each side eave.")
+		var side_trim_positions: PackedVector3Array = side_trim.get_meta("source_positions")
+		var side_trim_scales: PackedVector3Array = side_trim.get_meta("source_scales")
+		if side_trim_positions.size() != 12 or side_trim_scales.size() != 12:
+			_fail("Side trim batches must preserve deterministic source geometry.")
 			return
-		var first_post := _find_named(building, "SideElevationPost") as MeshInstance3D
-		if first_post == null or first_post.mesh == null:
-			_fail("Side structural posts must be visible mesh geometry.")
-			return
-		var post_bounds := first_post.mesh.get_aabb()
-		if post_bounds.size.y < 3.9 or post_bounds.size.x > 0.2:
-			_fail("Side posts must read as narrow full-height timber members, not wall-covering slabs.")
-			return
+		for post_index in range(3):
+			if side_trim_scales[post_index].y < 3.9 or side_trim_scales[post_index].x > 0.2:
+				_fail("Batched side posts must remain narrow full-height timber members, not wall-covering slabs.")
+				return
 		var shutter_panels := _find_named(building, "FrontWindowShutterPanels") as MultiMeshInstance3D
 		var shutter_slats := _find_named(building, "FrontWindowShutterSlats") as MultiMeshInstance3D
 		var shutter_hinges := _find_named(building, "FrontWindowShutterHinges") as MultiMeshInstance3D
@@ -62,20 +62,28 @@ func _initialize() -> void:
 		if sign_board == null or sign_board.mesh == null or trade_label == null:
 			_fail("Every storefront must have a physical signboard carrying its trade label.")
 			return
-		if _count_named_prefix(building, "BuildingSignboardTopRail") != 1:
-			_fail("Trade signboard must have a continuous top timber rail.")
+		var sign_rails := _find_named(building, "BuildingSignboardRails") as MultiMeshInstance3D
+		var sign_hardware := _find_named(building, "BuildingSignboardHardware") as MultiMeshInstance3D
+		var sign_bolts := _find_named(building, "BuildingSignboardBolts") as MultiMeshInstance3D
+		if sign_rails == null or sign_hardware == null or sign_bolts == null:
+			_fail("Trade signboard must retain batched rails, iron supports and corner fasteners.")
 			return
-		if _count_named_prefix(building, "BuildingSignboardBottomRail") != 1:
-			_fail("Trade signboard must have a continuous lower timber rail.")
+		if sign_rails.multimesh == null or sign_rails.multimesh.instance_count != 4:
+			_fail("Trade signboard must batch one top rail, one lower rail and two side rails.")
 			return
-		if _count_named_prefix(building, "BuildingSignboardSideRail") != 2:
-			_fail("Trade signboard must have two framed vertical ends.")
+		if sign_hardware.multimesh == null or sign_hardware.multimesh.instance_count != 4:
+			_fail("Trade signboard must batch paired iron hangers and diagonal braces.")
 			return
-		if _count_named_prefix(building, "BuildingSignboardHanger") != 2 or _count_named_prefix(building, "BuildingSignboardBrace") != 2:
-			_fail("Trade signboard must be supported by paired iron hangers and braces.")
+		if sign_bolts.multimesh == null or sign_bolts.multimesh.instance_count != 4:
+			_fail("Trade signboard must batch four visible corner fasteners.")
 			return
-		if _count_named_prefix(building, "BuildingSignboardBolt") != 4:
-			_fail("Trade signboard must retain four visible corner fasteners.")
+		var rail_scales: PackedVector3Array = sign_rails.get_meta("source_scales")
+		var hardware_rotations: PackedFloat32Array = sign_hardware.get_meta("source_rotations")
+		if rail_scales.size() != 4 or hardware_rotations.size() != 4:
+			_fail("Signboard batches must preserve deterministic dimensions and bracket angles.")
+			return
+		if absf(hardware_rotations[1] + 0.48) > 0.01 or absf(hardware_rotations[3] - 0.48) > 0.01:
+			_fail("Signboard diagonal braces must angle outward from the paired hangers.")
 			return
 		var board_bounds := sign_board.mesh.get_aabb()
 		if board_bounds.size.x < 4.5 or board_bounds.size.y < 0.7:
@@ -84,7 +92,7 @@ func _initialize() -> void:
 		if trade_label.text != building_types[index] or absf(trade_label.position.y - 4.75) > 0.01:
 			_fail("Trade lettering must remain centered on the new physical signboard.")
 			return
-	print("Frontier exterior regression: six buildings retain exposed side framing, batched shutter sets and framed, supported trade signboards.")
+	print("Frontier exterior regression: six buildings retain batched side framing, shutters and framed trade signboards within a fixed facade draw-batch budget.")
 	world_under_test.free()
 	world_under_test = null
 	quit(0)
