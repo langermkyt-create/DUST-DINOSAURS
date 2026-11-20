@@ -314,3 +314,21 @@ Added `tests/test_frontier_exterior.gd` and wired it into `.github/workflows/god
 Godot validation/export run **#157** passed all 32 workflow steps: script import, all 26 regression scripts (including the new six-building exterior regression), main-scene headless launch, Windows x86_64 export, and build artifact upload. The exterior regression passed for all six buildings, including side framing counts, shutter batch counts/positions, and signboard construction.
 
 PR #9 was merged into main as **c54e6c3c7fee1557943d1310da4b3cb37c65d69c**. The separate Windows Build #160 passed script validation and was still running its software-rendered gameplay capture at the time this entry was written; no new video has been visually approved yet. The prior #158 preview remains a genuine Mesa llvmpipe/OpenGL Compatibility capture, not target-GPU evidence. Target-device frame-time/memory measurements, a modern-GPU render review, and independent whole-game art assessment remain blockers. Next: inspect the #160 facade close-up, correct any shutter/signboard overlap revealed by the render, then continue with business-specific building silhouettes and roof/porch transitions. AAA remains **not achieved**.
+
+## 2026-11-20 performance follow-up — batch repeated facade geometry
+
+The first exterior-detail preview (#160) was inspected rather than accepted on CI status alone. It showed the shutters, framed trade board and side structure, but the route elapsed time was **72.4 s** versus **51.88 s** on the pre-detail #158 baseline, using the same Mesa 26.0.8 llvmpipe/OpenGL Compatibility renderer. This ~39.6% slowdown was treated as a real regression requiring a follow-up.
+
+PR #10 added a shared `_add_scaled_mesh_multimesh` helper and converted the repeated facade elements to deterministic instance batches:
+- Side posts, belt rails and eaves fascia: 12 individual meshes → 1 MultiMesh batch per building.
+- Side rafter tails: 10 individual meshes → 1 MultiMesh batch per building.
+- Signboard rails, iron hangers/braces, and corner bolts: 12 individual meshes → 3 MultiMesh batches per building.
+- Shutter panels/slats/hinges remain in their three existing batches.
+
+This removes **29 repeated mesh nodes per building (174 across six buildings)** while retaining the source positions/scales/rotations in metadata for regression tests. The expanded exterior test checks all six building archetypes, instance counts, dimensions, and brace angles.
+
+PR #10 was merged into main as **d15732598f3ffadde737ad5ec528f27e14032dbc**. Godot validation/export **#160** passed all 32 steps, including import, 26 regression scripts, the new exterior batching test, main-scene launch and Windows x86_64 export. Windows Build **#163** also completed successfully and produced a real 1280×720/30 FPS preview (52.60 s video) plus diagnostics.
+
+I inspected the #163 capture and its route log. The same software-rendered route measured **51.99 s**, compared with 51.88 s baseline: +0.11 s (+0.2%), effectively recovering the prior timing while retaining the facade details. The saloon and general-store shutters, side framing and framed trade signs are visible. The close saloon approach still crops the upper signboard edge; this is a known camera-framing defect, not a model-generation failure.
+
+The renderer still reports missing `VK_KHR_surface`, falls back to OpenGL Compatibility on Mesa llvmpipe, and disables SSAO/SDFGI/SSIL. The timing comparison is useful only as a same-runner software-renderer regression check; it is not a target-GPU benchmark. No independent whole-game art review, high-end hardware performance test, complete interior/weather route review, or AAA sign-off has been completed. Next: widen/back off the saloon approach camera to keep the full signboard in frame, then continue building-specific silhouettes and roof/porch joinery. AAA remains **not achieved**.
