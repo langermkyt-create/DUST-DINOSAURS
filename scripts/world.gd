@@ -1032,6 +1032,76 @@ func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
 		_box(root, Vector3(x, 2.1, 4.03), Vector3(1.3, 0.09, 0.045), wood)
 		_box(root, Vector3(x, 3.13, 3.92), Vector3(1.75, 0.16, 0.22), trim)
 		_box(root, Vector3(x, 1.07, 3.92), Vector3(1.75, 0.16, 0.22), trim)
+
+	# Paired plank shutters sit outside the glass line. Panels, slats and iron
+	# straps are batched separately so the six-building street front gains depth
+	# without multiplying dozens of individual draw calls per facade.
+	var shutter_panel_batch := MultiMesh.new()
+	shutter_panel_batch.transform_format = MultiMesh.TRANSFORM_3D
+	var shutter_panel_mesh := BoxMesh.new()
+	shutter_panel_mesh.size = Vector3.ONE
+	shutter_panel_batch.mesh = shutter_panel_mesh
+	shutter_panel_batch.instance_count = 4
+	var shutter_slat_batch := MultiMesh.new()
+	shutter_slat_batch.transform_format = MultiMesh.TRANSFORM_3D
+	var shutter_slat_mesh := BoxMesh.new()
+	shutter_slat_mesh.size = Vector3.ONE
+	shutter_slat_batch.mesh = shutter_slat_mesh
+	shutter_slat_batch.instance_count = 16
+	var shutter_hinge_batch := MultiMesh.new()
+	shutter_hinge_batch.transform_format = MultiMesh.TRANSFORM_3D
+	var shutter_hinge_mesh := BoxMesh.new()
+	shutter_hinge_mesh.size = Vector3.ONE
+	shutter_hinge_batch.mesh = shutter_hinge_mesh
+	shutter_hinge_batch.instance_count = 8
+	var shutter_positions := PackedVector3Array()
+	var slat_positions := PackedVector3Array()
+	var hinge_positions := PackedVector3Array()
+	var panel_index := 0
+	var slat_index := 0
+	var hinge_index := 0
+	for window_x in [-3.3, 3.3]:
+		for side in [-1.0, 1.0]:
+			var shutter_x := window_x + side * 0.95
+			var panel_position := Vector3(shutter_x, 2.1, 4.075)
+			var panel_size := Vector3(0.30, 1.56, 0.09)
+			shutter_panel_batch.set_instance_transform(panel_index,
+				Transform3D(Basis.from_scale(panel_size), panel_position))
+			shutter_positions.append(panel_position)
+			panel_index += 1
+			for slat_y in [-0.48, -0.16, 0.16, 0.48]:
+				var slat_position := Vector3(shutter_x, 2.1 + slat_y, 4.135)
+				var slat_size := Vector3(0.34, 0.075, 0.12)
+				shutter_slat_batch.set_instance_transform(slat_index,
+					Transform3D(Basis.from_scale(slat_size), slat_position))
+				slat_positions.append(slat_position)
+				slat_index += 1
+			for hinge_y in [-0.48, 0.48]:
+				var hinge_position := Vector3(window_x + side * 0.79,
+					2.1 + hinge_y, 4.17)
+				var hinge_size := Vector3(0.055, 0.22, 0.035)
+				shutter_hinge_batch.set_instance_transform(hinge_index,
+					Transform3D(Basis.from_scale(hinge_size), hinge_position))
+				hinge_positions.append(hinge_position)
+				hinge_index += 1
+	var shutter_panels := MultiMeshInstance3D.new()
+	shutter_panels.name = "FrontWindowShutterPanels"
+	shutter_panels.multimesh = shutter_panel_batch
+	shutter_panels.material_override = _weathered_wood_material(wall.darkened(0.36))
+	shutter_panels.set_meta("source_positions", shutter_positions)
+	root.add_child(shutter_panels)
+	var shutter_slats := MultiMeshInstance3D.new()
+	shutter_slats.name = "FrontWindowShutterSlats"
+	shutter_slats.multimesh = shutter_slat_batch
+	shutter_slats.material_override = wood
+	shutter_slats.set_meta("source_positions", slat_positions)
+	root.add_child(shutter_slats)
+	var shutter_hinges := MultiMeshInstance3D.new()
+	shutter_hinges.name = "FrontWindowShutterHinges"
+	shutter_hinges.multimesh = shutter_hinge_batch
+	shutter_hinges.material_override = _material(Color(0.075, 0.065, 0.052), 0.58, 0.72)
+	shutter_hinges.set_meta("source_positions", hinge_positions)
+	root.add_child(shutter_hinges)
 	for x in [-4.0, -2.0, -1.0, 1.0, 2.0, 4.0]:
 		_box(root, Vector3(x, 2.1, 3.62), Vector3(0.045, 4.0, 0.055), wood)
 	# Side elevations use separate corner posts and belt rails. The previous
