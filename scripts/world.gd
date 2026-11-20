@@ -1062,7 +1062,7 @@ func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
 	var hinge_index := 0
 	for window_x in [-3.3, 3.3]:
 		for side in [-1.0, 1.0]:
-			var shutter_x := window_x + side * 0.95
+			var shutter_x: float = float(window_x) + float(side) * 0.95
 			var panel_position := Vector3(shutter_x, 2.1, 4.075)
 			var panel_size := Vector3(0.30, 1.56, 0.09)
 			shutter_panel_batch.set_instance_transform(panel_index,
