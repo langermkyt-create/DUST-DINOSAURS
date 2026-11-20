@@ -33,6 +33,30 @@ func _initialize() -> void:
 		if post_bounds.size.y < 3.9 or post_bounds.size.x > 0.2:
 			_fail("Side posts must read as narrow full-height timber members, not wall-covering slabs.")
 			return
+		var shutter_panels := _find_named(building, "FrontWindowShutterPanels") as MultiMeshInstance3D
+		var shutter_slats := _find_named(building, "FrontWindowShutterSlats") as MultiMeshInstance3D
+		var shutter_hinges := _find_named(building, "FrontWindowShutterHinges") as MultiMeshInstance3D
+		if shutter_panels == null or shutter_slats == null or shutter_hinges == null:
+			_fail("Every street facade must retain batched shutter panels, slats and iron hinges.")
+			return
+		if shutter_panels.multimesh == null or shutter_panels.multimesh.instance_count != 4:
+			_fail("Two front windows must each have a paired set of timber shutters.")
+			return
+		if shutter_slats.multimesh == null or shutter_slats.multimesh.instance_count != 16:
+			_fail("Each shutter must have four individually spaced horizontal slats.")
+			return
+		if shutter_hinges.multimesh == null or shutter_hinges.multimesh.instance_count != 8:
+			_fail("Each shutter must have two visible iron hinge straps.")
+			return
+		var panel_positions: PackedVector3Array = shutter_panels.get_meta("source_positions")
+		var slat_positions: PackedVector3Array = shutter_slats.get_meta("source_positions")
+		if panel_positions.size() != 4 or slat_positions.size() != 16:
+			_fail("Shutter batches must preserve deterministic source positions for regression checks.")
+			return
+		for panel_position in panel_positions:
+			if panel_position.z < 4.0 or absf(panel_position.y - 2.1) > 0.01:
+				_fail("Shutters must sit on the exterior side of the front window frames.")
+				return
 	print("Frontier exterior regression pass 1: six buildings retain exposed siding, six side posts, four belt rails, two eaves fascias and ten rafter tails per building.")
 	world_under_test.free()
 	world_under_test = null
