@@ -204,6 +204,32 @@ func _cylinder(parent: Node3D, pos: Vector3, radius: float, height: float, surfa
 	else:
 		cylinder_material = _material(surface as Color)
 	return _mesh(parent, mesh, cylinder_material, pos)
+
+func _add_scaled_mesh_multimesh(parent: Node3D, node_name: String, mesh: Mesh,
+		positions: PackedVector3Array, scales: PackedVector3Array, material: Material,
+		rotations: PackedFloat32Array) -> MultiMeshInstance3D:
+	if positions.size() != scales.size() or (not rotations.is_empty() and rotations.size() != positions.size()):
+		push_error("MultiMesh source arrays must have matching lengths: " + node_name)
+		return null
+	var batch := MultiMesh.new()
+	batch.transform_format = MultiMesh.TRANSFORM_3D
+	batch.mesh = mesh
+	batch.instance_count = positions.size()
+	for index in range(positions.size()):
+		var basis := Basis.from_scale(scales[index])
+		if not rotations.is_empty():
+			basis = Basis.from_euler(Vector3(0.0, 0.0, rotations[index])) * basis
+		batch.set_instance_transform(index, Transform3D(basis, positions[index]))
+	var instance := MultiMeshInstance3D.new()
+	instance.name = node_name
+	instance.multimesh = batch
+	instance.material_override = material
+	instance.set_meta("source_positions", positions)
+	instance.set_meta("source_scales", scales)
+	instance.set_meta("source_rotations", rotations)
+	parent.add_child(instance)
+	return instance
+
 func _build_atmosphere() -> void:
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
@@ -1104,29 +1130,37 @@ func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
 	root.add_child(shutter_hinges)
 	for x in [-4.0, -2.0, -1.0, 1.0, 2.0, 4.0]:
 		_box(root, Vector3(x, 2.1, 3.62), Vector3(0.045, 4.0, 0.055), wood)
-	# Side elevations use separate corner posts and belt rails. The previous
-	# full-height trim slab hid the weathered siding and made every side read as a
-	# featureless dark panel in the oblique town view.
+	# Side elevations use exposed structural framing, but keep the repeated
+	# posts/rails in two MultiMesh batches per building to avoid dozens of extra
+	# draw calls across the six-building settlement.
+	var side_trim_positions := PackedVector3Array()
+	var side_trim_scales := PackedVector3Array()
+	var side_rafter_positions := PackedVector3Array()
+	var side_rafter_scales := PackedVector3Array()
 	for side in [-1.0, 1.0]:
 		for y in [0.55, 1.0, 1.45, 1.9, 2.35, 2.8, 3.25]:
 			_box(root, Vector3(side * 5.02, y, 0.0), Vector3(0.035, 0.055, 6.85), wood)
 		for z in [-3.36, 0.0, 3.36]:
-			var side_post := _box(root, Vector3(side * 5.07, 2.05, z),
-				Vector3(0.15, 3.95, 0.17), trim)
-			side_post.name = "SideElevationPost"
+			side_trim_positions.append(Vector3(side * 5.07, 2.05, z))
+			side_trim_scales.append(Vector3(0.15, 3.95, 0.17))
 		for y in [0.42, 3.72]:
-			var side_rail := _box(root, Vector3(side * 5.07, y, 0.0),
-				Vector3(0.16, 0.18, 6.95), trim)
-			side_rail.name = "SideElevationBeltRail"
+			side_trim_positions.append(Vector3(side * 5.07, y, 0.0))
+			side_trim_scales.append(Vector3(0.16, 0.18, 6.95))
 		# Continuous eaves fascia and five exposed rafter tails give the side roof
 		# a legible load-bearing transition instead of a floating flat overhang.
-		var side_fascia := _box(root, Vector3(side * 5.48, 5.35, 0.0),
-			Vector3(0.18, 0.22, 8.15), trim)
-		side_fascia.name = "SideEavesFascia"
+		side_trim_positions.append(Vector3(side * 5.48, 5.35, 0.0))
+		side_trim_scales.append(Vector3(0.18, 0.22, 8.15))
 		for z in [-3.75, -1.875, 0.0, 1.875, 3.75]:
-			var rafter_tail := _box(root, Vector3(side * 5.20, 5.14, z),
-				Vector3(0.48, 0.18, 0.20), wood)
-			rafter_tail.name = "SideRafterTail"
+			side_rafter_positions.append(Vector3(side * 5.20, 5.14, z))
+			side_rafter_scales.append(Vector3(0.48, 0.18, 0.20))
+	var side_trim_mesh := BoxMesh.new()
+	side_trim_mesh.size = Vector3.ONE
+	_add_scaled_mesh_multimesh(root, "SideElevationTrimBatch", side_trim_mesh,
+		side_trim_positions, side_trim_scales, trim, PackedFloat32Array())
+	var side_rafter_mesh := BoxMesh.new()
+	side_rafter_mesh.size = Vector3.ONE
+	_add_scaled_mesh_multimesh(root, "SideRafterTailBatch", side_rafter_mesh,
+		side_rafter_positions, side_rafter_scales, wood, PackedFloat32Array())
 	# Layered front fascia and exposed rafter ends break up the street roof silhouette.
 	for z in [-4.02, 4.02]:
 		_box(root, Vector3(0, 5.35, z), Vector3(11.2, 0.22, 0.18), trim)
@@ -1703,37 +1737,56 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 		_box(root, Vector3(0, 1.7, 5.0), Vector3(11, 0.25, 3), _weathered_wood_material(Color(0.3, 0.2, 0.13)))
 		for x in [-4.7, 0, 4.7]:
 			_cylinder(root, Vector3(x, 1.5, 6.2), 0.12, 3, Color(0.25, 0.16, 0.1), 8)
-	# A framed signboard gives each 1897 storefront a readable trade identity
-	# and anchors the floating lettering to actual timber and iron joinery.
+	# A framed signboard gives each 1897 storefront a readable trade identity.
+	# Rails, iron supports and fasteners are batched so the new joinery does not
+	# erase the performance gained by the settlement's other instanced details.
 	var sign_board_surface := _weathered_wood_material(wall.darkened(0.34))
 	var sign_trim_surface := _weathered_wood_material(wall.lightened(0.10))
 	var sign_board := _box(root, Vector3(0.0, 4.75, 4.08),
 		Vector3(4.6, 0.72, 0.16), sign_board_surface)
 	sign_board.name = "BuildingSignboard"
-	var sign_top := _box(root, Vector3(0.0, 5.13, 4.12),
-		Vector3(4.82, 0.10, 0.22), sign_trim_surface)
-	sign_top.name = "BuildingSignboardTopRail"
-	var sign_bottom := _box(root, Vector3(0.0, 4.37, 4.12),
-		Vector3(4.82, 0.10, 0.22), sign_trim_surface)
-	sign_bottom.name = "BuildingSignboardBottomRail"
-	for x in [-2.34, 2.34]:
-		var sign_side := _box(root, Vector3(x, 4.75, 4.12),
-			Vector3(0.10, 0.82, 0.22), sign_trim_surface)
-		sign_side.name = "BuildingSignboardSideRail"
+	var sign_rail_positions := PackedVector3Array([
+		Vector3(0.0, 5.13, 4.12),
+		Vector3(0.0, 4.37, 4.12),
+		Vector3(-2.34, 4.75, 4.12),
+		Vector3(2.34, 4.75, 4.12)
+	])
+	var sign_rail_scales := PackedVector3Array([
+		Vector3(4.82, 0.10, 0.22),
+		Vector3(4.82, 0.10, 0.22),
+		Vector3(0.10, 0.82, 0.22),
+		Vector3(0.10, 0.82, 0.22)
+	])
+	var sign_rail_mesh := BoxMesh.new()
+	sign_rail_mesh.size = Vector3.ONE
+	_add_scaled_mesh_multimesh(root, "BuildingSignboardRails", sign_rail_mesh,
+		sign_rail_positions, sign_rail_scales, sign_trim_surface, PackedFloat32Array())
 	var sign_iron := _material(Color(0.075, 0.065, 0.052), 0.58, 0.72)
+	var sign_hardware_positions := PackedVector3Array()
+	var sign_hardware_scales := PackedVector3Array()
+	var sign_hardware_rotations := PackedFloat32Array()
 	for x in [-1.9, 1.9]:
-		var hanger := _box(root, Vector3(x, 5.28, 3.98),
-			Vector3(0.075, 0.34, 0.075), sign_iron)
-		hanger.name = "BuildingSignboardHanger"
-		var brace := _box(root, Vector3(x, 5.08, 4.00),
-			Vector3(0.075, 0.42, 0.075), sign_iron,
-			Vector3(0.0, 0.0, -0.48 if x < 0.0 else 0.48))
-		brace.name = "BuildingSignboardBrace"
+		sign_hardware_positions.append(Vector3(x, 5.28, 3.98))
+		sign_hardware_scales.append(Vector3(0.075, 0.34, 0.075))
+		sign_hardware_rotations.append(0.0)
+		sign_hardware_positions.append(Vector3(x, 5.08, 4.00))
+		sign_hardware_scales.append(Vector3(0.075, 0.42, 0.075))
+		sign_hardware_rotations.append(-0.48 if x < 0.0 else 0.48)
+	var sign_hardware_mesh := BoxMesh.new()
+	sign_hardware_mesh.size = Vector3.ONE
+	_add_scaled_mesh_multimesh(root, "BuildingSignboardHardware", sign_hardware_mesh,
+		sign_hardware_positions, sign_hardware_scales, sign_iron, sign_hardware_rotations)
+	var sign_bolt_positions := PackedVector3Array()
+	var sign_bolt_scales := PackedVector3Array()
 	for x in [-2.16, 2.16]:
 		for y in [4.52, 4.98]:
-			var bolt := _sphere(root, Vector3(x, y, 4.205),
-				Vector3(0.075, 0.075, 0.045), sign_iron)
-			bolt.name = "BuildingSignboardBolt"
+			sign_bolt_positions.append(Vector3(x, y, 4.205))
+			sign_bolt_scales.append(Vector3(0.075, 0.075, 0.045))
+	var sign_bolt_mesh := SphereMesh.new()
+	sign_bolt_mesh.radial_segments = 16
+	sign_bolt_mesh.rings = 10
+	_add_scaled_mesh_multimesh(root, "BuildingSignboardBolts", sign_bolt_mesh,
+		sign_bolt_positions, sign_bolt_scales, sign_iron, PackedFloat32Array())
 	var sign := Label3D.new()
 	sign.name = "BuildingTradeLabel"
 	sign.text = sign_text
