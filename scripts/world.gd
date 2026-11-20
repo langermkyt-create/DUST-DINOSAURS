@@ -2825,8 +2825,8 @@ func _preview_route() -> Array[Dictionary]:
 		},
 		{
 			"id": "saloon_approach",
-			# Hold beyond the porch so the full facade and doorway read before entry.
-			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -2.7)) + 0.2, -2.7),
+			# Hold farther out so the full signboard, shutters and porch fit in frame.
+			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, 0.5)) + 0.2, 0.5),
 			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -12.0)) + 2.35, -8.25),
 			"duration": 1.0
 		},
@@ -2839,8 +2839,8 @@ func _preview_route() -> Array[Dictionary]:
 		},
 		{
 			"id": "saloon_exit",
-			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, -2.7)) + 0.2, -2.7),
-			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, -2.7)) + 2.4, -1.5),
+			"position": Vector3(-12.0, _terrain_height(Vector2(-12.0, 0.5)) + 0.2, 0.5),
+			"target": Vector3(-12.0, _terrain_height(Vector2(-12.0, 0.5)) + 2.4, 1.7),
 			"duration": 1.0
 		},
 		{
