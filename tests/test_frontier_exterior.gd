@@ -6,6 +6,17 @@ func _initialize() -> void:
 	world_under_test = Node3D.new()
 	world_under_test.set_script(load("res://scripts/world.gd"))
 	var shared_wood_shader: Shader
+	var wall_sample := world_under_test.call("_weathered_wood_material", Color(0.42, 0.24, 0.15), false) as ShaderMaterial
+	var roof_sample := world_under_test.call("_weathered_wood_material", Color(0.24, 0.14, 0.11), true) as ShaderMaterial
+	if wall_sample == null or roof_sample == null or wall_sample == roof_sample:
+		_fail("Wood surfaces must keep separate per-surface materials while sharing their shader.")
+		return
+	if wall_sample.shader != roof_sample.shader:
+		_fail("Wall and roof wood materials must use the shared shader resource.")
+		return
+	if absf(float(wall_sample.get_shader_parameter("grain_scale")) - 5.0) > 0.01 or absf(float(roof_sample.get_shader_parameter("grain_scale")) - 1.8) > 0.01:
+		_fail("Shared shader must preserve distinct wall and roof grain scales.")
+		return
 	var shared_roof_material: Material
 	var building_types: Array[String] = [
 		"SALOON", "GENERAL STORE", "SHERIFF", "STABLES", "HOTEL", "RAIL OFFICE"
