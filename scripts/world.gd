@@ -8,6 +8,8 @@ const TERRAIN_COLLISION_SEGMENTS := 192
 var player: CharacterBody3D
 var message_label: Label
 var preview_started_at_msec: int = 0
+var _weathered_wood_shader: Shader
+var _roof_shingle_material: StandardMaterial3D
 func _ready() -> void:
 	_build_atmosphere()
 	_build_landscape()
@@ -1137,9 +1139,12 @@ func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
 	var side_trim_scales := PackedVector3Array()
 	var side_rafter_positions := PackedVector3Array()
 	var side_rafter_scales := PackedVector3Array()
+	var side_course_positions := PackedVector3Array()
+	var side_course_scales := PackedVector3Array()
 	for side in [-1.0, 1.0]:
 		for y in [0.55, 1.0, 1.45, 1.9, 2.35, 2.8, 3.25]:
-			_box(root, Vector3(side * 5.02, y, 0.0), Vector3(0.035, 0.055, 6.85), wood)
+			side_course_positions.append(Vector3(side * 5.02, y, 0.0))
+			side_course_scales.append(Vector3(0.035, 0.055, 6.85))
 		for z in [-3.36, 0.0, 3.36]:
 			side_trim_positions.append(Vector3(side * 5.07, 2.05, z))
 			side_trim_scales.append(Vector3(0.15, 3.95, 0.17))
@@ -1153,6 +1158,10 @@ func _add_building_details(root: Node3D, wall: Color, porch: bool) -> void:
 		for z in [-3.75, -1.875, 0.0, 1.875, 3.75]:
 			side_rafter_positions.append(Vector3(side * 5.20, 5.14, z))
 			side_rafter_scales.append(Vector3(0.48, 0.18, 0.20))
+	var side_course_mesh := BoxMesh.new()
+	side_course_mesh.size = Vector3.ONE
+	_add_scaled_mesh_multimesh(root, "SideSidingCourseBatch", side_course_mesh,
+		side_course_positions, side_course_scales, wood, PackedFloat32Array())
 	var side_trim_mesh := BoxMesh.new()
 	side_trim_mesh.size = Vector3.ONE
 	_add_scaled_mesh_multimesh(root, "SideElevationTrimBatch", side_trim_mesh,
@@ -1533,8 +1542,9 @@ func _build_town() -> void:
 			var wheel := _cylinder(self, Vector3(x, 0.9, z), 0.9, 0.38, Color(0.07, 0.07, 0.07), 16)
 			wheel.rotation.x = PI / 2
 func _weathered_wood_material(base: Color, roof := false) -> ShaderMaterial:
-	var shader := Shader.new()
-	shader.code = """
+	if _weathered_wood_shader == null:
+		_weathered_wood_shader = Shader.new()
+		_weathered_wood_shader.code = """
 shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx;
 uniform vec4 tint : source_color = vec4(0.32, 0.17, 0.09, 1.0);
@@ -1581,10 +1591,18 @@ void fragment() {
 }
 """
 	var material := ShaderMaterial.new()
-	material.shader = shader
+	material.shader = _weathered_wood_shader
 	material.set_shader_parameter("tint", base)
 	material.set_shader_parameter("grain_scale", 1.8 if roof else 5.0)
 	return material
+
+func _roof_shingle_surface_material() -> StandardMaterial3D:
+	if _roof_shingle_material == null:
+		_roof_shingle_material = StandardMaterial3D.new()
+		_roof_shingle_material.vertex_color_use_as_albedo = true
+		_roof_shingle_material.roughness = 0.94
+		_roof_shingle_material.metallic = 0.0
+	return _roof_shingle_material
 
 func _add_building_wall_piece(root: Node3D, body: StaticBody3D, center: Vector3, size: Vector3, surface: Material) -> void:
 	_box(root, center, size, surface)
@@ -1689,11 +1707,7 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 	var shingles := MeshInstance3D.new()
 	shingles.name = "RoofShingles"
 	shingles.mesh = _make_roof_shingle_mesh(1897 + abs(sign_text.hash()))
-	var shingle_material := StandardMaterial3D.new()
-	shingle_material.vertex_color_use_as_albedo = true
-	shingle_material.roughness = 0.94
-	shingle_material.metallic = 0.0
-	shingles.material_override = shingle_material
+	shingles.material_override = _roof_shingle_surface_material()
 	shingles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	root.add_child(shingles)
 	# Leave the entrance visibly traversable: the door is hinged and held open,
