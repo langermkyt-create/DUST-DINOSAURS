@@ -1759,7 +1759,7 @@ func _make_sheriff_star_mesh() -> ArrayMesh:
 	var points: Array[Vector2] = []
 	for point_index in range(10):
 		var angle := -PI / 2.0 + float(point_index) * PI / 5.0
-		var radius := 0.42 if point_index % 2 == 0 else 0.19
+		var radius := 0.44 if point_index % 2 == 0 else 0.19
 		points.append(Vector2(cos(angle) * radius, sin(angle) * radius))
 	for point_index in range(10):
 		var next_index := (point_index + 1) % 10
