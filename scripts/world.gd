@@ -1683,12 +1683,14 @@ func _make_general_store_awning_mesh() -> ArrayMesh:
 	for stripe in range(8):
 		var x0 := -5.0 + float(stripe) * 1.25
 		var x1 := x0 + 1.25
-		var center_fall := 0.06 * (1.0 - absf(float(stripe) - 3.5) / 4.0)
+		# Evaluate the sag at shared stripe boundaries so adjacent canvas panels
+		# meet continuously instead of leaving light leaks between stripes.
+		var left_fall := 0.06 * (1.0 - absf(x0) / 5.0)
+		var right_fall := 0.06 * (1.0 - absf(x1) / 5.0)
 		var back_left := Vector3(x0, 4.2, 3.86)
 		var back_right := Vector3(x1, 4.2, 3.86)
-		var front_y := 3.84 - center_fall
-		var front_left := Vector3(x0, front_y, 4.95)
-		var front_right := Vector3(x1, front_y, 4.95)
+		var front_left := Vector3(x0, 3.84 - left_fall, 4.95)
+		var front_right := Vector3(x1, 3.84 - right_fall, 4.95)
 		var stripe_color := Color(0.66, 0.16, 0.105) if stripe % 2 == 0 else Color(0.86, 0.76, 0.58)
 		# Two-sided sloped canvas keeps the underside readable from the street.
 		surface.set_color(stripe_color)
@@ -1708,8 +1710,8 @@ func _make_general_store_awning_mesh() -> ArrayMesh:
 		surface.add_vertex(front_right)
 		surface.add_vertex(front_left)
 		# Short striped valance gives the canopy a finished, fabric edge.
-		var valance_left := Vector3(x0, front_y - 0.20, 4.99)
-		var valance_right := Vector3(x1, front_y - 0.20, 4.99)
+		var valance_left := Vector3(x0, front_left.y - 0.20, 4.99)
+		var valance_right := Vector3(x1, front_right.y - 0.20, 4.99)
 		surface.set_color(stripe_color.darkened(0.04))
 		surface.add_vertex(front_left)
 		surface.add_vertex(valance_left)
