@@ -1789,12 +1789,19 @@ func _add_sheriff_architecture(root: Node3D) -> void:
 	var badge := MeshInstance3D.new()
 	badge.name = "SheriffStarBadge"
 	badge.mesh = _make_sheriff_star_mesh()
-	var badge_material := _material(Color(0.72, 0.48, 0.16), 0.34, 0.78)
+	var badge_material := _material(Color(0.88, 0.62, 0.24), 0.46, 0.66)
+	# The sheriff badge sits under a deep gable shadow in the fixed town route;
+	# disable face culling and add a restrained brass bounce so its star outline
+	# remains legible without turning the badge into a self-lit sign.
+	badge_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	badge_material.emission_enabled = true
+	badge_material.emission = Color(0.22, 0.10, 0.018)
+	badge_material.emission_energy_multiplier = 0.16
 	badge.material_override = badge_material
-	badge.position = Vector3(0.0, 5.58, 4.28)
+	badge.position = Vector3(0.0, 5.58, 4.40)
 	badge.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(badge)
-	var center_stud := _cylinder(root, Vector3(0.0, 5.58, 4.34),
+	var center_stud := _cylinder(root, Vector3(0.0, 5.58, 4.46),
 		0.075, 0.035, _material(Color(0.88, 0.68, 0.30), 0.3, 0.82), 12)
 	center_stud.name = "SheriffBadgeCenterStud"
 	center_stud.rotation.x = PI / 2.0
