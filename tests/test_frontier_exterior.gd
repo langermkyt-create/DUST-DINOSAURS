@@ -5,6 +5,19 @@ var world_under_test: Node3D
 func _initialize() -> void:
 	world_under_test = Node3D.new()
 	world_under_test.set_script(load("res://scripts/world.gd"))
+	var shared_wood_shader: Shader
+	var wall_sample := world_under_test.call("_weathered_wood_material", Color(0.42, 0.24, 0.15), false) as ShaderMaterial
+	var roof_sample := world_under_test.call("_weathered_wood_material", Color(0.24, 0.14, 0.11), true) as ShaderMaterial
+	if wall_sample == null or roof_sample == null or wall_sample == roof_sample:
+		_fail("Wood surfaces must keep separate per-surface materials while sharing their shader.")
+		return
+	if wall_sample.shader != roof_sample.shader:
+		_fail("Wall and roof wood materials must use the shared shader resource.")
+		return
+	if absf(float(wall_sample.get_shader_parameter("grain_scale")) - 5.0) > 0.01 or absf(float(roof_sample.get_shader_parameter("grain_scale")) - 1.8) > 0.01:
+		_fail("Shared shader must preserve distinct wall and roof grain scales.")
+		return
+	var shared_roof_material: Material
 	var building_types: Array[String] = [
 		"SALOON", "GENERAL STORE", "SHERIFF", "STABLES", "HOTEL", "RAIL OFFICE"
 	]
@@ -13,6 +26,30 @@ func _initialize() -> void:
 			Vector3(float(index) * 30.0, 0.0, 0.0),
 			building_types[index], Color(0.43, 0.25, 0.16), index % 2 == 0)
 		var building := world_under_test.get_child(index)
+		var wood_shader := world_under_test.get("_weathered_wood_shader") as Shader
+		var roof_mesh := _find_named(building, "RoofShingles") as MeshInstance3D
+		if wood_shader == null or roof_mesh == null or roof_mesh.material_override == null:
+			_fail("Frontier buildings must initialize the shared timber shader and roof material.")
+			return
+		if index == 0:
+			shared_wood_shader = wood_shader
+			shared_roof_material = roof_mesh.material_override
+		elif wood_shader != shared_wood_shader or roof_mesh.material_override != shared_roof_material:
+			_fail("All six buildings must reuse the same wood shader and vertex-color shingle material.")
+			return
+		var siding_courses := _find_named(building, "SideSidingCourseBatch") as MultiMeshInstance3D
+		if siding_courses == null or siding_courses.multimesh == null or siding_courses.multimesh.instance_count != 14:
+			_fail("Both side elevations must batch seven exposed horizontal siding courses each.")
+			return
+		var course_positions: PackedVector3Array = siding_courses.get_meta("source_positions")
+		var course_scales: PackedVector3Array = siding_courses.get_meta("source_scales")
+		if course_positions.size() != 14 or course_scales.size() != 14:
+			_fail("Siding-course batch must preserve deterministic positions and dimensions.")
+			return
+		for course_scale in course_scales:
+			if course_scale.z < 6.8 or course_scale.y > 0.06:
+				_fail("Siding courses must remain narrow horizontal boards across the side elevation.")
+				return
 		var side_trim := _find_named(building, "SideElevationTrimBatch") as MultiMeshInstance3D
 		var side_rafters := _find_named(building, "SideRafterTailBatch") as MultiMeshInstance3D
 		if side_trim == null or side_rafters == null:

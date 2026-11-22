@@ -342,3 +342,16 @@ PR #11 was merged into main as **b245222c84988bae33cd308b828dfa92e3e1b109**. God
 The #166 software-rendered route measured **71.69 s**, above the 60 s advisory threshold but below the 85 s hard CI budget. This is slower than the #163 batched-facade measurement of 51.99 s. The difference is observed, but a single llvmpipe run cannot isolate whether the wider storefront view, runner load, or another variable caused it. Keep this as a performance follow-up; do not present it as a target-GPU benchmark. Renderer diagnostics remain unchanged: Vulkan surface is unavailable, OpenGL Compatibility uses Mesa llvmpipe, and SSAO/SDFGI/SSIL are disabled.
 
 Next: profile the town facade visibility/LOD and repeat the preview timing under controlled conditions; retain the wider saloon framing unless a less expensive camera composition can preserve the full signboard. Continue the business-specific silhouettes, roof/porch joinery, interiors, weather, and target-GPU measurements. AAA remains **not achieved**.
+
+
+## 2026-11-21 follow-up — shared timber shader, shared shingle material, and batched side courses
+
+Started from main `de4d5da497ed9c333545e34fd2760977e1bfaf7d` after reviewing the latest commit, CI run #165, Windows workflow history, and open issues/PRs (none). The previous facade work still constructed the same weathered-wood shader source repeatedly for each wood material, allocated identical roof-shingle materials per building, and represented the 14 horizontal side courses as separate mesh nodes on each building.
+
+Three implementation passes on `automation/2026-11-21-wood-material-and-siding-batches`:
+
+1. Cache a single weathered-wood `Shader` per world and reuse it across tinted/scale-varied `ShaderMaterial` instances. Tint and grain-scale remain material uniforms, so material variation is preserved while duplicate shader resources are removed.
+2. Lazily create and reuse one vertex-color roof-shingle `StandardMaterial3D` across the six buildings; preserve the authored vertex colors and roughness.
+3. Replace 14 separate side-course boxes per building with one 14-instance `MultiMesh` batch. Preserve source positions/scales in metadata and extend the exterior regression to assert the batch budget and dimensions across all six building archetypes.
+
+The exterior regression additionally verifies that every building shares the exact wood shader and shingle material resource. This is a source/resource optimization, not a claim of measured GPU frame-rate improvement. Fresh Godot validation, Windows export, and a visually inspected render are required before the change is treated as verified. The current runner's Vulkan surface limitation and lack of target-device benchmarking remain blockers. AAA remains **not achieved**.
