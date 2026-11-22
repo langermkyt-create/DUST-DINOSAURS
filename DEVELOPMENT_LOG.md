@@ -375,3 +375,12 @@ Source-level checks after each pass confirmed the dispatcher, stable geometry, s
 ### Visual correction after #173 capture
 
 Windows Build #173 completed successfully and its real 1280×720/30 FPS capture was inspected. The striped general-store awning is visible in the street composition, but the sheriff badge read only as a small bright point beneath the deep gable shadow. This is a visible defect, so the badge was moved slightly forward, given two-sided rendering, a restrained low-energy brass emission, and a brighter worn-gold albedo. The regression now checks culling, emission, and forward placement as well as mesh bounds. The 15-stop route completed in 37.83 seconds on llvmpipe; this is a software-renderer route duration, not an FPS benchmark. Re-run Godot validation, Windows export, and a fresh visual capture before merge.
+
+
+### Final verification and merge — PR #13
+
+The badge readability correction was validated on the final PR head. Godot validation/export **#173** passed all **33** steps, including the new three-archetype regression, main-scene headless launch, and Windows x86_64 export. Windows Build **#176** passed script validation, completed the unchanged 15-stop preview route, exported the Windows executable, and uploaded the build, preview, and diagnostics.
+
+The real preview is **1280×720 at 30 FPS**, 53.6 seconds long; the route completion marker reported 52.33 seconds on Mesa llvmpipe. The capture was inspected: the sheriff star is now clearly visible above the storefront sign, and the general-store awning reads in the street view. The fixed route does not isolate the stable sliding doors and hayloft vent, so those are source- and regression-verified but still need a dedicated close-up visual review.
+
+PR #13 was squash-merged into main as **2656fb0b1f5058e33090466bbb32605a4b9279e6**. Next: add a separate stable close-up inspection route without changing the baseline 15-stop control route; continue distinct hotel and rail-office silhouettes, then profile target-GPU performance. Renderer limitations remain: the CI host lacks `VK_KHR_surface`, falls back to OpenGL Compatibility on Mesa llvmpipe, and disables SSAO/SDFGI/SSIL. No target-device benchmark or independent whole-game art review exists. AAA remains **not achieved**.
