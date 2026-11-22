@@ -1669,6 +1669,49 @@ func _make_roof_shingle_mesh(seed_value: int) -> ArrayMesh:
 	surface.generate_normals()
 	return surface.commit()
 
+func _add_building_archetype_details(root: Node3D, sign_text: String, wall: Color) -> void:
+	if sign_text == "STABLES":
+		_add_stables_architecture(root, wall)
+
+func _add_stables_architecture(root: Node3D, wall: Color) -> void:
+	# A working frontier stable needs a wide, track-mounted entrance and a
+	# ventilated hayloft, rather than the same shopfront treatment as the town.
+	var timber := _weathered_wood_material(wall.darkened(0.28))
+	var trim := _weathered_wood_material(wall.lightened(0.08))
+	var iron := _material(Color(0.075, 0.068, 0.056), 0.62, 0.72)
+	var track := _box(root, Vector3(0.0, 3.72, 4.17), Vector3(2.95, 0.12, 0.14), iron)
+	track.name = "StableSlidingDoorTrack"
+	for side in [-1.0, 1.0]:
+		var panel := _box(root, Vector3(side * 1.22, 2.0, 3.73),
+			Vector3(0.72, 2.75, 0.11), timber)
+		panel.name = "StableSlidingDoorPanel"
+		panel.rotation.y = -side * 0.10
+		var brace := _box(root, Vector3(side * 1.22, 2.0, 3.81),
+			Vector3(0.62, 0.09, 0.07), trim, Vector3(0.0, 0.0, side * 0.62))
+		brace.name = "StableSlidingDoorBrace"
+		var roller := _cylinder(root, Vector3(side * 1.22, 3.76, 4.18),
+			0.09, 0.12, iron, 12)
+		roller.name = "StableDoorRoller"
+		roller.rotation.x = PI / 2.0
+	var vent_frame := _box(root, Vector3(0.0, 5.55, 4.16),
+		Vector3(1.9, 0.86, 0.12), trim)
+	vent_frame.name = "StableLoftVentFrame"
+	var vent_dark := _box(root, Vector3(0.0, 5.55, 4.235),
+		Vector3(1.55, 0.56, 0.035), Color(0.075, 0.055, 0.04))
+	vent_dark.name = "StableLoftVentOpening"
+	var vent_positions := PackedVector3Array()
+	var vent_scales := PackedVector3Array()
+	for slat_index in range(5):
+		vent_positions.append(Vector3(-0.5 + float(slat_index) * 0.25, 5.55, 4.27))
+		vent_scales.append(Vector3(0.055, 0.54, 0.045))
+	for rail_y in [5.28, 5.82]:
+		vent_positions.append(Vector3(0.0, rail_y, 4.27))
+		vent_scales.append(Vector3(1.5, 0.05, 0.045))
+	var vent_mesh := BoxMesh.new()
+	vent_mesh.size = Vector3.ONE
+	_add_scaled_mesh_multimesh(root, "StableLoftVentSlats", vent_mesh,
+		vent_positions, vent_scales, timber, PackedFloat32Array())
+
 func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) -> void:
 	var root := Node3D.new()
 	root.name = sign_text.replace(" ", "") + "Building"
@@ -1812,6 +1855,7 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 	root.add_child(sign)
 	_build_building_interior(root, sign_text, wall)
 	_add_building_details(root, wall, porch)
+	_add_building_archetype_details(root, sign_text, wall)
 
 func _interior_solid_box(root: Node3D, center: Vector3, size: Vector3, material: Material, node_name: String = "InteriorProp") -> StaticBody3D:
 	var body := StaticBody3D.new()
