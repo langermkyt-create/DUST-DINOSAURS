@@ -45,8 +45,11 @@ func _initialize() -> void:
 	if star_vertices.size() != 30 or badge.mesh.get_aabb().size.x < 0.8 or badge.mesh.get_aabb().size.y < 0.8:
 		_fail("Sheriff badge must be a complete ten-point star silhouette, not a flat circle.")
 		return
-	if badge_material == null or badge_material.metallic < 0.7 or badge_material.roughness > 0.4:
+	if badge_material == null or badge_material.metallic < 0.6 or badge_material.roughness > 0.5:
 		_fail("Sheriff badge must read as worn brass with a restrained metallic response.")
+		return
+	if badge_material.cull_mode != BaseMaterial3D.CULL_DISABLED or not badge_material.emission_enabled or badge.position.z < 4.38:
+		_fail("Sheriff star must remain legible from the street beneath the deep front gable.")
 		return
 
 	var awning := _find_named(general_store, "GeneralStoreAwningCanvas") as MeshInstance3D
