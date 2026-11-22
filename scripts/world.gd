@@ -1669,6 +1669,182 @@ func _make_roof_shingle_mesh(seed_value: int) -> ArrayMesh:
 	surface.generate_normals()
 	return surface.commit()
 
+func _add_building_archetype_details(root: Node3D, sign_text: String, wall: Color) -> void:
+	if sign_text == "STABLES":
+		_add_stables_architecture(root, wall)
+	elif sign_text == "SHERIFF":
+		_add_sheriff_architecture(root)
+	elif sign_text == "GENERAL STORE":
+		_add_general_store_awning(root, wall)
+
+func _make_general_store_awning_mesh() -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for stripe in range(8):
+		var x0 := -5.0 + float(stripe) * 1.25
+		var x1 := x0 + 1.25
+		# Evaluate the sag at shared stripe boundaries so adjacent canvas panels
+		# meet continuously instead of leaving light leaks between stripes.
+		var left_fall := 0.06 * (1.0 - absf(x0) / 5.0)
+		var right_fall := 0.06 * (1.0 - absf(x1) / 5.0)
+		var back_left := Vector3(x0, 4.2, 3.86)
+		var back_right := Vector3(x1, 4.2, 3.86)
+		var front_left := Vector3(x0, 3.84 - left_fall, 4.95)
+		var front_right := Vector3(x1, 3.84 - right_fall, 4.95)
+		var stripe_color := Color(0.66, 0.16, 0.105) if stripe % 2 == 0 else Color(0.86, 0.76, 0.58)
+		# Two-sided sloped canvas keeps the underside readable from the street.
+		surface.set_color(stripe_color)
+		surface.add_vertex(back_left)
+		surface.add_vertex(front_left)
+		surface.add_vertex(back_right)
+		surface.set_color(stripe_color)
+		surface.add_vertex(front_left)
+		surface.add_vertex(front_right)
+		surface.add_vertex(back_right)
+		surface.set_color(stripe_color.darkened(0.12))
+		surface.add_vertex(back_left)
+		surface.add_vertex(back_right)
+		surface.add_vertex(front_left)
+		surface.set_color(stripe_color.darkened(0.12))
+		surface.add_vertex(back_right)
+		surface.add_vertex(front_right)
+		surface.add_vertex(front_left)
+		# Short striped valance gives the canopy a finished, fabric edge.
+		var valance_left := Vector3(x0, front_left.y - 0.20, 4.99)
+		var valance_right := Vector3(x1, front_right.y - 0.20, 4.99)
+		surface.set_color(stripe_color.darkened(0.04))
+		surface.add_vertex(front_left)
+		surface.add_vertex(valance_left)
+		surface.add_vertex(front_right)
+		surface.set_color(stripe_color.darkened(0.04))
+		surface.add_vertex(valance_left)
+		surface.add_vertex(valance_right)
+		surface.add_vertex(front_right)
+		surface.set_color(stripe_color.darkened(0.18))
+		surface.add_vertex(front_left)
+		surface.add_vertex(front_right)
+		surface.add_vertex(valance_left)
+		surface.set_color(stripe_color.darkened(0.18))
+		surface.add_vertex(front_right)
+		surface.add_vertex(valance_right)
+		surface.add_vertex(valance_left)
+	surface.generate_normals()
+	return surface.commit()
+
+func _add_general_store_awning(root: Node3D, wall: Color) -> void:
+	var fabric := StandardMaterial3D.new()
+	fabric.vertex_color_use_as_albedo = true
+	fabric.albedo_color = Color.WHITE
+	fabric.roughness = 0.96
+	fabric.metallic = 0.0
+	fabric.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var canvas := MeshInstance3D.new()
+	canvas.name = "GeneralStoreAwningCanvas"
+	canvas.mesh = _make_general_store_awning_mesh()
+	canvas.material_override = fabric
+	canvas.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	root.add_child(canvas)
+	var timber := _weathered_wood_material(wall.darkened(0.25))
+	for side in [-1.0, 1.0]:
+		var support := _box(root, Vector3(side * 4.62, 4.0, 4.38),
+			Vector3(0.09, 0.09, 1.18), timber, Vector3(0.30, 0.0, 0.0))
+		support.name = "GeneralStoreAwningSupport"
+	var front_rail := _box(root, Vector3(0.0, 3.78, 5.02),
+		Vector3(10.1, 0.10, 0.10), timber)
+	front_rail.name = "GeneralStoreAwningFrontRail"
+
+func _make_sheriff_star_mesh() -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var points: Array[Vector2] = []
+	for point_index in range(10):
+		var angle := -PI / 2.0 + float(point_index) * PI / 5.0
+		var radius := 0.46 if point_index % 2 == 0 else 0.19
+		points.append(Vector2(cos(angle) * radius, sin(angle) * radius))
+	for point_index in range(10):
+		var next_index := (point_index + 1) % 10
+		surface.add_vertex(Vector3(0.0, 0.0, 0.045))
+		surface.add_vertex(Vector3(points[point_index].x, points[point_index].y, 0.045))
+		surface.add_vertex(Vector3(points[next_index].x, points[next_index].y, 0.045))
+	surface.generate_normals()
+	return surface.commit()
+
+func _add_sheriff_architecture(root: Node3D) -> void:
+	# Iron grilles sit behind the exterior shutters, like a practical jail-office
+	# window retrofit. The brass star is a separate raised storefront identifier.
+	var iron := _material(Color(0.075, 0.068, 0.056), 0.62, 0.72)
+	var bar_positions := PackedVector3Array()
+	var bar_scales := PackedVector3Array()
+	for window_x in [-3.3, 3.3]:
+		for offset in [-0.36, 0.0, 0.36]:
+			bar_positions.append(Vector3(window_x + offset, 2.1, 4.045))
+			bar_scales.append(Vector3(0.055, 1.55, 0.055))
+		bar_positions.append(Vector3(window_x, 2.1, 4.045))
+		bar_scales.append(Vector3(1.28, 0.055, 0.055))
+	var bar_mesh := BoxMesh.new()
+	bar_mesh.size = Vector3.ONE
+	var bars := _add_scaled_mesh_multimesh(root, "SheriffJailBars", bar_mesh,
+		bar_positions, bar_scales, iron, PackedFloat32Array())
+	bars.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var badge := MeshInstance3D.new()
+	badge.name = "SheriffStarBadge"
+	badge.mesh = _make_sheriff_star_mesh()
+	var badge_material := _material(Color(0.88, 0.62, 0.24), 0.46, 0.66)
+	# The sheriff badge sits under a deep gable shadow in the fixed town route;
+	# disable face culling and add a restrained brass bounce so its star outline
+	# remains legible without turning the badge into a self-lit sign.
+	badge_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	badge_material.emission_enabled = true
+	badge_material.emission = Color(0.22, 0.10, 0.018)
+	badge_material.emission_energy_multiplier = 0.16
+	badge.material_override = badge_material
+	badge.position = Vector3(0.0, 5.58, 4.40)
+	badge.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(badge)
+	var center_stud := _cylinder(root, Vector3(0.0, 5.58, 4.46),
+		0.075, 0.035, _material(Color(0.88, 0.68, 0.30), 0.3, 0.82), 12)
+	center_stud.name = "SheriffBadgeCenterStud"
+	center_stud.rotation.x = PI / 2.0
+
+func _add_stables_architecture(root: Node3D, wall: Color) -> void:
+	# A working frontier stable needs a wide, track-mounted entrance and a
+	# ventilated hayloft, rather than the same shopfront treatment as the town.
+	var timber := _weathered_wood_material(wall.darkened(0.28))
+	var trim := _weathered_wood_material(wall.lightened(0.08))
+	var iron := _material(Color(0.075, 0.068, 0.056), 0.62, 0.72)
+	var track := _box(root, Vector3(0.0, 3.72, 4.17), Vector3(2.95, 0.12, 0.14), iron)
+	track.name = "StableSlidingDoorTrack"
+	for side in [-1.0, 1.0]:
+		var panel := _box(root, Vector3(side * 1.22, 2.0, 3.73),
+			Vector3(0.72, 2.75, 0.11), timber)
+		panel.name = "StableSlidingDoorPanel"
+		panel.rotation.y = -side * 0.10
+		var brace := _box(root, Vector3(side * 1.22, 2.0, 3.81),
+			Vector3(0.62, 0.09, 0.07), trim, Vector3(0.0, 0.0, side * 0.62))
+		brace.name = "StableSlidingDoorBrace"
+		var roller := _cylinder(root, Vector3(side * 1.22, 3.76, 4.18),
+			0.09, 0.12, iron, 12)
+		roller.name = "StableDoorRoller"
+		roller.rotation.x = PI / 2.0
+	var vent_frame := _box(root, Vector3(0.0, 5.55, 4.16),
+		Vector3(1.9, 0.86, 0.12), trim)
+	vent_frame.name = "StableLoftVentFrame"
+	var vent_dark := _box(root, Vector3(0.0, 5.55, 4.235),
+		Vector3(1.55, 0.56, 0.035), Color(0.075, 0.055, 0.04))
+	vent_dark.name = "StableLoftVentOpening"
+	var vent_positions := PackedVector3Array()
+	var vent_scales := PackedVector3Array()
+	for slat_index in range(5):
+		vent_positions.append(Vector3(-0.5 + float(slat_index) * 0.25, 5.55, 4.27))
+		vent_scales.append(Vector3(0.055, 0.54, 0.045))
+	for rail_y in [5.28, 5.82]:
+		vent_positions.append(Vector3(0.0, rail_y, 4.27))
+		vent_scales.append(Vector3(1.5, 0.05, 0.045))
+	var vent_mesh := BoxMesh.new()
+	vent_mesh.size = Vector3.ONE
+	_add_scaled_mesh_multimesh(root, "StableLoftVentSlats", vent_mesh,
+		vent_positions, vent_scales, timber, PackedFloat32Array())
+
 func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) -> void:
 	var root := Node3D.new()
 	root.name = sign_text.replace(" ", "") + "Building"
@@ -1812,6 +1988,7 @@ func _build_building(pos: Vector3, sign_text: String, wall: Color, porch: bool) 
 	root.add_child(sign)
 	_build_building_interior(root, sign_text, wall)
 	_add_building_details(root, wall, porch)
+	_add_building_archetype_details(root, sign_text, wall)
 
 func _interior_solid_box(root: Node3D, center: Vector3, size: Vector3, material: Material, node_name: String = "InteriorProp") -> StaticBody3D:
 	var body := StaticBody3D.new()

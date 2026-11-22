@@ -72,6 +72,9 @@ jobs:
       - name: Test framed frontier side elevations, shutters and trade signs
         run: timeout 30s godot --headless --path . --script tests/test_frontier_exterior.gd
 
+      - name: Test distinct frontier building archetypes
+        run: timeout 30s godot --headless --path . --script tests/test_building_archetypes.gd
+
       - name: Test desert terrain relief and arroyo profile
         run: godot --headless --path . --script tests/test_terrain_relief.gd
       - name: Test layered Arizona soil material response

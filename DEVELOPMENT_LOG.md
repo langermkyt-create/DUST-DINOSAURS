@@ -355,3 +355,23 @@ Three implementation passes on `automation/2026-11-21-wood-material-and-siding-b
 3. Replace 14 separate side-course boxes per building with one 14-instance `MultiMesh` batch. Preserve source positions/scales in metadata and extend the exterior regression to assert the batch budget and dimensions across all six building archetypes.
 
 The exterior regression additionally verifies that every building shares the exact wood shader and shingle material resource. This is a source/resource optimization, not a claim of measured GPU frame-rate improvement. Fresh Godot validation, Windows export, and a visually inspected render are required before the change is treated as verified. The current runner's Vulkan surface limitation and lack of target-device benchmarking remain blockers. AAA remains **not achieved**.
+
+
+## 2026-11-22 follow-up — distinct stable, sheriff, and general-store architecture
+
+Started from the post-merge main commit `55193aee4d44dcf3a5f943616b7eb14613f68218`. Reviewed PR #12 and both final workflows: Godot validation #168 passed all 26 existing regression scripts, main-scene launch, and Windows x86_64 export; Windows Build #171 succeeded and produced a 71.63-second 1280×720/30 FPS preview. The preview was extracted and inspected at the storefront, saloon interior, and town overview. It confirms that the six buildings still share a nearly identical single-story shell, and that the general store lacks weather protection while the stable and sheriff office read like ordinary shops. The render remains Mesa llvmpipe/OpenGL Compatibility, not target-GPU evidence.
+
+Three architectural passes were implemented on `automation/2026-11-22-distinct-frontier-archetypes`:
+
+1. **Stables:** Added a track-mounted pair of sliding timber door leaves with diagonal braces and iron rollers, plus a framed hayloft vent with five vertical slats and two horizontal rails. The original walkable shell and interior collision remain unchanged.
+2. **Sheriff office:** Added an eight-instance iron grille batch (six vertical bars and two crossbars) positioned behind the shutters, and a separate ten-point brass star badge with a center stud. The badge radius was adjusted after a bounds review so the regression can distinguish the star silhouette from a circle.
+3. **General store:** Added an eight-stripe, two-sided canvas awning with a short valance, two sloped timber support arms, and a front rail. A source review caught a potential seam between adjacent stripes; the drop is now evaluated at shared stripe boundaries so the panels meet continuously.
+
+Added `tests/test_building_archetypes.gd` and wired it into `.github/workflows/godot-validation.yml`. The test checks stable door/vent batches, sheriff grille counts and metallic star geometry, general-store awning vertex colors/material/bounds, and prevents archetype details from leaking onto unrelated buildings.
+
+Source-level checks after each pass confirmed the dispatcher, stable geometry, sheriff grille/badge construction, and continuous awning boundary calculations. Godot is not installed in the local container, so runtime parsing and the new regression await GitHub Actions. The final PR must pass the complete Godot suite and Windows x86_64 export before merge. No new visual capture has yet been produced for these changes. Next: inspect the new three-archetype render, then give the hotel and rail office distinct silhouettes and continue target-hardware profiling. AAA remains **not achieved**.
+
+
+### Visual correction after #173 capture
+
+Windows Build #173 completed successfully and its real 1280×720/30 FPS capture was inspected. The striped general-store awning is visible in the street composition, but the sheriff badge read only as a small bright point beneath the deep gable shadow. This is a visible defect, so the badge was moved slightly forward, given two-sided rendering, a restrained low-energy brass emission, and a brighter worn-gold albedo. The regression now checks culling, emission, and forward placement as well as mesh bounds. The 15-stop route completed in 37.83 seconds on llvmpipe; this is a software-renderer route duration, not an FPS benchmark. Re-run Godot validation, Windows export, and a fresh visual capture before merge.
