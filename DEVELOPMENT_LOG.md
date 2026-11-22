@@ -370,3 +370,8 @@ Three architectural passes were implemented on `automation/2026-11-22-distinct-f
 Added `tests/test_building_archetypes.gd` and wired it into `.github/workflows/godot-validation.yml`. The test checks stable door/vent batches, sheriff grille counts and metallic star geometry, general-store awning vertex colors/material/bounds, and prevents archetype details from leaking onto unrelated buildings.
 
 Source-level checks after each pass confirmed the dispatcher, stable geometry, sheriff grille/badge construction, and continuous awning boundary calculations. Godot is not installed in the local container, so runtime parsing and the new regression await GitHub Actions. The final PR must pass the complete Godot suite and Windows x86_64 export before merge. No new visual capture has yet been produced for these changes. Next: inspect the new three-archetype render, then give the hotel and rail office distinct silhouettes and continue target-hardware profiling. AAA remains **not achieved**.
+
+
+### Visual correction after #173 capture
+
+Windows Build #173 completed successfully and its real 1280×720/30 FPS capture was inspected. The striped general-store awning is visible in the street composition, but the sheriff badge read only as a small bright point beneath the deep gable shadow. This is a visible defect, so the badge was moved slightly forward, given two-sided rendering, a restrained low-energy brass emission, and a brighter worn-gold albedo. The regression now checks culling, emission, and forward placement as well as mesh bounds. The 15-stop route completed in 37.83 seconds on llvmpipe; this is a software-renderer route duration, not an FPS benchmark. Re-run Godot validation, Windows export, and a fresh visual capture before merge.
