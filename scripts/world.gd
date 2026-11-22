@@ -1672,6 +1672,54 @@ func _make_roof_shingle_mesh(seed_value: int) -> ArrayMesh:
 func _add_building_archetype_details(root: Node3D, sign_text: String, wall: Color) -> void:
 	if sign_text == "STABLES":
 		_add_stables_architecture(root, wall)
+	elif sign_text == "SHERIFF":
+		_add_sheriff_architecture(root)
+
+func _make_sheriff_star_mesh() -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var points: Array[Vector2] = []
+	for point_index in range(10):
+		var angle := -PI / 2.0 + float(point_index) * PI / 5.0
+		var radius := 0.42 if point_index % 2 == 0 else 0.19
+		points.append(Vector2(cos(angle) * radius, sin(angle) * radius))
+	for point_index in range(10):
+		var next_index := (point_index + 1) % 10
+		surface.add_vertex(Vector3(0.0, 0.0, 0.045))
+		surface.add_vertex(Vector3(points[point_index].x, points[point_index].y, 0.045))
+		surface.add_vertex(Vector3(points[next_index].x, points[next_index].y, 0.045))
+	surface.generate_normals()
+	return surface.commit()
+
+func _add_sheriff_architecture(root: Node3D) -> void:
+	# Iron grilles sit behind the exterior shutters, like a practical jail-office
+	# window retrofit. The brass star is a separate raised storefront identifier.
+	var iron := _material(Color(0.075, 0.068, 0.056), 0.62, 0.72)
+	var bar_positions := PackedVector3Array()
+	var bar_scales := PackedVector3Array()
+	for window_x in [-3.3, 3.3]:
+		for offset in [-0.36, 0.0, 0.36]:
+			bar_positions.append(Vector3(window_x + offset, 2.1, 4.045))
+			bar_scales.append(Vector3(0.055, 1.55, 0.055))
+		bar_positions.append(Vector3(window_x, 2.1, 4.045))
+		bar_scales.append(Vector3(1.28, 0.055, 0.055))
+	var bar_mesh := BoxMesh.new()
+	bar_mesh.size = Vector3.ONE
+	var bars := _add_scaled_mesh_multimesh(root, "SheriffJailBars", bar_mesh,
+		bar_positions, bar_scales, iron, PackedFloat32Array())
+	bars.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var badge := MeshInstance3D.new()
+	badge.name = "SheriffStarBadge"
+	badge.mesh = _make_sheriff_star_mesh()
+	var badge_material := _material(Color(0.72, 0.48, 0.16), 0.34, 0.78)
+	badge.material_override = badge_material
+	badge.position = Vector3(0.0, 5.58, 4.28)
+	badge.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(badge)
+	var center_stud := _cylinder(root, Vector3(0.0, 5.58, 4.34),
+		0.075, 0.035, _material(Color(0.88, 0.68, 0.30), 0.3, 0.82), 12)
+	center_stud.name = "SheriffBadgeCenterStud"
+	center_stud.rotation.x = PI / 2.0
 
 func _add_stables_architecture(root: Node3D, wall: Color) -> void:
 	# A working frontier stable needs a wide, track-mounted entrance and a
