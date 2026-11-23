@@ -384,3 +384,16 @@ The badge readability correction was validated on the final PR head. Godot valid
 The real preview is **1280×720 at 30 FPS**, 53.6 seconds long; the route completion marker reported 52.33 seconds on Mesa llvmpipe. The capture was inspected: the sheriff star is now clearly visible above the storefront sign, and the general-store awning reads in the street view. The fixed route does not isolate the stable sliding doors and hayloft vent, so those are source- and regression-verified but still need a dedicated close-up visual review.
 
 PR #13 was squash-merged into main as **2656fb0b1f5058e33090466bbb32605a4b9279e6**. Next: add a separate stable close-up inspection route without changing the baseline 15-stop control route; continue distinct hotel and rail-office silhouettes, then profile target-GPU performance. Renderer limitations remain: the CI host lacks `VK_KHR_surface`, falls back to OpenGL Compatibility on Mesa llvmpipe, and disables SSAO/SDFGI/SSIL. No target-device benchmark or independent whole-game art review exists. AAA remains **not achieved**.
+
+
+## 2026-11-23 — indexed terrain lattice and cached height samples
+
+Started from verified main `e6b464a89140de1098454028dcb4c441ecfa9229`. Reviewed the latest main commit, successful Godot validation/export #175, successful Windows Build #178, the latest development log, and open issues/PRs (none). Continued the unfinished terrain/LOD performance work rather than repeating storefront or dinosaur changes.
+
+Three focused passes:
+
+1. **Terrain generation:** replaced the expanded triangle stream with a shared indexed grid. Each lattice point is added once and adjacent cells reference the shared corners using the prior triangle winding. This reduces the 256-segment visual grid from 393,216 repeated vertex submissions to 66,049 unique grid vertices while retaining 393,216 triangle indices.
+2. **Height evaluation:** precompute each grid height once into a packed float array before building triangles. Previously each corner height was re-evaluated in adjacent cells, up to six times per lattice point. The 192-segment collision grid similarly now samples 37,249 unique lattice positions rather than emitting 221,184 repeated vertex records. Terrain shape still comes from the same authored `_terrain_height` function, so visual/collision profile alignment is preserved.
+3. **Regression coverage:** updated `test_terrain_relief.gd` to assert exact shared-grid vertex and index counts, deterministic world-space lattice coordinates, valid indices, generated upward normals, collision mesh omission of normals, and interpolation against the indexed collision triangles at the existing 441 sample points.
+
+This is a topology/submission optimization, not a visual asset claim. The code and regression were committed to a review branch. Godot is unavailable in the local execution container, so no local engine parse or render is claimed; GitHub Actions must validate the indexed SurfaceTool path and Windows export before merge. The previous successful main CI does not validate these new commits. No new video was produced in this pass. Next: inspect the PR validation and Windows build artifacts, fix any engine/API or normal-winding regressions, and merge only after checks pass. Target-GPU profiling and independent whole-game visual review remain unavailable; AAA is **not achieved**.
