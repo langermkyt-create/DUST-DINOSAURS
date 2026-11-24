@@ -36,7 +36,8 @@ func _initialize() -> void:
 	# validate lattice membership rather than assuming a particular array order.
 	var occupied_lattice_points := {}
 	var lattice_step := 520.0 / 48.0
-	for vertex in vertices:
+	for vertex_index in range(vertices.size()):
+		var vertex: Vector3 = vertices[vertex_index]
 		var grid_x := roundi((vertex.x + 260.0) / lattice_step)
 		var grid_z := roundi((vertex.z + 260.0) / lattice_step)
 		if grid_x < 0 or grid_x > 48 or grid_z < 0 or grid_z > 48:
@@ -55,7 +56,7 @@ func _initialize() -> void:
 		if absf(vertex.y - expected_height) > 0.01:
 			_fail(world, "Indexed terrain vertex height must match the shared authored height field.")
 			return
-		occupied_lattice_points[lattice_key] = true
+		occupied_lattice_points[lattice_key] = vertex_index
 	if occupied_lattice_points.size() != 49 * 49:
 		_fail(world, "Indexed terrain must contain every lattice point exactly once.")
 		return
@@ -63,6 +64,23 @@ func _initialize() -> void:
 		if index < 0 or index >= vertices.size():
 			_fail(world, "Terrain index buffer must reference only valid shared grid vertices.")
 			return
+	# Confirm every cell's six indices still form the original two triangles.
+	# Map lattice coordinates to actual array indices instead of relying on
+	# SurfaceTool's internal vertex ordering.
+	for z in range(48):
+		for x in range(48):
+			var a_key := z * 49 + x
+			var b_key := a_key + 1
+			var c_key := a_key + 49
+			var d_key := c_key + 1
+			var expected_cell := [occupied_lattice_points[a_key], occupied_lattice_points[b_key],
+				occupied_lattice_points[c_key], occupied_lattice_points[b_key],
+				occupied_lattice_points[d_key], occupied_lattice_points[c_key]]
+			var cell_start := (z * 48 + x) * 6
+			for corner in range(6):
+				if indices[cell_start + corner] != expected_cell[corner]:
+					_fail(world, "Indexed terrain cells must preserve the authored triangle topology and winding.")
+					return
 	var min_height := 1.0e20
 	var max_height := -1.0e20
 	var minimum_normal_up := 1.0
