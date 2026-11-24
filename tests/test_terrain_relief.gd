@@ -32,12 +32,29 @@ func _initialize() -> void:
 	if vertices.size() != 49 * 49 or indices.size() != 48 * 48 * 6 or normals.size() != vertices.size():
 		_fail(world, "Terrain relief mesh must share its 49x49 grid vertices through a complete indexed triangle buffer.")
 		return
-	for vertex_index in range(vertices.size()):
-		var expected_x := -260.0 + float(vertex_index % 49) * (520.0 / 48.0)
-		var expected_z := -260.0 + float(vertex_index / 49) * (520.0 / 48.0)
-		if absf(vertices[vertex_index].x - expected_x) > 0.001 or absf(vertices[vertex_index].z - expected_z) > 0.001:
+	# SurfaceTool may reorder vertex storage while generating shared normals;
+	# validate lattice membership rather than assuming a particular array order.
+	var occupied_lattice_points := {}
+	var lattice_step := 520.0 / 48.0
+	for vertex in vertices:
+		var grid_x := roundi((vertex.x + 260.0) / lattice_step)
+		var grid_z := roundi((vertex.z + 260.0) / lattice_step)
+		if grid_x < 0 or grid_x > 48 or grid_z < 0 or grid_z > 48:
+			_fail(world, "Indexed terrain vertices must remain inside the deterministic world-space lattice.")
+			return
+		var expected_x := -260.0 + float(grid_x) * lattice_step
+		var expected_z := -260.0 + float(grid_z) * lattice_step
+		if absf(vertex.x - expected_x) > 0.001 or absf(vertex.z - expected_z) > 0.001:
 			_fail(world, "Indexed terrain vertices must remain on the deterministic world-space lattice.")
 			return
+		var lattice_key := grid_z * 49 + grid_x
+		if occupied_lattice_points.has(lattice_key):
+			_fail(world, "Indexed terrain must not duplicate a shared lattice vertex.")
+			return
+		occupied_lattice_points[lattice_key] = true
+	if occupied_lattice_points.size() != 49 * 49:
+		_fail(world, "Indexed terrain must contain every lattice point exactly once.")
+		return
 	for index in indices:
 		if index < 0 or index >= vertices.size():
 			_fail(world, "Terrain index buffer must reference only valid shared grid vertices.")
