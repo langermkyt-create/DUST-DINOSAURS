@@ -51,6 +51,10 @@ func _initialize() -> void:
 		if occupied_lattice_points.has(lattice_key):
 			_fail(world, "Indexed terrain must not duplicate a shared lattice vertex.")
 			return
+		var expected_height: float = world.call("_terrain_height", Vector2(vertex.x, vertex.z))
+		if absf(vertex.y - expected_height) > 0.01:
+			_fail(world, "Indexed terrain vertex height must match the shared authored height field.")
+			return
 		occupied_lattice_points[lattice_key] = true
 	if occupied_lattice_points.size() != 49 * 49:
 		_fail(world, "Indexed terrain must contain every lattice point exactly once.")
