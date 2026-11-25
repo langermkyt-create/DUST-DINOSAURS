@@ -7,11 +7,14 @@ func _initialize() -> void:
 	world_under_test = Node3D.new()
 	world_under_test.set_script(world_script)
 	world_under_test.call("_rock_formation", Vector3.ZERO, 1.0)
+	world_under_test.call("_rock_formation", Vector3(24.0, 0.0, 0.0), 0.9)
 
-	if world_under_test.get_child_count() != 1:
-		_fail("Rock builder did not create exactly one static body.")
+	if world_under_test.get_child_count() != 2:
+		_fail("Rock builder must create two independently placed static bodies for shared-material verification.")
 		return
 	var rock_body := world_under_test.get_child(0) as StaticBody3D
+	var second_rock_body := world_under_test.get_child(1) as StaticBody3D
+	var second_high := second_rock_body.get_node_or_null("RockHighDetail") as MeshInstance3D
 	var high := rock_body.get_node_or_null("RockHighDetail") as MeshInstance3D
 	var low := rock_body.get_node_or_null("RockDistantLOD") as MeshInstance3D
 	var collision := rock_body.get_node_or_null("RockCollision") as CollisionShape3D
@@ -49,6 +52,12 @@ func _initialize() -> void:
 	var low_material := low.material_override as ShaderMaterial
 	if high_material == null or low_material == null or high_material.shader == null or low_material.shader == null:
 		_fail("Both sandstone LODs must share the procedural sediment and erosion material.")
+		return
+	if high_material != low_material:
+		_fail("Near and distant sandstone LODs must reference one shared ShaderMaterial resource.")
+		return
+	if second_high == null or second_high.material_override != high_material:
+		_fail("All outcrops in one world must reuse the cached sandstone ShaderMaterial.")
 		return
 	if high_material.shader.code != low_material.shader.code:
 		_fail("Near and distant sandstone LODs must use the same surface response.")
