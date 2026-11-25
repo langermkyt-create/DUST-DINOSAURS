@@ -10,6 +10,7 @@ var message_label: Label
 var preview_started_at_msec: int = 0
 var _weathered_wood_shader: Shader
 var _roof_shingle_material: StandardMaterial3D
+var _rock_material: ShaderMaterial
 func _ready() -> void:
 	_build_atmosphere()
 	_build_landscape()
@@ -731,6 +732,8 @@ func _scatter_creosote_bushes() -> void:
 		bushes.set_meta("placement_positions", placement_positions)
 
 func _rock_surface_material() -> ShaderMaterial:
+	if _rock_material != null:
+		return _rock_material
 	var rock_shader := Shader.new()
 	rock_shader.code = """
 shader_type spatial;
@@ -779,9 +782,9 @@ void fragment() {
 	AO = clamp(0.95 - fracture * 0.10 - erosion * 0.04, 0.80, 1.0);
 }
 """
-	var rock_material := ShaderMaterial.new()
-	rock_material.shader = rock_shader
-	return rock_material
+	_rock_material = ShaderMaterial.new()
+	_rock_material.shader = rock_shader
+	return _rock_material
 
 func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 	# The distant silhouette samples every second point from the sixteen-sided near mesh.
