@@ -397,3 +397,24 @@ Three focused passes:
 3. **Regression coverage:** updated `test_terrain_relief.gd` to assert exact shared-grid vertex and index counts, deterministic world-space lattice coordinates, valid indices, generated upward normals, collision mesh omission of normals, and interpolation against the indexed collision triangles at the existing 441 sample points.
 
 This is a topology/submission optimization, not a visual asset claim. The code and regression were committed to a review branch. Godot is unavailable in the local execution container, so no local engine parse or render is claimed; GitHub Actions must validate the indexed SurfaceTool path and Windows export before merge. The previous successful main CI does not validate these new commits. No new video was produced in this pass. Next: inspect the PR validation and Windows build artifacts, fix any engine/API or normal-winding regressions, and merge only after checks pass. Target-GPU profiling and independent whole-game visual review remain unavailable; AAA is **not achieved**.
+
+
+## 2026-11-25 — shared sandstone material, scale-aware rock LOD and lighter collision
+
+Started from main `6e32bcc6be32abfc718e2a1e765f3015a7be3301` after PR #14 merged. The indexed terrain change passed Godot validation/export #178 and Windows Build #181 on its final PR head. Main's post-merge Godot validation/export #179 also passed; Windows Build #182 was still running when this entry was prepared.
+
+Three focused passes:
+
+1. **Close the terrain iteration:** reviewed the final PR checks and the actual Windows Build #181 gameplay-preview artifact. The capture is 1280×720, 30 FPS and 66.6 seconds; all 15 scripted waypoints completed in 65.62 seconds on Mesa llvmpipe. I inspected a contact sheet spanning the town, saloon, desert, herd and return route. This is a real software-rendered preview, not a target-GPU benchmark. It shows the current deliberately stylized/low-poly state clearly; it is not photorealistic and does not approach the RDR2 visual target. The CI renderer reports missing `VK_KHR_surface`, falls back to OpenGL Compatibility on Mesa llvmpipe, and disables SSAO, SDFGI and SSIL.
+2. **Share the sandstone shader resource:** cache one `ShaderMaterial` per world instance instead of constructing an identical shader/material for every rock formation and boulder batch. The regression now creates multiple outcrops in one world and asserts that near/far meshes and separate outcrops reference the same material resource. This avoids redundant material/shader resources; no draw-call or FPS gain is claimed.
+3. **Reduce rock physics cost and scale LOD thresholds:** create the eight-sided distant rock mesh once, use it for the distant visual and static concave collision shape, and scale near/far visibility distances and fade margins with each outcrop's scale. The authored near mesh remains 160 triangles; the distant/collision mesh is 48 triangles (70% fewer collision triangles by mesh topology). Regressions cover unit, 0.9× and 1.5× outcrops, material reuse, collision face count, and deterministic geometry. This is a topology budget, not a measured physics-time improvement.
+
+Files changed on the review branch:
+- `scripts/world.gd`
+- `tests/test_rock_lod.gd`
+- `tests/test_rock_formation.gd`
+- `DEVELOPMENT_LOG.md`
+
+The two rock regressions are wired into the existing Godot validation workflow. GitHub Actions must validate the final branch head and run the Windows export/preview before this work can be merged. No local Godot runtime is available. The preview route currently shows a recognizable but simple settlement and dinosaur silhouettes; target-hardware rendering, high-quality material close-ups, and independent whole-game art review remain blockers. AAA is **not achieved**.
+
+Next: inspect the final branch CI and artifacts; fix any GDScript/API regressions; merge only after Godot validation and Windows export succeed; then add a dedicated rock/mesa close-up checkpoint and begin measured target-GPU profiling when a target device is available.
