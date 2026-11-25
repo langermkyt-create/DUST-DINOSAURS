@@ -903,6 +903,8 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	surface.generate_normals()
 	var rock_mesh := surface.commit()
 	var rock_material := _rock_surface_material()
+	var lod_mesh := _make_rock_lod_mesh(rings)
+	var lod_scale := maxf(factor, 0.1)
 	var rock_body := StaticBody3D.new()
 	rock_body.name = "RockFormation"
 	rock_body.position = pos
@@ -912,23 +914,25 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	rock_instance.name = "RockHighDetail"
 	rock_instance.mesh = rock_mesh
 	rock_instance.material_override = rock_material
-	rock_instance.visibility_range_end = 132.0
-	rock_instance.visibility_range_end_margin = 14.0
+	rock_instance.visibility_range_end = 132.0 * lod_scale
+	rock_instance.visibility_range_end_margin = 14.0 * lod_scale
 	rock_instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	rock_body.add_child(rock_instance)
 	var lod_instance := MeshInstance3D.new()
 	lod_instance.name = "RockDistantLOD"
-	lod_instance.mesh = _make_rock_lod_mesh(rings)
+	lod_instance.mesh = lod_mesh
 	lod_instance.material_override = rock_material
-	lod_instance.visibility_range_begin = 118.0
-	lod_instance.visibility_range_begin_margin = 14.0
-	lod_instance.visibility_range_end = 420.0
-	lod_instance.visibility_range_end_margin = 35.0
+	lod_instance.visibility_range_begin = 118.0 * lod_scale
+	lod_instance.visibility_range_begin_margin = 14.0 * lod_scale
+	lod_instance.visibility_range_end = 420.0 * lod_scale
+	lod_instance.visibility_range_end_margin = 35.0 * lod_scale
 	lod_instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	rock_body.add_child(lod_instance)
 	var rock_collision := CollisionShape3D.new()
 	rock_collision.name = "RockCollision"
-	rock_collision.shape = rock_mesh.create_trimesh_shape()
+	# The eight-sided distant mesh keeps the same ledged silhouette while avoiding
+	# the full sixteen-sided render mesh in static collision queries.
+	rock_collision.shape = lod_mesh.create_trimesh_shape()
 	rock_body.add_child(rock_collision)
 
 func _make_rock_mesh(seed_value: int, variant: int) -> ArrayMesh:
