@@ -342,34 +342,42 @@ func _is_predator_sightline(angle: float) -> bool:
 	return absf(wrapf(angle - predator_bearing, -PI, PI)) < 0.28
 
 func _make_terrain_mesh(segments: int, generate_normals: bool = true) -> ArrayMesh:
-	var surface := SurfaceTool.new()
-	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# Store each lattice height once. The previous unindexed triangle stream
+	# evaluated the same grid corner up to six times and duplicated every vertex.
+	var stride := segments + 1
 	var half_extent := 260.0
 	var step := 520.0 / float(segments)
+	var heights := PackedFloat32Array()
+	heights.resize(stride * stride)
+	for z in range(stride):
+		var world_z := -half_extent + float(z) * step
+		for x in range(stride):
+			var world_x := -half_extent + float(x) * step
+			heights[z * stride + x] = _terrain_height(Vector2(world_x, world_z))
+
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for z in range(stride):
+		var world_z := -half_extent + float(z) * step
+		for x in range(stride):
+			var world_x := -half_extent + float(x) * step
+			surface.set_uv(Vector2(float(x) / segments, float(z) / segments))
+			surface.add_vertex(Vector3(world_x, heights[z * stride + x], world_z))
+
+	# Share adjacent grid corners through an index buffer. This preserves the
+	# original triangle winding while allowing normals to average across cells.
 	for z in range(segments):
 		for x in range(segments):
-			var x0 := -half_extent + float(x) * step
-			var x1 := x0 + step
-			var z0 := -half_extent + float(z) * step
-			var z1 := z0 + step
-			var a := Vector3(x0, _terrain_height(Vector2(x0, z0)), z0)
-			var b := Vector3(x1, _terrain_height(Vector2(x1, z0)), z0)
-			var c := Vector3(x0, _terrain_height(Vector2(x0, z1)), z1)
-			var d := Vector3(x1, _terrain_height(Vector2(x1, z1)), z1)
-			# Godot's front-face winding is clockwise; keep the generated normals
-			# facing up so the soil receives direct light and slope masks stay valid.
-			surface.set_uv(Vector2(float(x) / segments, float(z) / segments))
-			surface.add_vertex(a)
-			surface.set_uv(Vector2(float(x + 1) / segments, float(z) / segments))
-			surface.add_vertex(b)
-			surface.set_uv(Vector2(float(x) / segments, float(z + 1) / segments))
-			surface.add_vertex(c)
-			surface.set_uv(Vector2(float(x + 1) / segments, float(z) / segments))
-			surface.add_vertex(b)
-			surface.set_uv(Vector2(float(x + 1) / segments, float(z + 1) / segments))
-			surface.add_vertex(d)
-			surface.set_uv(Vector2(float(x) / segments, float(z + 1) / segments))
-			surface.add_vertex(c)
+			var a := z * stride + x
+			var b := a + 1
+			var c := a + stride
+			var d := c + 1
+			surface.add_index(a)
+			surface.add_index(b)
+			surface.add_index(c)
+			surface.add_index(b)
+			surface.add_index(d)
+			surface.add_index(c)
 	if generate_normals:
 		surface.generate_normals()
 	return surface.commit()
