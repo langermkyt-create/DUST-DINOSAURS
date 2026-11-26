@@ -418,3 +418,18 @@ Files changed on the review branch:
 The two rock regressions are wired into the existing Godot validation workflow. GitHub Actions must validate the final branch head and run the Windows export/preview before this work can be merged. No local Godot runtime is available. The preview route currently shows a recognizable but simple settlement and dinosaur silhouettes; target-hardware rendering, high-quality material close-ups, and independent whole-game art review remain blockers. AAA is **not achieved**.
 
 Next: inspect the final branch CI and artifacts; fix any GDScript/API regressions; merge only after Godot validation and Windows export succeed; then add a dedicated rock/mesa close-up checkpoint and begin measured target-GPU profiling when a target device is available.
+
+
+## 2026-11-26 follow-up — richer sandstone outcrop rings and surface-aligned micro-relief
+
+Started from the freshly updated main after reviewing the merged rock-material/collision PR #15, its final Godot validation/export #180, Windows Build #183, open PRs/issues, and the previous work log. PR #15 was merged as **52e7d782febbc87a8c2e2c73e25025c89fe92d5d** only after both workflows passed on its exact head. Downloaded and inspected its actual 1280×720, 30 FPS, 66.13-second gameplay capture. The settlement and dinosaurs are visibly stylized/low-poly, with broad simple ground and rock silhouettes; this is genuine software-rendered evidence, not AAA confirmation.
+
+Three follow-on passes on `automation/2026-11-26-rock-strata-detail`:
+
+1. **Near outcrop geometry:** increased the authored sandstone formation from 16 to 24 radial segments and from 5 to 7 height rings. Near mesh budget is now 1,008 vertex records / 336 triangles (previously 480 / 160), adding intermediate ledges and a less faceted silhouette. The shape remains deterministic and uses original procedural geometry, not third-party textures.
+2. **Distant/collision mesh:** changed the eight-sided LOD to sample every third point from the 24-sided near mesh and added a fourth vertical ring level. The distant/collision mesh now has 192 vertex records / 64 triangles (previously 144 / 48); it retains more vertical silhouette detail while collision remains about 19.0% of the expanded near mesh triangle budget. LOD indices and strata colors were updated together.
+3. **Material and regression:** replaced the previous arbitrary view-axis normal perturbation with derivative-based world-space bump mapping aligned to the geometric surface normal, reusing the existing fine-grain field (no extra noise octave). Regression tests assert exact near/far topology, deterministic vertex data, generated normals/color strata, non-flat seeded color variation, authored height bounds, collision topology ratio, LOD handoff scaling, and the shader's stable derivative-based normal path.
+
+Source-anchor and replacement checks passed after each commit. Godot is not installed in the local container, so engine shader compilation, regression execution, Windows export, and a fresh visual capture are pending GitHub Actions on the PR head. The existing CI preview uses Mesa llvmpipe/OpenGL Compatibility with several high-end lighting features disabled; target GPU/frame-time profiling and independent whole-game art review remain blockers. AAA is **not achieved**.
+
+Next: run the full Godot regression and Windows export workflows; correct any shader compiler or mesh-winding issue revealed by the engine; inspect the new rock close-up in the Windows preview; then continue rock/mesa material close-ups and vegetation/ground-cover density without altering the fixed 15-stop baseline route.
