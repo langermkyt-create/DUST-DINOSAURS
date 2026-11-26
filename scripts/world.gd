@@ -789,7 +789,7 @@ void fragment() {
 	float determinant = dot(dpdx, r1);
 	float safe_determinant = (determinant < 0.0 ? -1.0 : 1.0) * max(abs(determinant), 0.00001);
 	vec3 height_gradient = (dFdx(micro_relief) * r1 + dFdy(micro_relief) * r2) / safe_determinant;
-	vec3 bump_world_normal = normalize(geometric_normal - height_gradient * 0.035);
+	vec3 bump_world_normal = normalize(geometric_normal - height_gradient * 0.0035);
 	NORMAL = normalize((VIEW_MATRIX * vec4(bump_world_normal, 0.0)).xyz);
 	ALBEDO = stone;
 	ROUGHNESS = clamp(0.86 + pores * 0.08 + fine_grain * 0.05, 0.86, 0.99);
