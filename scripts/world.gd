@@ -739,6 +739,7 @@ func _rock_surface_material() -> ShaderMaterial:
 shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx;
 varying vec3 rock_world_pos;
+varying vec3 rock_world_normal;
 float rock_hash(vec3 p) {
 	p = fract(p * 0.1031);
 	p += dot(p, p.yxz + 33.33);
@@ -756,6 +757,7 @@ float rock_noise(vec3 p) {
 }
 void vertex() {
 	rock_world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	rock_world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);
 }
 void fragment() {
 	float broad = rock_noise(rock_world_pos * vec3(0.42, 0.19, 0.42));
@@ -773,9 +775,21 @@ void fragment() {
 	stone = mix(stone, stone * vec3(0.68, 0.62, 0.55), bedding * 0.24);
 	stone = mix(stone, stone * vec3(0.56, 0.51, 0.46), fracture * 0.16);
 	stone *= 1.0 - erosion * 0.12;
-	vec2 relief_gradient = clamp(vec2(dFdx(micro_relief), dFdy(micro_relief)) * 0.22,
-		vec2(-0.08), vec2(0.08));
-	NORMAL = normalize(NORMAL + vec3(-relief_gradient.x, -relief_gradient.y, 0.0) * 0.028);
+	// Derivative-based bump mapping in world space keeps the relief aligned to
+	// the actual rock surface instead of perturbing arbitrary view-space axes.
+	vec3 dpdx = dFdx(rock_world_pos);
+	vec3 dpdy = dFdy(rock_world_pos);
+	vec3 geometric_normal = normalize(cross(dpdx, dpdy));
+	if (dot(geometric_normal, rock_world_normal) < 0.0) {
+		geometric_normal = -geometric_normal;
+	}
+	vec3 r1 = cross(dpdy, geometric_normal);
+	vec3 r2 = cross(geometric_normal, dpdx);
+	float determinant = dot(dpdx, r1);
+	float safe_determinant = (determinant < 0.0 ? -1.0 : 1.0) * max(abs(determinant), 0.00001);
+	vec3 height_gradient = (dFdx(micro_relief) * r1 + dFdy(micro_relief) * r2) / safe_determinant;
+	vec3 bump_world_normal = normalize(geometric_normal - height_gradient * 0.022);
+	NORMAL = normalize((VIEW_MATRIX * vec4(bump_world_normal, 0.0)).xyz);
 	ALBEDO = stone;
 	ROUGHNESS = clamp(0.86 + pores * 0.08 + fine_grain * 0.05, 0.86, 0.99);
 	SPECULAR = 0.10;
