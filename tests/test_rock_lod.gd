@@ -101,9 +101,9 @@ func _initialize() -> void:
 		_fail("Sandstone fracture mask must reuse existing material fields to stay inside the fragment-noise budget.")
 		return
 
-	print("Rock LOD regression passed: high=", high_vertices.size() / 3,
-		" triangles, low/collision=", low_vertices.size() / 3,
-		" triangles, shared material, and scale-aware handoff ranges.")
+	print("Rock LOD regression passed: near=", high_vertices.size() / 3,
+		" triangles, far/collision=", low_vertices.size() / 3,
+		" triangles, derivative bump mapping, shared material, and scale-aware handoff ranges.")
 	world_under_test.free()
 	world_under_test = null
 	quit(0)
