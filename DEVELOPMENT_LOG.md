@@ -433,3 +433,10 @@ Three follow-on passes on `automation/2026-11-26-rock-strata-detail`:
 Source-anchor and replacement checks passed after each commit. Godot is not installed in the local container, so engine shader compilation, regression execution, Windows export, and a fresh visual capture are pending GitHub Actions on the PR head. The existing CI preview uses Mesa llvmpipe/OpenGL Compatibility with several high-end lighting features disabled; target GPU/frame-time profiling and independent whole-game art review remain blockers. AAA is **not achieved**.
 
 Next: run the full Godot regression and Windows export workflows; correct any shader compiler or mesh-winding issue revealed by the engine; inspect the new rock close-up in the Windows preview; then continue rock/mesa material close-ups and vegetation/ground-cover density without altering the fixed 15-stop baseline route.
+
+
+### Visual follow-up — reduce sub-pixel rock bump aliasing
+
+The #187 Windows preview was downloaded and inspected at the rock/mesa waypoint. The expanded silhouette is visible, but the new derivative bump path produced harsh black speckling on nearby rocks. This is a genuine visual regression, so PR #16 was **not merged**. The diagnosis is high-frequency bump input aliasing at screen distances, not a shader compile failure: the Windows preview completed and the Godot regression/export passed.
+
+Changed the bump-height source to reuse the existing lower-frequency `grain` field rather than `fine_grain`, reduced the derivative bump amplitude to 0.035, and added a regression that rejects the high-frequency albedo field as a normal height. This avoids an additional noise evaluation and should retain subtle surface relief while removing unstable speckle. Re-run the same fixed preview route and inspect the same rock waypoint before merge. Target GPU and Forward+ lighting evidence remain unavailable; AAA remains **not achieved**.
