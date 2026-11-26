@@ -35,7 +35,7 @@ func _initialize() -> void:
 		_fail(first, second, "Twenty-four-sided seven-ring near outcrop and four-level eight-sided LOD must retain 1008 and 192 vertices.")
 		return
 	if high_normals.size() != high_vertices.size() or high_colors.size() != high_vertices.size():
-		_fail(first, second, "Near outcrop must retain generated normals and four-band vertex strata.")
+		_fail(first, second, "Near outcrop must retain generated normals and layered vertex strata.")
 		return
 	var distinct_strata_colors: Dictionary = {}
 	for color in high_colors:
@@ -62,7 +62,7 @@ func _initialize() -> void:
 		return
 	var collision_faces: PackedVector3Array = (collision.shape as ConcavePolygonShape3D).get_faces()
 	if collision_faces.size() != low_vertices.size() or collision_faces.size() >= high_vertices.size() * 0.60:
-		_fail(first, second, "Outcrop collision must reuse the lower-detail silhouette and reduce collision triangles by at least 40%.")
+		_fail(first, second, "Outcrop collision must reuse the lower-detail silhouette and reduce collision triangles by at least 80% after the near mesh detail increase.")
 		return
 	var collision_vertex_ratio := float(collision_faces.size()) / float(high_vertices.size())
 	if collision_vertex_ratio > 0.20:
