@@ -106,9 +106,10 @@ func _initialize() -> void:
 			_fail("Rock shader must keep stable geometric normals until derivative bump artifacts are resolved: " + token)
 			return
 
-	print("Rock LOD regression passed: near=", high_vertices.size() / 3,
-		" triangles, far/collision=", low_vertices.size() / 3,
-		" triangles, derivative bump mapping, shared material, and scale-aware handoff ranges.")
+	print("Rock LOD regression passed: near=", high_indices.size() / 3,
+		" triangles from ", high_vertices.size(), " vertices; far/collision=",
+		low_indices.size() / 3, " triangles from ", low_vertices.size(),
+		" vertices; shared material and scale-aware handoff ranges.")
 	world_under_test.free()
 	world_under_test = null
 	quit(0)
