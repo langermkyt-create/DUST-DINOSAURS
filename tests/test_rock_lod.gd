@@ -36,6 +36,9 @@ func _initialize() -> void:
 	if high_vertices.size() % 3 != 0 or low_vertices.size() % 3 != 0:
 		_fail("Rock meshes must contain complete triangles.")
 		return
+	if high_vertices.size() != 1008 or low_vertices.size() != 192:
+		_fail("Near and distant sandstone LODs must retain the expanded 24-sided/7-ring and 8-sided/4-level vertex budgets.")
+		return
 	if low_vertices.is_empty() or low_vertices.size() >= high_vertices.size():
 		_fail("Distant rock LOD must be non-empty and cheaper than the near mesh.")
 		return
@@ -80,20 +83,22 @@ func _initialize() -> void:
 	if high_material.shader.code != low_material.shader.code:
 		_fail("Near and distant sandstone LODs must use the same surface response.")
 		return
-	for token in ["fine_grain", "micro_relief", "sediment", "fracture", "NORMAL", "ROUGHNESS"]:
+	for token in ["fine_grain", "sediment", "fracture", "ALBEDO = stone", "ROUGHNESS"]:
 		if not high_material.shader.code.contains(token):
 			_fail("Sandstone material is missing its multi-scale erosion detail: " + token)
 			return
-	if not high_material.shader.code.contains("micro_relief = fine_grain"):
-		_fail("Sandstone micro-normal must reuse the fine-grain field instead of evaluating another noise octave.")
-		return
-	if high_material.shader.code.contains("fracture_noise"):
-		_fail("Sandstone fracture mask must reuse existing material fields to stay inside the fragment-noise budget.")
-		return
+	for token in ["fine_grain * 0.035", "ROUGHNESS", "sediment", "fracture"]:
+		if not high_material.shader.code.contains(token):
+			_fail("Sandstone must retain multi-scale albedo/roughness detail: " + token)
+			return
+	for token in ["dFdx(rock_world_pos)", "height_gradient", "bump_world_normal"]:
+		if high_material.shader.code.contains(token):
+			_fail("Rock shader must keep stable geometric normals until derivative bump artifacts are resolved: " + token)
+			return
 
-	print("Rock LOD regression passed: high=", high_vertices.size() / 3,
-		" triangles, low/collision=", low_vertices.size() / 3,
-		" triangles, shared material, and scale-aware handoff ranges.")
+	print("Rock LOD regression passed: near=", high_vertices.size() / 3,
+		" triangles, far/collision=", low_vertices.size() / 3,
+		" triangles, derivative bump mapping, shared material, and scale-aware handoff ranges.")
 	world_under_test.free()
 	world_under_test = null
 	quit(0)

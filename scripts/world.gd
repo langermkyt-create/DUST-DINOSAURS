@@ -762,9 +762,6 @@ void fragment() {
 	float grain = rock_noise(rock_world_pos * vec3(5.8, 3.2, 5.8));
 	float pores = rock_noise(rock_world_pos * vec3(24.0, 15.0, 24.0));
 	float fine_grain = rock_noise(rock_world_pos * vec3(38.0, 22.0, 38.0));
-	// Reuse the fine-grain field for normal detail; avoid another high-frequency
-	// noise evaluation on every rock fragment in the software-rendered preview.
-	float micro_relief = fine_grain;
 	float sediment = sin((rock_world_pos.y * 3.4 + broad * 0.7 + grain * 0.12) * 6.28318) * 0.5 + 0.5;
 	float bedding = smoothstep(0.56, 0.94, sediment);
 	float fracture = smoothstep(0.80, 0.95, grain * 0.42 + pores * 0.58);
@@ -773,9 +770,9 @@ void fragment() {
 	stone = mix(stone, stone * vec3(0.68, 0.62, 0.55), bedding * 0.24);
 	stone = mix(stone, stone * vec3(0.56, 0.51, 0.46), fracture * 0.16);
 	stone *= 1.0 - erosion * 0.12;
-	vec2 relief_gradient = clamp(vec2(dFdx(micro_relief), dFdy(micro_relief)) * 0.22,
-		vec2(-0.08), vec2(0.08));
-	NORMAL = normalize(NORMAL + vec3(-relief_gradient.x, -relief_gradient.y, 0.0) * 0.028);
+	// Keep the generated geometric normal stable. Fine relief remains in the
+	// multi-scale albedo and roughness; the derivative bump was removed after
+	// fixed-route captures showed persistent dark facets on low-poly boulders.
 	ALBEDO = stone;
 	ROUGHNESS = clamp(0.86 + pores * 0.08 + fine_grain * 0.05, 0.86, 0.99);
 	SPECULAR = 0.10;
@@ -787,23 +784,24 @@ void fragment() {
 	return _rock_material
 
 func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
-	# The distant silhouette samples every second point from the sixteen-sided near mesh.
+	# The distant silhouette samples every third point from the twenty-four-sided near mesh.
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var layer_indices := [0, 2, 4]
+	var layer_indices := [0, 2, 4, 6]
 	var lod_strata := [
 		Color(0.31, 0.145, 0.105),
-		Color(0.39, 0.19, 0.135)
+		Color(0.39, 0.19, 0.135),
+		Color(0.46, 0.225, 0.16)
 	]
 	for layer in range(layer_indices.size() - 1):
 		var lower_ring: PackedVector3Array = rings[layer_indices[layer]]
 		var upper_ring: PackedVector3Array = rings[layer_indices[layer + 1]]
 		for segment in range(8):
 			var next_segment: int = (segment + 1) % 8
-			var lower_a: Vector3 = lower_ring[segment * 2]
-			var lower_b: Vector3 = lower_ring[next_segment * 2]
-			var upper_a: Vector3 = upper_ring[segment * 2]
-			var upper_b: Vector3 = upper_ring[next_segment * 2]
+			var lower_a: Vector3 = lower_ring[segment * 3]
+			var lower_b: Vector3 = lower_ring[next_segment * 3]
+			var upper_a: Vector3 = upper_ring[segment * 3]
+			var upper_b: Vector3 = upper_ring[next_segment * 3]
 			surface.set_color(lod_strata[layer])
 			surface.add_vertex(lower_a)
 			surface.add_vertex(upper_a)
@@ -811,7 +809,7 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 			surface.add_vertex(lower_b)
 			surface.add_vertex(upper_a)
 			surface.add_vertex(upper_b)
-	var top_ring: PackedVector3Array = rings[4]
+	var top_ring: PackedVector3Array = rings[6]
 	var crown := Vector3.ZERO
 	for point in top_ring:
 		crown += point
@@ -820,8 +818,8 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 		var next_segment: int = (segment + 1) % 8
 		surface.set_color(Color(0.52, 0.29, 0.21))
 		surface.add_vertex(crown)
-		surface.add_vertex(top_ring[next_segment * 2])
-		surface.add_vertex(top_ring[segment * 2])
+		surface.add_vertex(top_ring[next_segment * 3])
+		surface.add_vertex(top_ring[segment * 3])
 	var base_ring: PackedVector3Array = rings[0]
 	var base_center := Vector3.ZERO
 	for point in base_ring:
@@ -831,18 +829,18 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 		var next_segment: int = (segment + 1) % 8
 		surface.set_color(Color(0.27, 0.12, 0.09))
 		surface.add_vertex(base_center)
-		surface.add_vertex(base_ring[segment * 2])
-		surface.add_vertex(base_ring[next_segment * 2])
+		surface.add_vertex(base_ring[segment * 3])
+		surface.add_vertex(base_ring[next_segment * 3])
 	surface.generate_normals()
 	return surface.commit()
 
 func _rock_formation(pos: Vector3, factor: float) -> void:
-	# A sixteen-sided layered outcrop adds broken ledges and non-repeating weathered edges.
+	# A twenty-four-sided layered outcrop adds finer ledges and non-repeating weathered edges.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = abs(hash(Vector2i(roundi(pos.x * 10.0), roundi(pos.z * 10.0))))
-	var heights := [0.0, 2.2, 4.8, 7.1, 8.6]
-	var radii := [8.8, 8.1, 6.9, 5.5, 3.8]
-	var ring_segments := 16
+	var heights := [0.0, 1.35, 2.7, 4.2, 5.9, 7.3, 8.6]
+	var radii := [8.8, 8.55, 7.95, 7.1, 6.3, 5.2, 3.8]
+	var ring_segments := 24
 	var rings: Array = []
 	for layer in range(heights.size()):
 		var ring := PackedVector3Array()

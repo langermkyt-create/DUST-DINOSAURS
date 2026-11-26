@@ -31,11 +31,21 @@ func _initialize() -> void:
 	var repeated_vertices: PackedVector3Array = repeated_arrays[Mesh.ARRAY_VERTEX]
 	var high_normals: PackedVector3Array = high_arrays[Mesh.ARRAY_NORMAL]
 	var high_colors: PackedColorArray = high_arrays[Mesh.ARRAY_COLOR]
-	if high_vertices.size() != 480 or low_vertices.size() != 144:
-		_fail(first, second, "Sixteen-sided near outcrop and eight-sided distant LOD must retain 480 and 144 vertices.")
+	if high_vertices.size() != 1008 or low_vertices.size() != 192:
+		_fail(first, second, "Twenty-four-sided seven-ring near outcrop and four-level eight-sided LOD must retain 1008 and 192 vertices.")
 		return
 	if high_normals.size() != high_vertices.size() or high_colors.size() != high_vertices.size():
-		_fail(first, second, "Near outcrop must retain generated normals and four-band vertex strata.")
+		_fail(first, second, "Near outcrop must retain generated normals and layered vertex strata.")
+		return
+	var distinct_strata_colors: Dictionary = {}
+	for color in high_colors:
+		distinct_strata_colors[color.to_rgba32()] = true
+	if distinct_strata_colors.size() < 24:
+		_fail(first, second, "Expanded sandstone strata must retain seeded color variation instead of collapsing to flat bands.")
+		return
+	var near_bounds := high.mesh.get_aabb()
+	if near_bounds.size.y < 8.2 or near_bounds.size.y > 9.3:
+		_fail(first, second, "Expanded layered outcrop must preserve the authored mesa height while adding intermediate ledges.")
 		return
 	for index in range(high_vertices.size()):
 		if not is_finite(high_vertices[index].x) or not is_finite(high_vertices[index].y) or not is_finite(high_vertices[index].z):
@@ -52,7 +62,11 @@ func _initialize() -> void:
 		return
 	var collision_faces: PackedVector3Array = (collision.shape as ConcavePolygonShape3D).get_faces()
 	if collision_faces.size() != low_vertices.size() or collision_faces.size() >= high_vertices.size() * 0.60:
-		_fail(first, second, "Outcrop collision must reuse the lower-detail silhouette and reduce collision triangles by at least 40%.")
+		_fail(first, second, "Outcrop collision must reuse the lower-detail silhouette and reduce collision triangles by at least 80% after the near mesh detail increase.")
+		return
+	var collision_vertex_ratio := float(collision_faces.size()) / float(high_vertices.size())
+	if collision_vertex_ratio > 0.20:
+		_fail(first, second, "Expanded near-mesh detail must keep static collision below 20% of its vertex/triangle budget.")
 		return
 	if absf(high.visibility_range_end - 132.0) > 0.01 or absf(low.visibility_range_begin - 118.0) > 0.01:
 		_fail(first, second, "Unit-scale outcrop must retain the authored near/far LOD handoff distances.")
@@ -68,7 +82,7 @@ func _initialize() -> void:
 	if high_material == null or low_material == null or high_material.shader.code != low_material.shader.code:
 		_fail(first, second, "Both outcrop LODs must share the same layered sandstone response.")
 		return
-	print("Rock formation regression passed: 16-sided stratified near mesh, 8-sided distant/collision mesh, scale-aware handoff and deterministic erosion.")
+	print("Rock formation regression passed: 24-sided/7-ring near mesh (336 triangles), 8-sided/4-level distant and collision mesh (64 triangles), seeded strata variation, shared material, and scale-aware LOD.")
 	first.free()
 	second.free()
 	quit(0)
