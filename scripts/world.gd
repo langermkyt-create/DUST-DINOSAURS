@@ -787,23 +787,24 @@ void fragment() {
 	return _rock_material
 
 func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
-	# The distant silhouette samples every second point from the sixteen-sided near mesh.
+	# The distant silhouette samples every third point from the twenty-four-sided near mesh.
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var layer_indices := [0, 2, 4]
+	var layer_indices := [0, 2, 4, 6]
 	var lod_strata := [
 		Color(0.31, 0.145, 0.105),
-		Color(0.39, 0.19, 0.135)
+		Color(0.39, 0.19, 0.135),
+		Color(0.46, 0.225, 0.16)
 	]
 	for layer in range(layer_indices.size() - 1):
 		var lower_ring: PackedVector3Array = rings[layer_indices[layer]]
 		var upper_ring: PackedVector3Array = rings[layer_indices[layer + 1]]
 		for segment in range(8):
 			var next_segment: int = (segment + 1) % 8
-			var lower_a: Vector3 = lower_ring[segment * 2]
-			var lower_b: Vector3 = lower_ring[next_segment * 2]
-			var upper_a: Vector3 = upper_ring[segment * 2]
-			var upper_b: Vector3 = upper_ring[next_segment * 2]
+			var lower_a: Vector3 = lower_ring[segment * 3]
+			var lower_b: Vector3 = lower_ring[next_segment * 3]
+			var upper_a: Vector3 = upper_ring[segment * 3]
+			var upper_b: Vector3 = upper_ring[next_segment * 3]
 			surface.set_color(lod_strata[layer])
 			surface.add_vertex(lower_a)
 			surface.add_vertex(upper_a)
@@ -811,7 +812,7 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 			surface.add_vertex(lower_b)
 			surface.add_vertex(upper_a)
 			surface.add_vertex(upper_b)
-	var top_ring: PackedVector3Array = rings[4]
+	var top_ring: PackedVector3Array = rings[6]
 	var crown := Vector3.ZERO
 	for point in top_ring:
 		crown += point
@@ -820,8 +821,8 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 		var next_segment: int = (segment + 1) % 8
 		surface.set_color(Color(0.52, 0.29, 0.21))
 		surface.add_vertex(crown)
-		surface.add_vertex(top_ring[next_segment * 2])
-		surface.add_vertex(top_ring[segment * 2])
+		surface.add_vertex(top_ring[next_segment * 3])
+		surface.add_vertex(top_ring[segment * 3])
 	var base_ring: PackedVector3Array = rings[0]
 	var base_center := Vector3.ZERO
 	for point in base_ring:
@@ -831,8 +832,8 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 		var next_segment: int = (segment + 1) % 8
 		surface.set_color(Color(0.27, 0.12, 0.09))
 		surface.add_vertex(base_center)
-		surface.add_vertex(base_ring[segment * 2])
-		surface.add_vertex(base_ring[next_segment * 2])
+		surface.add_vertex(base_ring[segment * 3])
+		surface.add_vertex(base_ring[next_segment * 3])
 	surface.generate_normals()
 	return surface.commit()
 
@@ -840,9 +841,9 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	# A sixteen-sided layered outcrop adds broken ledges and non-repeating weathered edges.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = abs(hash(Vector2i(roundi(pos.x * 10.0), roundi(pos.z * 10.0))))
-	var heights := [0.0, 2.2, 4.8, 7.1, 8.6]
-	var radii := [8.8, 8.1, 6.9, 5.5, 3.8]
-	var ring_segments := 16
+	var heights := [0.0, 1.35, 2.7, 4.2, 5.9, 7.3, 8.6]
+	var radii := [8.8, 8.55, 7.95, 7.1, 6.3, 5.2, 3.8]
+	var ring_segments := 24
 	var rings: Array = []
 	for layer in range(heights.size()):
 		var ring := PackedVector3Array()
