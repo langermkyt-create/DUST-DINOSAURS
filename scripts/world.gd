@@ -852,7 +852,7 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 	return surface.commit()
 
 func _rock_formation(pos: Vector3, factor: float) -> void:
-	# A sixteen-sided layered outcrop adds broken ledges and non-repeating weathered edges.
+	# A twenty-four-sided layered outcrop adds finer ledges and non-repeating weathered edges.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = abs(hash(Vector2i(roundi(pos.x * 10.0), roundi(pos.z * 10.0))))
 	var heights := [0.0, 1.35, 2.7, 4.2, 5.9, 7.3, 8.6]
