@@ -7,11 +7,19 @@ func _initialize() -> void:
 	world_under_test = Node3D.new()
 	world_under_test.set_script(world_script)
 	world_under_test.call("_rock_formation", Vector3.ZERO, 1.0)
+	world_under_test.call("_rock_formation", Vector3(24.0, 0.0, 0.0), 0.9)
+	world_under_test.call("_rock_formation", Vector3(-24.0, 0.0, 0.0), 1.5)
 
-	if world_under_test.get_child_count() != 1:
-		_fail("Rock builder did not create exactly one static body.")
+	if world_under_test.get_child_count() != 3:
+		_fail("Rock builder must create three differently scaled static bodies for shared-material and LOD verification.")
 		return
 	var rock_body := world_under_test.get_child(0) as StaticBody3D
+	var second_rock_body := world_under_test.get_child(1) as StaticBody3D
+	var third_rock_body := world_under_test.get_child(2) as StaticBody3D
+	var second_high := second_rock_body.get_node_or_null("RockHighDetail") as MeshInstance3D
+	var second_low := second_rock_body.get_node_or_null("RockDistantLOD") as MeshInstance3D
+	var third_high := third_rock_body.get_node_or_null("RockHighDetail") as MeshInstance3D
+	var third_low := third_rock_body.get_node_or_null("RockDistantLOD") as MeshInstance3D
 	var high := rock_body.get_node_or_null("RockHighDetail") as MeshInstance3D
 	var low := rock_body.get_node_or_null("RockDistantLOD") as MeshInstance3D
 	var collision := rock_body.get_node_or_null("RockCollision") as CollisionShape3D
@@ -34,8 +42,21 @@ func _initialize() -> void:
 	if high.visibility_range_end <= low.visibility_range_begin:
 		_fail("Near and distant rock visibility ranges must overlap.")
 		return
+	if second_high == null or second_low == null or third_high == null or third_low == null:
+		_fail("Every rock size must retain both near and distant LOD nodes.")
+		return
+	if absf(second_high.visibility_range_end - 118.8) > 0.01 or absf(second_low.visibility_range_begin - 106.2) > 0.01:
+		_fail("A 0.9-scale outcrop must scale both LOD handoff distances proportionally.")
+		return
+	if absf(third_high.visibility_range_end - 198.0) > 0.01 or absf(third_low.visibility_range_begin - 177.0) > 0.01:
+		_fail("A 1.5-scale outcrop must scale both LOD handoff distances proportionally.")
+		return
 	if collision.shape == null or not (collision.shape is ConcavePolygonShape3D):
-		_fail("Rock collision must use the detailed triangle mesh.")
+		_fail("Rock collision must use a static concave triangle mesh.")
+		return
+	var collision_faces: PackedVector3Array = (collision.shape as ConcavePolygonShape3D).get_faces()
+	if collision_faces.size() != low_vertices.size() or collision_faces.size() >= high_vertices.size() * 0.60:
+		_fail("Static rock collision must reuse the distant silhouette and stay below 60% of near-mesh triangle vertices.")
 		return
 	if high.mesh.get_aabb().size.length_squared() <= 0.0 or low.mesh.get_aabb().size.length_squared() <= 0.0:
 		_fail("Rock LOD meshes must have non-zero bounds.")
@@ -49,6 +70,12 @@ func _initialize() -> void:
 	var low_material := low.material_override as ShaderMaterial
 	if high_material == null or low_material == null or high_material.shader == null or low_material.shader == null:
 		_fail("Both sandstone LODs must share the procedural sediment and erosion material.")
+		return
+	if high_material != low_material:
+		_fail("Near and distant sandstone LODs must reference one shared ShaderMaterial resource.")
+		return
+	if second_high.material_override != high_material or third_high.material_override != high_material:
+		_fail("All outcrops in one world must reuse the cached sandstone ShaderMaterial.")
 		return
 	if high_material.shader.code != low_material.shader.code:
 		_fail("Near and distant sandstone LODs must use the same surface response.")
@@ -65,7 +92,8 @@ func _initialize() -> void:
 		return
 
 	print("Rock LOD regression passed: high=", high_vertices.size() / 3,
-		" triangles, low=", low_vertices.size() / 3, " triangles, detailed collision present.")
+		" triangles, low/collision=", low_vertices.size() / 3,
+		" triangles, shared material, and scale-aware handoff ranges.")
 	world_under_test.free()
 	world_under_test = null
 	quit(0)
