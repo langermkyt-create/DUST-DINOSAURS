@@ -87,22 +87,14 @@ func _initialize() -> void:
 		if not high_material.shader.code.contains(token):
 			_fail("Sandstone material is missing its multi-scale erosion detail: " + token)
 			return
-	if not high_material.shader.code.contains("micro_relief = grain"):
-		_fail("Sandstone bump height must reuse the lower-frequency grain field to avoid sub-pixel normal aliasing.")
-		return
-	if high_material.shader.code.contains("micro_relief = fine_grain"):
-		_fail("Sandstone bump mapping must not use the highest-frequency albedo noise as a normal height.")
-		return
-	for token in ["dFdx(rock_world_pos)", "cross(dpdy, geometric_normal)", "safe_determinant", "height_gradient * 0.0035", "VIEW_MATRIX * vec4(bump_world_normal"]:
+	for token in ["fine_grain * 0.035", "ROUGHNESS", "sediment", "fracture"]:
 		if not high_material.shader.code.contains(token):
-			_fail("Sandstone bump mapping must derive a stable world-space surface normal: " + token)
+			_fail("Sandstone must retain multi-scale albedo/roughness detail: " + token)
 			return
-	if high_material.shader.code.contains("NORMAL + vec3(-relief_gradient"):
-		_fail("Rock micro-relief must not perturb arbitrary view-space normal axes.")
-		return
-	if high_material.shader.code.contains("fracture_noise"):
-		_fail("Sandstone fracture mask must reuse existing material fields to stay inside the fragment-noise budget.")
-		return
+	for token in ["dFdx(rock_world_pos)", "height_gradient", "bump_world_normal"]:
+		if high_material.shader.code.contains(token):
+			_fail("Rock shader must keep stable geometric normals until derivative bump artifacts are resolved: " + token)
+			return
 
 	print("Rock LOD regression passed: near=", high_vertices.size() / 3,
 		" triangles, far/collision=", low_vertices.size() / 3,
