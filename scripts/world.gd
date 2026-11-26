@@ -784,7 +784,8 @@ void fragment() {
 	return _rock_material
 
 func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
-	# The distant silhouette samples every third point from the twenty-four-sided near mesh.
+	# Share the eight-sided LOD ring vertices; retain separate cap vertices
+	# so the distant silhouette stays smooth without rounding its top/bottom.
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var layer_indices := [0, 2, 4, 6]
@@ -793,44 +794,58 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 		Color(0.39, 0.19, 0.135),
 		Color(0.46, 0.225, 0.16)
 	]
+	for layer in range(layer_indices.size()):
+		var source_ring: PackedVector3Array = rings[layer_indices[layer]]
+		for segment in range(8):
+			surface.set_color(lod_strata[min(layer, lod_strata.size() - 1)])
+			surface.add_vertex(source_ring[segment * 3])
 	for layer in range(layer_indices.size() - 1):
-		var lower_ring: PackedVector3Array = rings[layer_indices[layer]]
-		var upper_ring: PackedVector3Array = rings[layer_indices[layer + 1]]
 		for segment in range(8):
 			var next_segment: int = (segment + 1) % 8
-			var lower_a: Vector3 = lower_ring[segment * 3]
-			var lower_b: Vector3 = lower_ring[next_segment * 3]
-			var upper_a: Vector3 = upper_ring[segment * 3]
-			var upper_b: Vector3 = upper_ring[next_segment * 3]
-			surface.set_color(lod_strata[layer])
-			surface.add_vertex(lower_a)
-			surface.add_vertex(upper_a)
-			surface.add_vertex(lower_b)
-			surface.add_vertex(lower_b)
-			surface.add_vertex(upper_a)
-			surface.add_vertex(upper_b)
+			var lower_a := layer * 8 + segment
+			var lower_b := layer * 8 + next_segment
+			var upper_a := (layer + 1) * 8 + segment
+			var upper_b := (layer + 1) * 8 + next_segment
+			surface.add_index(lower_a)
+			surface.add_index(upper_a)
+			surface.add_index(lower_b)
+			surface.add_index(lower_b)
+			surface.add_index(upper_a)
+			surface.add_index(upper_b)
 	var top_ring: PackedVector3Array = rings[6]
+	var top_cap_start := layer_indices.size() * 8
+	var top_center_index := top_cap_start + 8
 	var crown := Vector3.ZERO
 	for point in top_ring:
 		crown += point
 	crown /= float(top_ring.size())
 	for segment in range(8):
-		var next_segment: int = (segment + 1) % 8
 		surface.set_color(Color(0.52, 0.29, 0.21))
-		surface.add_vertex(crown)
-		surface.add_vertex(top_ring[next_segment * 3])
 		surface.add_vertex(top_ring[segment * 3])
+	surface.set_color(Color(0.52, 0.29, 0.21))
+	surface.add_vertex(crown)
+	for segment in range(8):
+		var next_segment: int = (segment + 1) % 8
+		surface.add_index(top_center_index)
+		surface.add_index(top_cap_start + next_segment)
+		surface.add_index(top_cap_start + segment)
 	var base_ring: PackedVector3Array = rings[0]
+	var base_cap_start := top_center_index + 1
+	var base_center_index := base_cap_start + 8
 	var base_center := Vector3.ZERO
 	for point in base_ring:
 		base_center += point
 	base_center /= float(base_ring.size())
 	for segment in range(8):
-		var next_segment: int = (segment + 1) % 8
 		surface.set_color(Color(0.27, 0.12, 0.09))
-		surface.add_vertex(base_center)
 		surface.add_vertex(base_ring[segment * 3])
-		surface.add_vertex(base_ring[next_segment * 3])
+	surface.set_color(Color(0.27, 0.12, 0.09))
+	surface.add_vertex(base_center)
+	for segment in range(8):
+		var next_segment: int = (segment + 1) % 8
+		surface.add_index(base_center_index)
+		surface.add_index(base_cap_start + segment)
+		surface.add_index(base_cap_start + next_segment)
 	surface.generate_normals()
 	return surface.commit()
 
