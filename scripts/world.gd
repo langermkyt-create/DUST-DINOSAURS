@@ -764,9 +764,10 @@ void fragment() {
 	float grain = rock_noise(rock_world_pos * vec3(5.8, 3.2, 5.8));
 	float pores = rock_noise(rock_world_pos * vec3(24.0, 15.0, 24.0));
 	float fine_grain = rock_noise(rock_world_pos * vec3(38.0, 22.0, 38.0));
-	// Reuse the fine-grain field for normal detail; avoid another high-frequency
-	// noise evaluation on every rock fragment in the software-rendered preview.
-	float micro_relief = fine_grain;
+	// Use the lower-frequency grain field for bump height. The finer albedo
+	// field aliases at sub-pixel distances on the software preview and produces
+	// unstable normal speckling; reuse grain without another noise evaluation.
+	float micro_relief = grain;
 	float sediment = sin((rock_world_pos.y * 3.4 + broad * 0.7 + grain * 0.12) * 6.28318) * 0.5 + 0.5;
 	float bedding = smoothstep(0.56, 0.94, sediment);
 	float fracture = smoothstep(0.80, 0.95, grain * 0.42 + pores * 0.58);
@@ -788,7 +789,7 @@ void fragment() {
 	float determinant = dot(dpdx, r1);
 	float safe_determinant = (determinant < 0.0 ? -1.0 : 1.0) * max(abs(determinant), 0.00001);
 	vec3 height_gradient = (dFdx(micro_relief) * r1 + dFdy(micro_relief) * r2) / safe_determinant;
-	vec3 bump_world_normal = normalize(geometric_normal - height_gradient * 0.022);
+	vec3 bump_world_normal = normalize(geometric_normal - height_gradient * 0.035);
 	NORMAL = normalize((VIEW_MATRIX * vec4(bump_world_normal, 0.0)).xyz);
 	ALBEDO = stone;
 	ROUGHNESS = clamp(0.86 + pores * 0.08 + fine_grain * 0.05, 0.86, 0.99);
