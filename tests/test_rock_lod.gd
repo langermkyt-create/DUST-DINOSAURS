@@ -33,15 +33,25 @@ func _initialize() -> void:
 	var low_arrays := low.mesh.surface_get_arrays(0)
 	var high_vertices: PackedVector3Array = high_arrays[Mesh.ARRAY_VERTEX]
 	var low_vertices: PackedVector3Array = low_arrays[Mesh.ARRAY_VERTEX]
-	if high_vertices.size() % 3 != 0 or low_vertices.size() % 3 != 0:
-		_fail("Rock meshes must contain complete triangles.")
+	var high_indices: PackedInt32Array = high_arrays[Mesh.ARRAY_INDEX]
+	var low_indices: PackedInt32Array = low_arrays[Mesh.ARRAY_INDEX]
+	if high_vertices.size() != 218 or low_vertices.size() != 50:
+		_fail("Indexed near and distant sandstone meshes must use 218 and 50 unique vertices.")
 		return
-	if high_vertices.size() != 1008 or low_vertices.size() != 192:
-		_fail("Near and distant sandstone LODs must retain the expanded 24-sided/7-ring and 8-sided/4-level vertex budgets.")
+	if high_indices.size() != 1008 or low_indices.size() != 192:
+		_fail("Indexed near and distant sandstone meshes must retain 336 and 64 triangles.")
 		return
-	if low_vertices.is_empty() or low_vertices.size() >= high_vertices.size():
-		_fail("Distant rock LOD must be non-empty and cheaper than the near mesh.")
+	if low_indices.is_empty() or low_indices.size() >= high_indices.size():
+		_fail("Distant rock LOD must be non-empty and cheaper than the near mesh by index count.")
 		return
+	for index in high_indices:
+		if index < 0 or index >= high_vertices.size():
+			_fail("Near sandstone index must reference an existing shared vertex.")
+			return
+	for index in low_indices:
+		if index < 0 or index >= low_vertices.size():
+			_fail("Distant sandstone index must reference an existing shared vertex.")
+			return
 	if high.visibility_range_end <= low.visibility_range_begin:
 		_fail("Near and distant rock visibility ranges must overlap.")
 		return
@@ -58,8 +68,8 @@ func _initialize() -> void:
 		_fail("Rock collision must use a static concave triangle mesh.")
 		return
 	var collision_faces: PackedVector3Array = (collision.shape as ConcavePolygonShape3D).get_faces()
-	if collision_faces.size() != low_vertices.size() or collision_faces.size() >= high_vertices.size() * 0.60:
-		_fail("Static rock collision must reuse the distant silhouette and stay below 60% of near-mesh triangle vertices.")
+	if collision_faces.size() != low_indices.size() or collision_faces.size() >= high_indices.size() * 0.20:
+		_fail("Static rock collision must match the indexed distant silhouette and remain below 20% of near triangle indices.")
 		return
 	if high.mesh.get_aabb().size.length_squared() <= 0.0 or low.mesh.get_aabb().size.length_squared() <= 0.0:
 		_fail("Rock LOD meshes must have non-zero bounds.")
