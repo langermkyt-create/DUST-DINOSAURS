@@ -87,8 +87,11 @@ func _initialize() -> void:
 		if not high_material.shader.code.contains(token):
 			_fail("Sandstone material is missing its multi-scale erosion detail: " + token)
 			return
-	if not high_material.shader.code.contains("micro_relief = fine_grain"):
-		_fail("Sandstone micro-normal must reuse the fine-grain field instead of evaluating another noise octave.")
+	if not high_material.shader.code.contains("micro_relief = grain"):
+		_fail("Sandstone bump height must reuse the lower-frequency grain field to avoid sub-pixel normal aliasing.")
+		return
+	if high_material.shader.code.contains("micro_relief = fine_grain"):
+		_fail("Sandstone bump mapping must not use the highest-frequency albedo noise as a normal height.")
 		return
 	for token in ["dFdx(rock_world_pos)", "cross(dpdy, geometric_normal)", "safe_determinant", "VIEW_MATRIX * vec4(bump_world_normal"]:
 		if not high_material.shader.code.contains(token):
