@@ -93,7 +93,7 @@ func _initialize() -> void:
 	if high_material.shader.code.contains("micro_relief = fine_grain"):
 		_fail("Sandstone bump mapping must not use the highest-frequency albedo noise as a normal height.")
 		return
-	for token in ["dFdx(rock_world_pos)", "cross(dpdy, geometric_normal)", "safe_determinant", "VIEW_MATRIX * vec4(bump_world_normal"]:
+	for token in ["dFdx(rock_world_pos)", "cross(dpdy, geometric_normal)", "safe_determinant", "height_gradient * 0.0035", "VIEW_MATRIX * vec4(bump_world_normal"]:
 		if not high_material.shader.code.contains(token):
 			_fail("Sandstone bump mapping must derive a stable world-space surface normal: " + token)
 			return
