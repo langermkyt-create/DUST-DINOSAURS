@@ -36,6 +36,9 @@ func _initialize() -> void:
 	if high_vertices.size() % 3 != 0 or low_vertices.size() % 3 != 0:
 		_fail("Rock meshes must contain complete triangles.")
 		return
+	if high_vertices.size() != 1008 or low_vertices.size() != 192:
+		_fail("Near and distant sandstone LODs must retain the expanded 24-sided/7-ring and 8-sided/4-level vertex budgets.")
+		return
 	if low_vertices.is_empty() or low_vertices.size() >= high_vertices.size():
 		_fail("Distant rock LOD must be non-empty and cheaper than the near mesh.")
 		return
@@ -86,6 +89,13 @@ func _initialize() -> void:
 			return
 	if not high_material.shader.code.contains("micro_relief = fine_grain"):
 		_fail("Sandstone micro-normal must reuse the fine-grain field instead of evaluating another noise octave.")
+		return
+	for token in ["dFdx(rock_world_pos)", "cross(dpdy, geometric_normal)", "safe_determinant", "VIEW_MATRIX * vec4(bump_world_normal"]:
+		if not high_material.shader.code.contains(token):
+			_fail("Sandstone bump mapping must derive a stable world-space surface normal: " + token)
+			return
+	if high_material.shader.code.contains("NORMAL + vec3(-relief_gradient"):
+		_fail("Rock micro-relief must not perturb arbitrary view-space normal axes.")
 		return
 	if high_material.shader.code.contains("fracture_noise"):
 		_fail("Sandstone fracture mask must reuse existing material fields to stay inside the fragment-noise budget.")
