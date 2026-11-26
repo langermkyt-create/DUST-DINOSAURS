@@ -455,3 +455,16 @@ The #191 fixed-route capture still showed dark triangular facets on close instan
 ### CI correction — restore the sandstone color response
 
 The first validation after removing the derivative normal block caught an overly broad source replacement: it also removed the intervening sediment/fracture/stone color calculations, leaving `ALBEDO = stone` with an undefined variable. The Godot rock-LOD regression failed immediately, before the rest of the suite. Restored the original bedding, fracture, erosion and albedo expressions; removed the obsolete `micro_relief` token from the regression and retained checks for fine-grain albedo, sediment, fracture, ALBEDO and roughness. Re-run the full Godot validation and preview before merge.
+
+
+## 2026-11-26 — indexed near and distant sandstone mesh topology
+
+Started from the latest main commit **9ec7066d3ce25a827f384043e3e6124728bd7ff5**, after reviewing merged PR #16, its CI/Windows preview notes, the current open PR/issue lists (none), the rock shader, both rock regression scripts, and the previous log. PR #16's final fixed-route capture was reviewed in the preceding run; it removed the persistent derivative-bump dark facets, but the sandstone remains a stylized procedural asset.
+
+Three sequential implementation passes on `automation/2026-11-26-indexed-rock-mesh`:
+
+1. **Near outcrop:** convert the 24-sided/7-ring wall from a fully expanded 1,008-vertex triangle stream into shared side-ring vertices and indexed triangles. Keep crown/base cap vertices separate from the wall so generated normals smooth the ledges while preserving crisp cap edges. The mesh now stores 218 unique vertices and 1,008 indices (336 triangles), instead of 1,008 duplicated vertex records.
+2. **Distant LOD:** index the 8-sided/4-level mesh using shared ring vertices and separate cap vertices. It now stores 50 unique vertices and 192 indices (64 triangles), instead of 192 duplicated vertex records. Static collision still derives from the distant mesh, so its face budget remains 64 triangles (about 19.0% of the near triangle budget).
+3. **Regression coverage:** update rock LOD and formation tests to assert exact unique vertex/index budgets, valid index bounds, deterministic index topology, complete triangles, non-degenerate near faces, shared material identity, and collision-to-near triangle ratio. Existing LOD distances and seeded geological strata are unchanged.
+
+Changed files: `scripts/world.gd`, `tests/test_rock_lod.gd`, `tests/test_rock_formation.gd`, and this log. Source-anchor and replacement checks passed after each edit; no local Godot executable is available, so engine validation, collision construction, Windows export, and a fresh fixed-route capture must be completed by PR CI before merge. This is a mesh-memory/topology and normal-sharing change; no target-GPU frame-time improvement is claimed. Continue by checking the full Godot validation and Windows preview on the final branch head, inspect the same near-outcrop waypoint for smoothing or cap shading regressions, and only then merge. AAA remains **not achieved**.
