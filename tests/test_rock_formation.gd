@@ -31,8 +31,8 @@ func _initialize() -> void:
 	var repeated_vertices: PackedVector3Array = repeated_arrays[Mesh.ARRAY_VERTEX]
 	var high_normals: PackedVector3Array = high_arrays[Mesh.ARRAY_NORMAL]
 	var high_colors: PackedColorArray = high_arrays[Mesh.ARRAY_COLOR]
-	if high_vertices.size() != 480 or low_vertices.size() != 144:
-		_fail(first, second, "Sixteen-sided near outcrop and eight-sided distant LOD must retain 480 and 144 vertices.")
+	if high_vertices.size() != 1008 or low_vertices.size() != 192:
+		_fail(first, second, "Twenty-four-sided seven-ring near outcrop and four-level eight-sided LOD must retain 1008 and 192 vertices.")
 		return
 	if high_normals.size() != high_vertices.size() or high_colors.size() != high_vertices.size():
 		_fail(first, second, "Near outcrop must retain generated normals and four-band vertex strata.")
