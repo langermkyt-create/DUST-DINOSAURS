@@ -29,11 +29,38 @@ func _initialize() -> void:
 	var high_vertices: PackedVector3Array = high_arrays[Mesh.ARRAY_VERTEX]
 	var low_vertices: PackedVector3Array = low_arrays[Mesh.ARRAY_VERTEX]
 	var repeated_vertices: PackedVector3Array = repeated_arrays[Mesh.ARRAY_VERTEX]
+	var high_indices: PackedInt32Array = high_arrays[Mesh.ARRAY_INDEX]
+	var low_indices: PackedInt32Array = low_arrays[Mesh.ARRAY_INDEX]
+	var repeated_indices: PackedInt32Array = repeated_arrays[Mesh.ARRAY_INDEX]
 	var high_normals: PackedVector3Array = high_arrays[Mesh.ARRAY_NORMAL]
 	var high_colors: PackedColorArray = high_arrays[Mesh.ARRAY_COLOR]
-	if high_vertices.size() != 1008 or low_vertices.size() != 192:
-		_fail(first, second, "Twenty-four-sided seven-ring near outcrop and four-level eight-sided LOD must retain 1008 and 192 vertices.")
+	if high_vertices.size() != 218 or low_vertices.size() != 50:
+		_fail(first, second, "Indexed near and distant sandstone meshes must use 218 and 50 unique vertices.")
 		return
+	if high_indices.size() != 1008 or low_indices.size() != 192:
+		_fail(first, second, "Indexed near and distant sandstone meshes must retain 336 and 64 triangles.")
+		return
+	if repeated_indices != high_indices:
+		_fail(first, second, "Identical seeded outcrops must retain the same indexed topology.")
+		return
+	for index in high_indices:
+		if index < 0 or index >= high_vertices.size():
+			_fail(first, second, "Near outcrop index must reference a valid shared vertex.")
+			return
+	for index in low_indices:
+		if index < 0 or index >= low_vertices.size():
+			_fail(first, second, "Distant outcrop index must reference a valid shared vertex.")
+			return
+	if high_indices.size() % 3 != 0 or low_indices.size() % 3 != 0:
+		_fail(first, second, "Indexed outcrop surfaces must contain complete triangles.")
+		return
+	for triangle_start in range(0, high_indices.size(), 3):
+		var a: Vector3 = high_vertices[high_indices[triangle_start]]
+		var b: Vector3 = high_vertices[high_indices[triangle_start + 1]]
+		var c_vertex: Vector3 = high_vertices[high_indices[triangle_start + 2]]
+		if (b - a).cross(c_vertex - a).length_squared() < 0.000001:
+			_fail(first, second, "Indexed near outcrop must not contain degenerate triangles.")
+			return
 	if high_normals.size() != high_vertices.size() or high_colors.size() != high_vertices.size():
 		_fail(first, second, "Near outcrop must retain generated normals and layered vertex strata.")
 		return
@@ -61,12 +88,12 @@ func _initialize() -> void:
 		_fail(first, second, "Outcrop collision must use a static concave triangle mesh.")
 		return
 	var collision_faces: PackedVector3Array = (collision.shape as ConcavePolygonShape3D).get_faces()
-	if collision_faces.size() != low_vertices.size() or collision_faces.size() >= high_vertices.size() * 0.60:
-		_fail(first, second, "Outcrop collision must reuse the lower-detail silhouette and reduce collision triangles by at least 80% after the near mesh detail increase.")
+	if collision_faces.size() != low_indices.size() or collision_faces.size() >= high_indices.size() * 0.20:
+		_fail(first, second, "Outcrop collision must match the indexed far mesh and remain below 20% of near triangle indices.")
 		return
-	var collision_vertex_ratio := float(collision_faces.size()) / float(high_vertices.size())
-	if collision_vertex_ratio > 0.20:
-		_fail(first, second, "Expanded near-mesh detail must keep static collision below 20% of its vertex/triangle budget.")
+	var collision_triangle_ratio := float(collision_faces.size()) / float(high_indices.size())
+	if collision_triangle_ratio > 0.20:
+		_fail(first, second, "Expanded near-mesh detail must keep static collision below 20% of the near triangle budget.")
 		return
 	if absf(high.visibility_range_end - 132.0) > 0.01 or absf(low.visibility_range_begin - 118.0) > 0.01:
 		_fail(first, second, "Unit-scale outcrop must retain the authored near/far LOD handoff distances.")
@@ -82,7 +109,7 @@ func _initialize() -> void:
 	if high_material == null or low_material == null or high_material.shader.code != low_material.shader.code:
 		_fail(first, second, "Both outcrop LODs must share the same layered sandstone response.")
 		return
-	print("Rock formation regression passed: 24-sided/7-ring near mesh (336 triangles), 8-sided/4-level distant and collision mesh (64 triangles), seeded strata variation, shared material, and scale-aware LOD.")
+	print("Rock formation regression passed: indexed near mesh (218 vertices/336 triangles), indexed far mesh (50 vertices/64 triangles), valid non-degenerate indices, seeded strata, shared material and scale-aware LOD.")
 	first.free()
 	second.free()
 	quit(0)
