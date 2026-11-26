@@ -450,3 +450,8 @@ The fixed #189 preview removed the fine-grain shimmer but still showed hard dark
 ### Final rock normal-artifact correction — retain geometric normals
 
 The #191 fixed-route capture still showed dark triangular facets on close instanced boulders even after reducing derivative bump amplitude to 0.0035. The issue is persistent in the software-rendered preview, so I removed the derivative normal override rather than accept or hide the artifact. The rock shader now retains the generated mesh normal and uses the existing multi-scale procedural albedo/roughness for surface variation; silhouette microdetail is provided by the expanded seeded rings and boulder mesh geometry. Regression tests now require the fine-grain albedo/roughness path and reject the unstable derivative bump code. This is a visual-stability correction; no normal-map or AAA claim is made. Re-run the fixed preview route and inspect the same near-boulder stop. If dark facets remain, investigate the existing mesh/shadow bias separately before merging.
+
+
+### CI correction — restore the sandstone color response
+
+The first validation after removing the derivative normal block caught an overly broad source replacement: it also removed the intervening sediment/fracture/stone color calculations, leaving `ALBEDO = stone` with an undefined variable. The Godot rock-LOD regression failed immediately, before the rest of the suite. Restored the original bedding, fracture, erosion and albedo expressions; removed the obsolete `micro_relief` token from the regression and retained checks for fine-grain albedo, sediment, fracture, ALBEDO and roughness. Re-run the full Godot validation and preview before merge.
