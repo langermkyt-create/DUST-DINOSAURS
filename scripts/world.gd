@@ -862,42 +862,61 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 		Color(0.36, 0.17, 0.125),
 		Color(0.49, 0.255, 0.18)
 	]
+	# Keep one vertex per side-ring point. Indexed adjacency lets Godot average
+	# normals across the ledges instead of assigning a separate flat normal to
+	# every duplicated triangle corner.
+	for layer in range(heights.size()):
+		for segment in range(ring_segments):
+			var shade: Color = strata[layer % strata.size()] * rng.randf_range(0.90, 1.10)
+			surface.set_color(shade)
+			surface.add_vertex(rings[layer][segment])
 	for layer in range(heights.size() - 1):
 		for segment in range(ring_segments):
 			var next_segment: int = (segment + 1) % ring_segments
-			var lower_a: Vector3 = rings[layer][segment]
-			var lower_b: Vector3 = rings[layer][next_segment]
-			var upper_a: Vector3 = rings[layer + 1][segment]
-			var upper_b: Vector3 = rings[layer + 1][next_segment]
-			var shade: Color = strata[layer % strata.size()] * rng.randf_range(0.88, 1.12)
-			surface.set_color(shade)
-			surface.add_vertex(lower_a)
-			surface.add_vertex(upper_a)
-			surface.add_vertex(lower_b)
-			surface.add_vertex(lower_b)
-			surface.add_vertex(upper_a)
-			surface.add_vertex(upper_b)
-	# Close both ends so the rock remains watertight at steep camera angles.
+			var lower_a := layer * ring_segments + segment
+			var lower_b := layer * ring_segments + next_segment
+			var upper_a := (layer + 1) * ring_segments + segment
+			var upper_b := (layer + 1) * ring_segments + next_segment
+			surface.add_index(lower_a)
+			surface.add_index(upper_a)
+			surface.add_index(lower_b)
+			surface.add_index(lower_b)
+			surface.add_index(upper_a)
+			surface.add_index(upper_b)
+	# Cap rings are separate from the side surface so the crown and base keep
+	# crisp geological edges while each cap itself has shared indexed vertices.
+	var top_cap_start := heights.size() * ring_segments
+	var top_center_index := top_cap_start + ring_segments
+	for segment in range(ring_segments):
+		surface.set_color(Color(0.52, 0.29, 0.21))
+		surface.add_vertex(rings[heights.size() - 1][segment])
 	var crown := Vector3.ZERO
 	for point in rings[heights.size() - 1]:
 		crown += point
 	crown /= float(rings[heights.size() - 1].size())
+	surface.set_color(Color(0.52, 0.29, 0.21))
+	surface.add_vertex(crown)
 	for segment in range(ring_segments):
 		var next_segment: int = (segment + 1) % ring_segments
-		surface.set_color(Color(0.52, 0.29, 0.21))
-		surface.add_vertex(crown)
-		surface.add_vertex(rings[heights.size() - 1][next_segment])
-		surface.add_vertex(rings[heights.size() - 1][segment])
+		surface.add_index(top_center_index)
+		surface.add_index(top_cap_start + next_segment)
+		surface.add_index(top_cap_start + segment)
+	var base_cap_start := top_center_index + 1
+	var base_center_index := base_cap_start + ring_segments
+	for segment in range(ring_segments):
+		surface.set_color(Color(0.27, 0.12, 0.09))
+		surface.add_vertex(rings[0][segment])
 	var base_center := Vector3.ZERO
 	for point in rings[0]:
 		base_center += point
 	base_center /= float(rings[0].size())
+	surface.set_color(Color(0.27, 0.12, 0.09))
+	surface.add_vertex(base_center)
 	for segment in range(ring_segments):
 		var next_segment: int = (segment + 1) % ring_segments
-		surface.set_color(Color(0.27, 0.12, 0.09))
-		surface.add_vertex(base_center)
-		surface.add_vertex(rings[0][segment])
-		surface.add_vertex(rings[0][next_segment])
+		surface.add_index(base_center_index)
+		surface.add_index(base_cap_start + segment)
+		surface.add_index(base_cap_start + next_segment)
 	surface.generate_normals()
 	var rock_mesh := surface.commit()
 	var rock_material := _rock_surface_material()
