@@ -83,7 +83,7 @@ func _initialize() -> void:
 	if high_material.shader.code != low_material.shader.code:
 		_fail("Near and distant sandstone LODs must use the same surface response.")
 		return
-	for token in ["fine_grain", "micro_relief", "sediment", "fracture", "NORMAL", "ROUGHNESS"]:
+	for token in ["fine_grain", "sediment", "fracture", "ALBEDO = stone", "ROUGHNESS"]:
 		if not high_material.shader.code.contains(token):
 			_fail("Sandstone material is missing its multi-scale erosion detail: " + token)
 			return
