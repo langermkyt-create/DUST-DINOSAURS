@@ -833,7 +833,6 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 		surface.set_color(Color(0.52, 0.29, 0.21))
 		surface.add_vertex(top_ring[segment * 3])
 	surface.set_normal(Vector3.UP)
-	surface.set_normal(Vector3.UP)
 	surface.set_color(Color(0.52, 0.29, 0.21))
 	surface.add_vertex(crown)
 	for segment in range(8):
@@ -852,7 +851,6 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 		surface.set_normal(Vector3.DOWN)
 		surface.set_color(Color(0.27, 0.12, 0.09))
 		surface.add_vertex(base_ring[segment * 3])
-	surface.set_normal(Vector3.DOWN)
 	surface.set_normal(Vector3.DOWN)
 	surface.set_color(Color(0.27, 0.12, 0.09))
 	surface.add_vertex(base_center)
@@ -925,6 +923,7 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	for point in rings[heights.size() - 1]:
 		crown += point
 	crown /= float(rings[heights.size() - 1].size())
+	surface.set_normal(Vector3.UP)
 	surface.set_color(Color(0.52, 0.29, 0.21))
 	surface.add_vertex(crown)
 	for segment in range(ring_segments):
@@ -942,6 +941,7 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	for point in rings[0]:
 		base_center += point
 	base_center /= float(rings[0].size())
+	surface.set_normal(Vector3.DOWN)
 	surface.set_color(Color(0.27, 0.12, 0.09))
 	surface.add_vertex(base_center)
 	for segment in range(ring_segments):
