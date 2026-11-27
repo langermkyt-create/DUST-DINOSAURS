@@ -894,6 +894,11 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 				1.0 + broad_ridge + broken_edge + rng.randf_range(-0.045, 0.045))
 			var ledge := sin(angle * 2.0 + float(layer) * 0.38) * 0.12
 			var layer_height := float(heights[layer]) + ledge + rng.randf_range(-0.12, 0.12)
+			if layer == 0:
+				# Sink the base ring beneath the actual terrain at each perimeter point.
+				# This prevents daylight gaps where the outcrop crosses a dune slope.
+				var world_xz := Vector2(pos.x + cos(angle) * radius, pos.z + sin(angle) * radius)
+				layer_height = _terrain_height(world_xz) - pos.y - 0.35
 			ring.append(Vector3(cos(angle) * radius, layer_height, sin(angle) * radius))
 		rings.append(ring)
 	var surface := SurfaceTool.new()
