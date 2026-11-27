@@ -2990,7 +2990,7 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 
 	# Long tapered tail with a continuous hide surface and gentle vertical sweep.
 	var tail_pivot := Node3D.new()
-	tail_pivot.position = Vector3(0, 1.42, 2.05)
+	tail_pivot.position = Vector3(0, 1.42, 1.48)
 	d.add_child(tail_pivot)
 	var tail_instance := _mesh(tail_pivot, _make_tapered_tail_mesh(2.85, 0.43, 0.16), hide, Vector3.ZERO)
 	tail_instance.name = "TriceratopsTail"
