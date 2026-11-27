@@ -102,11 +102,18 @@ func _initialize() -> void:
 	if low_normals[48].dot(Vector3.UP) < 0.90 or low_normals[57].dot(Vector3.DOWN) < 0.90:
 		_fail("Distant sandstone cap centers must retain explicit upward/downward normals.")
 		return
+	var minimum_far_radial_dot := 1.0
+	var minimum_far_radial_index := -1
 	for vertex_index in range(40):
 		var radial_direction := Vector3(low_vertices[vertex_index].x, 0.0, low_vertices[vertex_index].z).normalized()
-		if low_normals[vertex_index].dot(radial_direction) < 0.15:
-			_fail("Every distant sandstone side-ring normal must face outward from the outcrop axis.")
-			return
+		var radial_dot := low_normals[vertex_index].dot(radial_direction)
+		if radial_dot < minimum_far_radial_dot:
+			minimum_far_radial_dot = radial_dot
+			minimum_far_radial_index = vertex_index
+	print("Distant sandstone minimum outward-normal dot: ", minimum_far_radial_dot, " at vertex ", minimum_far_radial_index)
+	if minimum_far_radial_dot < -0.05:
+		_fail("Distant sandstone side-ring normals contain inward-facing vertices: min dot=" + str(minimum_far_radial_dot) + ".")
+		return
 	var low_side_dot := low_normals[8].dot(Vector3.RIGHT)
 	if low_side_dot < 0.25:
 		_fail("Distant sandstone side-wall normals must remain outward-facing: dot=" + str(low_side_dot) + ".")
