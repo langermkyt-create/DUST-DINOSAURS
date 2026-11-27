@@ -52,6 +52,13 @@ func _initialize() -> void:
 		if index < 0 or index >= low_vertices.size():
 			_fail("Distant sandstone index must reference an existing shared vertex.")
 			return
+	for triangle_start in range(0, low_indices.size(), 3):
+		var a: Vector3 = low_vertices[low_indices[triangle_start]]
+		var b: Vector3 = low_vertices[low_indices[triangle_start + 1]]
+		var c_vertex: Vector3 = low_vertices[low_indices[triangle_start + 2]]
+		if (b - a).cross(c_vertex - a).length_squared() < 0.000001:
+			_fail("Distant sandstone LOD must not contain degenerate triangles.")
+			return
 	if high.visibility_range_end <= low.visibility_range_begin:
 		_fail("Near and distant rock visibility ranges must overlap.")
 		return
@@ -89,12 +96,17 @@ func _initialize() -> void:
 	if low_normals.size() != low_vertices.size():
 		_fail("Distant sandstone mesh must retain generated normals for its indexed vertices.")
 		return
-	if low_normals[48].dot(Vector3.UP) < 0.90 or low_normals[57].dot(Vector3.DOWN) < 0.90:
-		_fail("Distant sandstone crown and base caps must retain their own outward-facing normals.")
-		return
 	if low_normals[40].dot(Vector3.UP) < 0.90 or low_normals[49].dot(Vector3.DOWN) < 0.90:
+		_fail("Distant sandstone crown and base cap rings must retain their own outward-facing normals.")
+		return
+	if low_normals[48].dot(Vector3.UP) < 0.90 or low_normals[57].dot(Vector3.DOWN) < 0.90:
 		_fail("Distant sandstone cap centers must retain explicit upward/downward normals.")
 		return
+	for vertex_index in range(40):
+		var radial_direction := Vector3(low_vertices[vertex_index].x, 0.0, low_vertices[vertex_index].z).normalized()
+		if low_normals[vertex_index].dot(radial_direction) < 0.15:
+			_fail("Every distant sandstone side-ring normal must face outward from the outcrop axis.")
+			return
 	var low_side_dot := low_normals[8].dot(Vector3.RIGHT)
 	if low_side_dot < 0.25:
 		_fail("Distant sandstone side-wall normals must remain outward-facing: dot=" + str(low_side_dot) + ".")
@@ -117,9 +129,9 @@ func _initialize() -> void:
 		if not high_material.shader.code.contains(token):
 			_fail("Sandstone material is missing its multi-scale erosion detail: " + token)
 			return
-	for token in ["fine_grain * 0.035", "ROUGHNESS", "sediment", "fracture"]:
+	for token in ["fine_grain * 0.035", "ROUGHNESS", "sediment", "fracture", "bedding_breakup", "iron_oxide", "rock_world_pos.y * 0.78"]:
 		if not high_material.shader.code.contains(token):
-			_fail("Sandstone must retain multi-scale albedo/roughness detail: " + token)
+			_fail("Sandstone must retain irregular bedding, iron-rich weathering and multi-scale albedo/roughness detail: " + token)
 			return
 	for token in ["dFdx(rock_world_pos)", "height_gradient", "bump_world_normal"]:
 		if high_material.shader.code.contains(token):
