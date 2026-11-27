@@ -796,7 +796,7 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 	# so the distant silhouette stays smooth without rounding its top/bottom.
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var layer_indices := [0, 2, 4, 6]
+	var layer_indices := [0, 2, 4, 6, 8]
 	var lod_strata := [
 		Color(0.31, 0.145, 0.105),
 		Color(0.39, 0.19, 0.135),
@@ -806,7 +806,7 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 		var source_ring: PackedVector3Array = rings[layer_indices[layer]]
 		for segment in range(8):
 			surface.set_color(lod_strata[min(layer, lod_strata.size() - 1)])
-			surface.add_vertex(source_ring[segment * 3])
+			surface.add_vertex(source_ring[segment * 4])
 	for layer in range(layer_indices.size() - 1):
 		for segment in range(8):
 			var next_segment: int = (segment + 1) % 8
@@ -821,7 +821,7 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 			surface.add_index(upper_a)
 			surface.add_index(upper_b)
 	surface.generate_normals(true)
-	var top_ring: PackedVector3Array = rings[6]
+	var top_ring: PackedVector3Array = rings[layer_indices.back()]
 	var top_cap_start := layer_indices.size() * 8
 	var top_center_index := top_cap_start + 8
 	var crown := Vector3.ZERO
@@ -877,12 +877,12 @@ func _flip_side_wall_normals(mesh: ArrayMesh, side_vertex_count: int) -> ArrayMe
 	return corrected_mesh
 
 func _rock_formation(pos: Vector3, factor: float) -> void:
-	# A twenty-four-sided layered outcrop adds finer ledges and non-repeating weathered edges.
+	# A thirty-two-sided, nine-ring outcrop adds finer ledges and non-repeating weathered edges.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = abs(hash(Vector2i(roundi(pos.x * 10.0), roundi(pos.z * 10.0))))
-	var heights := [0.0, 1.35, 2.7, 4.2, 5.9, 7.3, 8.6]
-	var radii := [8.8, 8.55, 7.95, 7.1, 6.3, 5.2, 3.8]
-	var ring_segments := 24
+	var heights := [0.0, 0.9, 1.8, 2.7, 3.8, 4.9, 6.1, 7.3, 8.6]
+	var radii := [8.8, 8.72, 8.55, 7.95, 7.65, 7.0, 6.45, 5.1, 3.8]
+	var ring_segments := 32
 	var rings: Array = []
 	for layer in range(heights.size()):
 		var ring := PackedVector3Array()
@@ -964,7 +964,7 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 		surface.add_index(base_center_index)
 		surface.add_index(base_cap_start + segment)
 		surface.add_index(base_cap_start + next_segment)
-	# The full-resolution 24-segment strip already produces outward side normals.
+	# The full-resolution 32-segment strip already produces outward side normals.
 	var rock_mesh := surface.commit()
 	var rock_material := _rock_surface_material()
 	var lod_mesh := _make_rock_lod_mesh(rings)
