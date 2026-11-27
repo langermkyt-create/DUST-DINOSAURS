@@ -859,7 +859,22 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 		surface.add_index(base_center_index)
 		surface.add_index(base_cap_start + segment)
 		surface.add_index(base_cap_start + next_segment)
-	return surface.commit()
+	var lod_mesh := surface.commit()
+	return _flip_side_wall_normals(lod_mesh, layer_indices.size() * 8)
+
+func _flip_side_wall_normals(mesh: ArrayMesh, side_vertex_count: int) -> ArrayMesh:
+	# Godot's generated normals for these authored triangle strips point inward
+	# relative to the retained front-face winding. Flip only side-ring normals;
+	# crown/base cap normals are explicitly assigned and must remain UP/DOWN.
+	var arrays: Array = mesh.surface_get_arrays(0)
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var flip_count := mini(side_vertex_count, normals.size())
+	for vertex_index in range(flip_count):
+		normals[vertex_index] = -normals[vertex_index]
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	var corrected_mesh := ArrayMesh.new()
+	corrected_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return corrected_mesh
 
 func _rock_formation(pos: Vector3, factor: float) -> void:
 	# A twenty-four-sided layered outcrop adds finer ledges and non-repeating weathered edges.
@@ -949,7 +964,7 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 		surface.add_index(base_center_index)
 		surface.add_index(base_cap_start + segment)
 		surface.add_index(base_cap_start + next_segment)
-	var rock_mesh := surface.commit()
+	var rock_mesh := _flip_side_wall_normals(surface.commit(), heights.size() * ring_segments)
 	var rock_material := _rock_surface_material()
 	var lod_mesh := _make_rock_lod_mesh(rings)
 	var lod_scale := maxf(factor, 0.1)
