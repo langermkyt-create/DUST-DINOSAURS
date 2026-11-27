@@ -820,7 +820,7 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 			surface.add_index(lower_b)
 			surface.add_index(upper_a)
 			surface.add_index(upper_b)
-	surface.generate_normals()
+	surface.generate_normals(true)
 	var top_ring: PackedVector3Array = rings[6]
 	var top_cap_start := layer_indices.size() * 8
 	var top_center_index := top_cap_start + 8
@@ -912,7 +912,7 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 			surface.add_index(upper_b)
 	# Finish the shared side-wall normals before adding separately shaded caps.
 	# This keeps the cap seams crisp without changing the front-face winding.
-	surface.generate_normals()
+	surface.generate_normals(true)
 	var top_cap_start := heights.size() * ring_segments
 	var top_center_index := top_cap_start + ring_segments
 	for segment in range(ring_segments):
