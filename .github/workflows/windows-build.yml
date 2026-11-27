@@ -122,7 +122,7 @@ jobs:
           done
           if [ "$ROUTE_DONE" -ne 1 ]; then
             cat game-runtime.log
-            echo "The complete 15-stop preview route did not finish within 90 seconds"
+            echo "The complete 17-stop preview route did not finish within 90 seconds"
             exit 1
           fi
           ROUTE_ELAPSED=$(grep -F "PREVIEW_ROUTE_COMPLETE:" game-runtime.log | tail -n 1 | sed -E 's/.*elapsed=([0-9.]+).*/\1/')
@@ -172,7 +172,7 @@ jobs:
           fi
           echo "Gameplay preview waypoint trace:"
           grep -F "PREVIEW_WAYPOINT_COMPLETE:" game-runtime.log > preview-waypoints.log || true
-          for waypoint in town_establishing main_street saloon_approach saloon_interior saloon_exit town_street_clearance town_north_exit west_ridge_approach herd_approach herd_close herd_clearance south_detour tyrannosaur_vista return_overlook town_return; do
+          for waypoint in town_establishing main_street saloon_approach saloon_interior saloon_exit town_street_clearance town_north_exit rock_far_lod rock_close west_ridge_approach herd_approach herd_close herd_clearance south_detour tyrannosaur_vista return_overlook town_return; do
             if ! grep -Fq "$waypoint" preview-waypoints.log; then
               echo "Missing completed preview waypoint: $waypoint"
               cat game-runtime.log
@@ -180,8 +180,34 @@ jobs:
             fi
             grep -F "$waypoint" preview-waypoints.log
           done
+          capture_waypoint_frame() {
+            local waypoint_id="$1"
+            local output_path="$2"
+            local elapsed
+            elapsed=$(grep -F "PREVIEW_WAYPOINT_COMPLETE: $waypoint_id " game-runtime.log | tail -n 1 | sed -E 's/.*elapsed=([0-9.]+).*/\1/')
+            if [ -z "$elapsed" ]; then
+              echo "Missing elapsed timestamp for preview waypoint: $waypoint_id"
+              exit 1
+            fi
+            # The recorder starts about half a second before the route clock.
+            # Sample just before the waypoint tween completes, while the camera
+            # is still on the authored framing line.
+            local timestamp
+            timestamp=$(awk -v elapsed="$elapsed" 'BEGIN { sample = elapsed - 0.65; if (sample < 0) sample = 0; printf "%.2f", sample }')
+            ffmpeg -y -ss "$timestamp" -i build-preview.mp4 -frames:v 1 "$output_path" >/dev/null 2>&1
+            test -s "$output_path" || {
+              echo "Failed to capture preview waypoint frame: $waypoint_id"
+              exit 1
+            }
+            echo "Captured $output_path at video time ${timestamp}s for route waypoint $waypoint_id."
+          }
+          capture_waypoint_frame "saloon_interior" "preview-saloon-interior.png"
+          capture_waypoint_frame "rock_far_lod" "preview-rock-far-lod.png"
+          capture_waypoint_frame "rock_close" "preview-rock-close.png"
+          capture_waypoint_frame "herd_close" "preview-herd-close.png"
+          capture_waypoint_frame "tyrannosaur_vista" "preview-tyrannosaur.png"
           if ! grep -Fq "PREVIEW_ROUTE_COMPLETE:" game-runtime.log; then
-            echo "The complete 15-stop preview route did not emit its completion marker"
+            echo "The complete 17-stop preview route did not emit its completion marker"
             cat game-runtime.log
             exit 1
           fi
@@ -207,6 +233,11 @@ jobs:
             preview-waypoints.log
             preview-start.png
             preview-end.png
+            preview-saloon-interior.png
+            preview-rock-far-lod.png
+            preview-rock-close.png
+            preview-herd-close.png
+            preview-tyrannosaur.png
           if-no-files-found: ignore
           retention-days: 7
       - name: Upload game
