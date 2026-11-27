@@ -79,8 +79,10 @@ func _initialize() -> void:
 	var top_cap_normal: Vector3 = high_normals[7 * 24]
 	var base_side_normal: Vector3 = high_normals[0]
 	var base_cap_normal: Vector3 = high_normals[7 * 24 + 1 + 24]
-	if top_cap_normal.dot(Vector3.UP) < 0.90 or base_cap_normal.dot(Vector3.DOWN) < 0.90:
-		_fail(first, second, "Sandstone crown and base caps must retain their own upward and downward normals.")
+	var top_cap_up_dot := top_cap_normal.dot(Vector3.UP)
+	var base_cap_down_dot := base_cap_normal.dot(Vector3.DOWN)
+	if top_cap_up_dot < 0.90 or base_cap_down_dot < 0.90:
+		_fail(first, second, "Sandstone cap orientation mismatch: top-up dot=" + str(top_cap_up_dot) + ", base-down dot=" + str(base_cap_down_dot) + ".")
 		return
 	if top_cap_normal.dot(top_side_normal) > 0.92 or base_cap_normal.dot(base_side_normal) > 0.92:
 		_fail(first, second, "Sandstone cap normals must remain isolated from the side-wall normals at the ledge seams.")
