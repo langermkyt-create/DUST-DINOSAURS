@@ -9,10 +9,22 @@ func _initialize() -> void:
 		return
 	var arrays := mesh.surface_get_arrays(0)
 	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	if vertices.size() % 3 != 0 or normals.size() != vertices.size():
-		_fail(world, "Tail mesh must contain complete triangles and generated normals.")
+	if indices.is_empty() or indices.size() % 3 != 0 or normals.size() != vertices.size():
+		_fail(world, "Indexed tail mesh must contain complete triangles and one generated normal per unique vertex.")
 		return
+	if vertices.size() >= indices.size():
+		_fail(world, "Tail ring vertices must be shared by an index buffer instead of remaining fully expanded per triangle.")
+		return
+	for index in indices:
+		if index < 0 or index >= vertices.size():
+			_fail(world, "Tail index buffer must reference an existing shared vertex.")
+			return
+	for normal in normals:
+		if not normal.is_finite() or absf(normal.length() - 1.0) > 0.03:
+			_fail(world, "Indexed tail normals must remain finite and normalized after smoothing.")
+			return
 	var base_radius := 0.0
 	var tip_radius := 0.0
 	var tip_center_y := 0.18 * sin(PI * 0.8)
@@ -35,8 +47,8 @@ func _initialize() -> void:
 	if triceratops_tail.mesh == null or tyrannosaur_tail.mesh == null:
 		_fail(world, "Dinosaur tail mesh integration must not leave empty instances.")
 		return
-	print("Dinosaur tail regression passed: ", vertices.size() / 3,
-		" tapered triangles, generated normals, and both species integrated.")
+	print("Dinosaur tail regression passed: ", indices.size() / 3,
+		" indexed tapered triangles from ", vertices.size(), " shared vertices, normalized normals, and both species integrated.")
 	world.free()
 	quit(0)
 
