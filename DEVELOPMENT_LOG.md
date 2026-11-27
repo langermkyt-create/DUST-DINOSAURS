@@ -495,3 +495,25 @@ Final evidence on head `a426349178a50fe7231629b10b200a381e06d34b`:
 - Renderer remains Mesa llvmpipe/OpenGL Compatibility because the CI host lacks the Vulkan surface extension; SSAO, SDFGI and SSIL are unavailable. These captures are not target-GPU performance evidence.
 
 The #222 herd close-up still shows the triceratops tail visibly detached from the pelvis. Next priority is to correct the tail-root placement and add an attachment regression, then continue with animal anatomy and the broader settlement/vegetation art pass. No FPS improvement or AAA claim is made; target-GPU benchmarking and independent whole-game visual review remain open blockers.
+
+
+## 2026-11-27 — triceratops tail-to-pelvis integration
+
+Started from the current main head 2b544751c94ecbb444b94a1b557df96e5ae0aeab. PR #17 is merged. Inspected its successful Godot validation #219 and Windows Build #222, then downloaded and reviewed the actual preview-herd-close.png from the #222 diagnostics. The old tail root at local Z=2.05 is visibly separated from the pelvis by a gap; the first corrective branch commit moves the root to Z=1.48, inside the rear torso silhouette.
+
+Three sequential implementation passes on automation/2026-11-27-triceratops-tail-attachment:
+
+1. **Tail geometry and resource reuse:** index the shared tapered-tail ring vertices before normal generation so adjacent rings receive smooth shared normals. Make ring/side resolution configurable; triceratops tails now use 12 rings × 20 sides with a 0.39 m base radius. Cache this immutable higher-resolution mesh across herd animals while retaining separate per-animal skin materials. Name the tail pivot for direct regression access.
+2. **Anatomical attachment regression:** update tests/test_dinosaur_tail.gd for indexed topology, valid indices and normalized normals. Add tests/test_triceratops_tail.gd, which constructs differently scaled/yawed herd animals, checks that the tail cap plane aligns with an actual rear-body loft ring, tests every cap vertex against that pelvis cross-section, verifies at least 0.18 m of burial behind the body rear bound, and confirms shared geometry with distinct skin materials.
+3. **CI integration:** add the new tail attachment test to .github/workflows/godot-validation.yml so it runs with the existing Godot 4.4.1 regression suite before the Windows export.
+
+Source-anchor and file-structure checks passed during authoring. The new Godot test and Windows export have not yet run on this branch; create/update the PR and require the complete validation and fresh fixed-route capture before merge. The previous #222 screenshot is evidence of the original defect, not evidence that the new branch fixes it. No FPS or AAA claim is made. Continue by inspecting the new preview-herd-close.png and only then decide whether the tail root/radius needs further adjustment. Target-GPU benchmarking and independent whole-game visual review remain open blockers.
+
+
+### Follow-up from the first tail close-up — 2026-11-27
+
+The first PR #18 Windows preview (#225) confirms the root move removes the open air gap: the tail now intersects the pelvis silhouette. Inspection of the actual preview-herd-close.png still shows a hard rear-cap step, so the first attachment fix is not treated as final.
+
+Refined the triceratops tail cross-section: the cached 12×20 mesh now uses a 0.44 m base radius and 0.95 vertical ratio, with its pivot center lowered to Y=1.285. At the body rear plane, the first tail ring is sized to cover the authored pelvis cap instead of leaving a narrow exposed rim. The regression now checks both root-cap burial and the first tail ring's width/height coverage of the actual rear body cap for the two herd scale/yaw variants.
+
+These follow-up geometry and regression changes are on the same PR branch. Godot validation and Windows preview must be rerun on the new head; the #225 image validates only the intermediate state. Do not merge until the new close-up is inspected. No performance or AAA claim.
