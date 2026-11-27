@@ -75,9 +75,16 @@ func _initialize() -> void:
 		_fail("Rock LOD meshes must have non-zero bounds.")
 		return
 	var high_normals: PackedVector3Array = high_arrays[Mesh.ARRAY_NORMAL]
+	var low_normals: PackedVector3Array = low_arrays[Mesh.ARRAY_NORMAL]
 	var high_colors: PackedColorArray = high_arrays[Mesh.ARRAY_COLOR]
 	if high_normals.size() != high_vertices.size() or high_colors.size() != high_vertices.size():
 		_fail("Near sandstone mesh must retain generated normals and layered vertex strata.")
+		return
+	if low_normals.size() != low_vertices.size():
+		_fail("Distant sandstone mesh must retain generated normals for its indexed vertices.")
+		return
+	if low_normals[32].dot(Vector3.UP) < 0.90 or low_normals[41].dot(Vector3.DOWN) < 0.90:
+		_fail("Distant sandstone crown and base caps must retain their own outward-facing normals.")
 		return
 	var high_material := high.material_override as ShaderMaterial
 	var low_material := low.material_override as ShaderMaterial
