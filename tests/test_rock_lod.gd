@@ -111,8 +111,8 @@ func _initialize() -> void:
 			minimum_far_radial_dot = radial_dot
 			minimum_far_radial_index = vertex_index
 	print("Distant sandstone minimum outward-normal dot: ", minimum_far_radial_dot, " at vertex ", minimum_far_radial_index)
-	if minimum_far_radial_dot < -0.05:
-		_fail("Distant sandstone side-ring normals contain inward-facing vertices: min dot=" + str(minimum_far_radial_dot) + ".")
+	if minimum_far_radial_dot < 0.15:
+		_fail("Distant sandstone side-ring normals fall below the outward-facing threshold: min dot=" + str(minimum_far_radial_dot) + ".")
 		return
 	var low_side_dot := low_normals[8].dot(Vector3.RIGHT)
 	if low_side_dot < 0.25:
