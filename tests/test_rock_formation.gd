@@ -144,8 +144,8 @@ func _initialize() -> void:
 		_fail(first, second, "Expanded sandstone strata must retain seeded color variation instead of collapsing to flat bands.")
 		return
 	var near_bounds := high.mesh.get_aabb()
-	if near_bounds.size.y < 8.2 or near_bounds.size.y > 9.3:
-		_fail(first, second, "Expanded layered outcrop must preserve the authored mesa height while adding intermediate ledges.")
+	if near_bounds.size.y < 8.2 or near_bounds.size.y > 9.6:
+		_fail(first, second, "Terrain-conformed outcrop must preserve its mesa height while burying the base ring below the dune surface.")
 		return
 	for index in range(high_vertices.size()):
 		if not is_finite(high_vertices[index].x) or not is_finite(high_vertices[index].y) or not is_finite(high_vertices[index].z):
@@ -153,6 +153,13 @@ func _initialize() -> void:
 			return
 		if high_vertices[index].distance_squared_to(repeated_vertices[index]) > 0.000001:
 			_fail(first, second, "The same outcrop position must produce deterministic weathered geometry.")
+			return
+	for segment in range(32):
+		var base_vertex: Vector3 = high_vertices[segment]
+		var expected_base_y := float(first.call("_terrain_height",
+			Vector2(18.0 + base_vertex.x, -26.0 + base_vertex.z))) - 0.35
+		if absf(base_vertex.y - expected_base_y) > 0.02:
+			_fail(first, second, "Every sandstone base-ring vertex must sit 0.35 m below the sampled terrain surface.")
 			return
 	if low_vertices.size() >= high_vertices.size():
 		_fail(first, second, "Distant outcrop LOD must be cheaper than the near silhouette.")
