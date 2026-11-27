@@ -43,7 +43,7 @@ func _initialize() -> void:
 		waypoints[waypoint_id] = waypoint
 		total_duration += duration
 
-	for required_id in ["town_establishing", "main_street", "saloon_approach", "saloon_interior", "saloon_exit", "town_street_clearance", "town_north_exit", "rock_far_lod", "rock_close", "west_ridge_approach", "herd_close", "herd_clearance", "south_detour", "tyrannosaur_vista", "town_return"]:
+	for required_id in ["town_establishing", "main_street", "saloon_approach", "saloon_interior", "saloon_exit", "town_street_clearance", "town_north_exit", "rock_far_lod", "rock_close", "west_ridge_approach", "herd_approach", "herd_close", "herd_clearance", "south_detour", "tyrannosaur_vista", "return_overlook", "town_return"]:
 		if not waypoints.has(required_id):
 			_fail("Preview route is missing required landmark: " + required_id)
 			return
