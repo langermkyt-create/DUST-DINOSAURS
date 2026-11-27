@@ -89,8 +89,10 @@ func _initialize() -> void:
 	if top_center_normal.dot(Vector3.UP) < 0.90 or base_center_normal.dot(Vector3.DOWN) < 0.90:
 		_fail(first, second, "Sandstone cap center vertices must retain explicit upward/downward normals.")
 		return
-	if top_side_normal.dot(Vector3.RIGHT) < 0.25 or high_normals[3 * 24].dot(Vector3.RIGHT) < 0.25:
-		_fail(first, second, "Shared sandstone side-wall normals must remain outward-facing.")
+	var top_side_dot := top_side_normal.dot(Vector3.RIGHT)
+	var mid_side_dot := high_normals[3 * 24].dot(Vector3.RIGHT)
+	if top_side_dot < 0.25 or mid_side_dot < 0.25:
+		_fail(first, second, "Shared sandstone side-wall normals must remain outward-facing: top dot=" + str(top_side_dot) + ", middle dot=" + str(mid_side_dot) + ".")
 		return
 	if top_cap_normal.dot(top_side_normal) > 0.92 or base_cap_normal.dot(base_side_normal) > 0.92:
 		_fail(first, second, "Sandstone cap normals must remain isolated from the side-wall normals at the ledge seams.")
