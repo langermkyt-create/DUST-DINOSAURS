@@ -814,10 +814,10 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 			var sample_index := segment * 4
 			var previous_index := ((segment - 1 + 8) % 8) * 4
 			var next_index := ((segment + 1) % 8) * 4
-			var around := (source_ring[next_index] - source_ring[previous_index]).normalized()
-			var vertical := (upper_ring[sample_index] - lower_ring[sample_index]).normalized()
-			var side_normal := vertical.cross(around).normalized()
-			var radial_direction := Vector3(source_ring[sample_index].x, 0.0, source_ring[sample_index].z).normalized()
+			var around: Vector3 = (source_ring[next_index] - source_ring[previous_index]).normalized()
+			var vertical: Vector3 = (upper_ring[sample_index] - lower_ring[sample_index]).normalized()
+			var side_normal: Vector3 = vertical.cross(around).normalized()
+			var radial_direction: Vector3 = Vector3(source_ring[sample_index].x, 0.0, source_ring[sample_index].z).normalized()
 			if side_normal.dot(radial_direction) < 0.0:
 				side_normal = -side_normal
 			surface.set_normal(side_normal)
@@ -913,10 +913,10 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 		for segment in range(ring_segments):
 			var previous_segment := (segment - 1 + ring_segments) % ring_segments
 			var next_segment := (segment + 1) % ring_segments
-			var around := (rings[layer][next_segment] - rings[layer][previous_segment]).normalized()
-			var vertical := (rings[upper_layer][segment] - rings[lower_layer][segment]).normalized()
-			var side_normal := vertical.cross(around).normalized()
-			var radial_direction := Vector3(rings[layer][segment].x, 0.0, rings[layer][segment].z).normalized()
+			var around: Vector3 = (rings[layer][next_segment] - rings[layer][previous_segment]).normalized()
+			var vertical: Vector3 = (rings[upper_layer][segment] - rings[lower_layer][segment]).normalized()
+			var side_normal: Vector3 = vertical.cross(around).normalized()
+			var radial_direction: Vector3 = Vector3(rings[layer][segment].x, 0.0, rings[layer][segment].z).normalized()
 			if side_normal.dot(radial_direction) < 0.0:
 				side_normal = -side_normal
 			var shade: Color = strata[layer % strata.size()] * rng.randf_range(0.90, 1.10)
