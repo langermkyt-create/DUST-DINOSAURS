@@ -402,6 +402,14 @@ func _build_landscape() -> void:
 	ground_instance.mesh = ground
 	terrain.add_child(ground_instance)
 	for i in range(34):
+		# Reserve one repeatable sandstone outcrop for the fixed near/far LOD
+		# camera checks. It replaces one ring sample, keeping the formation count stable.
+		if i == 0:
+			var preview_rock_xz := Vector2(-96.0, 72.0)
+			var preview_rock := Vector3(preview_rock_xz.x,
+				_terrain_height(preview_rock_xz), preview_rock_xz.y)
+			_rock_formation(preview_rock, 1.1)
+			continue
 		var angle := TAU * float(i) / 34.0
 		# Leave a natural open break in the distant mesa ring so the predator
 		# silhouette has an unobstructed line from the authored preview overlook.
@@ -3047,7 +3055,7 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 
 func _preview_route() -> Array[Dictionary]:
 	# The north-and-west exit keeps the camera outside building collision volumes.
-	# Each stop frames a distinct town, herd, or predator landmark.
+	# Each stop frames a town, sandstone LOD, herd, or predator landmark.
 	return [
 		{
 			"id": "town_establishing",
@@ -3094,6 +3102,21 @@ func _preview_route() -> Array[Dictionary]:
 			"position": Vector3(0.0, _terrain_height(Vector2(0.0, 42.0)) + 0.2, 42.0),
 			"target": Vector3(-12.0, 2.6, -12.0),
 			"duration": 2.0
+		},
+		{
+			"id": "rock_far_lod",
+			# At 152 m this view is beyond the 1.1-scale near-mesh range (145.2 m)
+			# and inside the distant mesh range, making the LOD handoff observable.
+			"position": Vector3(56.0, _terrain_height(Vector2(56.0, 72.0)) + 0.3, 72.0),
+			"target": Vector3(-96.0, _terrain_height(Vector2(-96.0, 72.0)) + 4.8, 72.0),
+			"duration": 1.5
+		},
+		{
+			"id": "rock_close",
+			# Approach from the east and stop 21 m from the outcrop center.
+			"position": Vector3(-75.0, _terrain_height(Vector2(-75.0, 72.0)) + 2.0, 72.0),
+			"target": Vector3(-91.5, _terrain_height(Vector2(-96.0, 72.0)) + 4.8, 72.0),
+			"duration": 1.5
 		},
 		{
 			"id": "west_ridge_approach",
