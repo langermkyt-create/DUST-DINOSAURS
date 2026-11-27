@@ -61,6 +61,13 @@ func _initialize() -> void:
 		if (b - a).cross(c_vertex - a).length_squared() < 0.000001:
 			_fail(first, second, "Indexed near outcrop must not contain degenerate triangles.")
 			return
+	for triangle_start in range(0, low_indices.size(), 3):
+		var a: Vector3 = low_vertices[low_indices[triangle_start]]
+		var b: Vector3 = low_vertices[low_indices[triangle_start + 1]]
+		var c_vertex: Vector3 = low_vertices[low_indices[triangle_start + 2]]
+		if (b - a).cross(c_vertex - a).length_squared() < 0.000001:
+			_fail(first, second, "Indexed distant outcrop must not contain degenerate triangles.")
+			return
 	if high_normals.size() != high_vertices.size() or high_colors.size() != high_vertices.size():
 		_fail(first, second, "Near outcrop must retain generated normals and layered vertex strata.")
 		return
@@ -71,6 +78,16 @@ func _initialize() -> void:
 			return
 		if absf(normal.length() - 1.0) > 0.03:
 			_fail(first, second, "Indexed sandstone normals must remain normalized after shared-ring generation.")
+			return
+	for vertex_index in range(9 * 32):
+		var radial_direction := Vector3(high_vertices[vertex_index].x, 0.0, high_vertices[vertex_index].z).normalized()
+		if high_normals[vertex_index].dot(radial_direction) < 0.15:
+			_fail(first, second, "Every near sandstone side-ring normal must face outward from the outcrop axis.")
+			return
+	for vertex_index in range(5 * 8):
+		var radial_direction := Vector3(low_vertices[vertex_index].x, 0.0, low_vertices[vertex_index].z).normalized()
+		if low_arrays[Mesh.ARRAY_NORMAL][vertex_index].dot(radial_direction) < 0.15:
+			_fail(first, second, "Every distant sandstone side-ring normal must face outward from the outcrop axis.")
 			return
 	# The top and base cap rings intentionally duplicate their side-ring positions.
 	# Their normals must stay oriented to the cap planes rather than bleeding across
