@@ -964,7 +964,8 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 		surface.add_index(base_center_index)
 		surface.add_index(base_cap_start + segment)
 		surface.add_index(base_cap_start + next_segment)
-	var rock_mesh := _flip_side_wall_normals(surface.commit(), heights.size() * ring_segments)
+	# The full-resolution 24-segment strip already produces outward side normals.
+	var rock_mesh := surface.commit()
 	var rock_material := _rock_surface_material()
 	var lod_mesh := _make_rock_lod_mesh(rings)
 	var lod_scale := maxf(factor, 0.1)
