@@ -99,6 +99,41 @@ func _verify_embedded_root(world: Node3D, body: MeshInstance3D, pivot: Node3D, t
 	if body_rear_z - pivot.position.z < 0.18:
 		_fail(world, "Tail cap must remain buried at least 0.18 m inside the rear body silhouette.")
 		return false
+
+	# The first tail ring that reaches the rear body plane must cover the closed
+	# pelvis cap; otherwise the root can be buried yet still leave a visible rim.
+	var body_rear_half_width := 0.0
+	var body_rear_min_y := INF
+	var body_rear_max_y := -INF
+	for vertex in body_vertices:
+		if absf(vertex.z - body_rear_z) <= 0.0001:
+			body_rear_half_width = maxf(body_rear_half_width, absf(vertex.x))
+			body_rear_min_y = minf(body_rear_min_y, vertex.y)
+			body_rear_max_y = maxf(body_rear_max_y, vertex.y)
+	var target_tail_z := body_rear_z - pivot.position.z
+	var nearest_tail_ring_z := 0.0
+	var nearest_tail_delta := INF
+	for vertex in tail_vertices:
+		var delta := absf(vertex.z - target_tail_z)
+		if delta < nearest_tail_delta:
+			nearest_tail_delta = delta
+			nearest_tail_ring_z = vertex.z
+	var tail_ring_count := 0
+	var tail_half_width := 0.0
+	var tail_min_y := INF
+	var tail_max_y := -INF
+	for vertex in tail_vertices:
+		if absf(vertex.z - nearest_tail_ring_z) <= 0.0001:
+			tail_ring_count += 1
+			tail_half_width = maxf(tail_half_width, absf(vertex.x))
+			tail_min_y = minf(tail_min_y, pivot.position.y + vertex.y)
+			tail_max_y = maxf(tail_max_y, pivot.position.y + vertex.y)
+	if nearest_tail_delta > 0.04 or tail_ring_count < 20:
+		_fail(world, "A complete tapered-tail ring must cross the rear pelvis cap plane.")
+		return false
+	if tail_half_width < body_rear_half_width - 0.02 or tail_min_y > body_rear_min_y + 0.02 or tail_max_y < body_rear_max_y - 0.02:
+		_fail(world, "The tail's first rear-plane ring must cover the pelvis cap in width and height to hide the attachment seam.")
+		return false
 	return true
 
 
