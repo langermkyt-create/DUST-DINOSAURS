@@ -64,6 +64,27 @@ func _initialize() -> void:
 	if high_normals.size() != high_vertices.size() or high_colors.size() != high_vertices.size():
 		_fail(first, second, "Near outcrop must retain generated normals and layered vertex strata.")
 		return
+	for normal_index in range(high_normals.size()):
+		var normal: Vector3 = high_normals[normal_index]
+		if not is_finite(normal.x) or not is_finite(normal.y) or not is_finite(normal.z):
+			_fail(first, second, "Indexed sandstone normals must remain finite at every shared vertex.")
+			return
+		if absf(normal.length() - 1.0) > 0.03:
+			_fail(first, second, "Indexed sandstone normals must remain normalized after shared-ring generation.")
+			return
+	# The top and base cap rings intentionally duplicate their side-ring positions.
+	# Their normals must stay oriented to the cap planes rather than bleeding across
+	# the sharp geological boundary into the smoothed side wall.
+	var top_side_normal: Vector3 = high_normals[6 * 24]
+	var top_cap_normal: Vector3 = high_normals[7 * 24]
+	var base_side_normal: Vector3 = high_normals[0]
+	var base_cap_normal: Vector3 = high_normals[7 * 24 + 1 + 24]
+	if top_cap_normal.dot(Vector3.UP) < 0.90 or base_cap_normal.dot(Vector3.DOWN) < 0.90:
+		_fail(first, second, "Sandstone crown and base caps must retain their own upward and downward normals.")
+		return
+	if top_cap_normal.dot(top_side_normal) > 0.92 or base_cap_normal.dot(base_side_normal) > 0.92:
+		_fail(first, second, "Sandstone cap normals must remain isolated from the side-wall normals at the ledge seams.")
+		return
 	var distinct_strata_colors: Dictionary = {}
 	for color in high_colors:
 		distinct_strata_colors[color.to_rgba32()] = true
