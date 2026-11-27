@@ -35,11 +35,11 @@ func _initialize() -> void:
 	var low_vertices: PackedVector3Array = low_arrays[Mesh.ARRAY_VERTEX]
 	var high_indices: PackedInt32Array = high_arrays[Mesh.ARRAY_INDEX]
 	var low_indices: PackedInt32Array = low_arrays[Mesh.ARRAY_INDEX]
-	if high_vertices.size() != 218 or low_vertices.size() != 50:
-		_fail("Indexed near and distant sandstone meshes must use 218 and 50 unique vertices.")
+	if high_vertices.size() != 354 or low_vertices.size() != 58:
+		_fail("Indexed near and distant sandstone meshes must use 354 and 58 unique vertices.")
 		return
-	if high_indices.size() != 1008 or low_indices.size() != 192:
-		_fail("Indexed near and distant sandstone meshes must retain 336 and 64 triangles.")
+	if high_indices.size() != 1728 or low_indices.size() != 240:
+		_fail("Indexed near and distant sandstone meshes must retain 576 and 80 triangles.")
 		return
 	if low_indices.is_empty() or low_indices.size() >= high_indices.size():
 		_fail("Distant rock LOD must be non-empty and cheaper than the near mesh by index count.")
@@ -68,8 +68,14 @@ func _initialize() -> void:
 		_fail("Rock collision must use a static concave triangle mesh.")
 		return
 	var collision_faces: PackedVector3Array = (collision.shape as ConcavePolygonShape3D).get_faces()
-	if collision_faces.size() != low_indices.size() or collision_faces.size() >= high_indices.size() * 0.20:
-		_fail("Static rock collision must match the indexed distant silhouette and remain below 20% of near triangle indices.")
+	if collision_faces.size() % 3 != 0:
+		_fail("Static rock collision faces must contain complete triangles.")
+		return
+	var collision_triangle_count := int(collision_faces.size() / 3)
+	var near_triangle_count := int(high_indices.size() / 3)
+	var far_triangle_count := int(low_indices.size() / 3)
+	if collision_triangle_count != far_triangle_count or float(collision_triangle_count) / float(near_triangle_count) >= 0.20:
+		_fail("Static rock collision must match the 80-triangle distant silhouette and remain below 20% of near triangles.")
 		return
 	if high.mesh.get_aabb().size.length_squared() <= 0.0 or low.mesh.get_aabb().size.length_squared() <= 0.0:
 		_fail("Rock LOD meshes must have non-zero bounds.")
@@ -83,7 +89,7 @@ func _initialize() -> void:
 	if low_normals.size() != low_vertices.size():
 		_fail("Distant sandstone mesh must retain generated normals for its indexed vertices.")
 		return
-	if low_normals[32].dot(Vector3.UP) < 0.90 or low_normals[41].dot(Vector3.DOWN) < 0.90:
+	if low_normals[48].dot(Vector3.UP) < 0.90 or low_normals[57].dot(Vector3.DOWN) < 0.90:
 		_fail("Distant sandstone crown and base caps must retain their own outward-facing normals.")
 		return
 	if low_normals[40].dot(Vector3.UP) < 0.90 or low_normals[49].dot(Vector3.DOWN) < 0.90:
@@ -123,7 +129,7 @@ func _initialize() -> void:
 	print("Rock LOD regression passed: near=", high_indices.size() / 3,
 		" triangles from ", high_vertices.size(), " vertices; far/collision=",
 		low_indices.size() / 3, " triangles from ", low_vertices.size(),
-		" vertices; shared material and scale-aware handoff ranges.")
+		" vertices; triangle-based collision budget, shared material and scale-aware handoff ranges.")
 	world_under_test.free()
 	world_under_test = null
 	quit(0)
