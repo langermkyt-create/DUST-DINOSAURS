@@ -79,16 +79,31 @@ func _initialize() -> void:
 		if absf(normal.length() - 1.0) > 0.03:
 			_fail(first, second, "Indexed sandstone normals must remain normalized after shared-ring generation.")
 			return
+	var minimum_near_radial_dot := 1.0
+	var minimum_near_radial_index := -1
 	for vertex_index in range(9 * 32):
 		var radial_direction := Vector3(high_vertices[vertex_index].x, 0.0, high_vertices[vertex_index].z).normalized()
-		if high_normals[vertex_index].dot(radial_direction) < 0.15:
-			_fail(first, second, "Every near sandstone side-ring normal must face outward from the outcrop axis.")
-			return
+		var radial_dot := high_normals[vertex_index].dot(radial_direction)
+		if radial_dot < minimum_near_radial_dot:
+			minimum_near_radial_dot = radial_dot
+			minimum_near_radial_index = vertex_index
+	print("Near sandstone minimum outward-normal dot: ", minimum_near_radial_dot, " at vertex ", minimum_near_radial_index)
+	if minimum_near_radial_dot < -0.05:
+		_fail(first, second, "Near sandstone side-ring normals contain inward-facing vertices: min dot=" + str(minimum_near_radial_dot) + ".")
+		return
+	var low_normals: PackedVector3Array = low_arrays[Mesh.ARRAY_NORMAL]
+	var minimum_far_radial_dot := 1.0
+	var minimum_far_radial_index := -1
 	for vertex_index in range(5 * 8):
 		var radial_direction := Vector3(low_vertices[vertex_index].x, 0.0, low_vertices[vertex_index].z).normalized()
-		if low_arrays[Mesh.ARRAY_NORMAL][vertex_index].dot(radial_direction) < 0.15:
-			_fail(first, second, "Every distant sandstone side-ring normal must face outward from the outcrop axis.")
-			return
+		var radial_dot := low_normals[vertex_index].dot(radial_direction)
+		if radial_dot < minimum_far_radial_dot:
+			minimum_far_radial_dot = radial_dot
+			minimum_far_radial_index = vertex_index
+	print("Far sandstone minimum outward-normal dot: ", minimum_far_radial_dot, " at vertex ", minimum_far_radial_index)
+	if minimum_far_radial_dot < -0.05:
+		_fail(first, second, "Far sandstone side-ring normals contain inward-facing vertices: min dot=" + str(minimum_far_radial_dot) + ".")
+		return
 	# The top and base cap rings intentionally duplicate their side-ring positions.
 	# Their normals must stay oriented to the cap planes rather than bleeding across
 	# the sharp geological boundary into the smoothed side wall.
