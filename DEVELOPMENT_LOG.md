@@ -481,3 +481,17 @@ Three sequential passes on PR #17:
 3. **Material and normal QA:** reduced the regular sediment frequency from 3.4 to 0.78 world-space cycles per metre, warped bedding with low-frequency breakup, and added a restrained iron-oxide color variation while keeping geometric normals stable (no derivative bump). Regressions now check every side-ring normal points outward and require the irregular-bedding/iron-oxide shader terms.
 
 Changed files: `scripts/world.gd`, `tests/test_rock_lod.gd`, `tests/test_rock_formation.gd`, and this log. Structural/source-anchor checks passed during authoring. Godot is not installed in the authoring container; run the full Godot validation and Windows fixed-route preview on the final PR head before merge. No FPS improvement or AAA claim is made. Continue by checking the new near/far captures for silhouette, cap shading and LOD pop, then validate collision topology and the Windows export. Target-GPU performance and independent whole-game visual review remain open blockers.
+
+
+### Final corrections and validation — 2026-11-27
+
+The first all-vertex radial-normal regression exposed an actual far-LOD normal inversion: minimum radial dot `-0.9886` at side vertex 5. Replaced the generated-and-flipped path with explicit normals from the vertical and circumferential ring tangents, guarded so each normal points away from the outcrop axis. Added explicit GDScript vector types after the next import pass caught type-inference errors.
+
+The #220 fixed-route capture then exposed daylight beneath the near outcrop where its flat base crossed a dune slope. The base ring now samples the same `_terrain_height()` function at each perimeter point and sits 0.35 m below that terrain. The formation regression verifies all 32 base vertices against the expected terrain offset; collision continues to be generated from the same far LOD.
+
+Final evidence on head `a426349178a50fe7231629b10b200a381e06d34b`:
+- Godot validation #219 — passed, including rock LOD/collision, outcrop geometry, all remaining regressions, headless main-scene launch and Windows x86_64 export.
+- Windows Build #222 — passed; 1280×720, 30 FPS, 17-stop fixed route, 56.6-second video. The close/far rock stills and video were downloaded and inspected. Base contact is visibly improved and no radial-normal inversion appears in the captured LODs.
+- Renderer remains Mesa llvmpipe/OpenGL Compatibility because the CI host lacks the Vulkan surface extension; SSAO, SDFGI and SSIL are unavailable. These captures are not target-GPU performance evidence.
+
+The #222 herd close-up still shows the triceratops tail visibly detached from the pelvis. Next priority is to correct the tail-root placement and add an attachment regression, then continue with animal anatomy and the broader settlement/vegetation art pass. No FPS improvement or AAA claim is made; target-GPU benchmarking and independent whole-game visual review remain open blockers.
