@@ -88,10 +88,18 @@ func _initialize() -> void:
 			minimum_near_radial_dot = radial_dot
 			minimum_near_radial_index = vertex_index
 	print("Near sandstone minimum outward-normal dot: ", minimum_near_radial_dot, " at vertex ", minimum_near_radial_index)
-	if minimum_near_radial_dot < -0.05:
-		_fail(first, second, "Near sandstone side-ring normals contain inward-facing vertices: min dot=" + str(minimum_near_radial_dot) + ".")
+	if minimum_near_radial_dot < 0.15:
+		_fail(first, second, "Near sandstone side-ring normals fall below the outward-facing threshold: min dot=" + str(minimum_near_radial_dot) + ".")
 		return
 	var low_normals: PackedVector3Array = low_arrays[Mesh.ARRAY_NORMAL]
+	if low_normals.size() != low_vertices.size():
+		_fail(first, second, "Distant sandstone must provide one normal per indexed vertex.")
+		return
+	for normal_index in range(low_normals.size()):
+		var normal: Vector3 = low_normals[normal_index]
+		if not is_finite(normal.x) or not is_finite(normal.y) or not is_finite(normal.z) or absf(normal.length() - 1.0) > 0.03:
+			_fail(first, second, "Distant sandstone normals must be finite and normalized.")
+			return
 	var minimum_far_radial_dot := 1.0
 	var minimum_far_radial_index := -1
 	for vertex_index in range(5 * 8):
@@ -101,8 +109,8 @@ func _initialize() -> void:
 			minimum_far_radial_dot = radial_dot
 			minimum_far_radial_index = vertex_index
 	print("Far sandstone minimum outward-normal dot: ", minimum_far_radial_dot, " at vertex ", minimum_far_radial_index)
-	if minimum_far_radial_dot < -0.05:
-		_fail(first, second, "Far sandstone side-ring normals contain inward-facing vertices: min dot=" + str(minimum_far_radial_dot) + ".")
+	if minimum_far_radial_dot < 0.15:
+		_fail(first, second, "Far sandstone side-ring normals fall below the outward-facing threshold: min dot=" + str(minimum_far_radial_dot) + ".")
 		return
 	# The top and base cap rings intentionally duplicate their side-ring positions.
 	# Their normals must stay oriented to the cap planes rather than bleeding across
