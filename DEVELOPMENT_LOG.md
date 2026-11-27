@@ -508,3 +508,12 @@ Three sequential implementation passes on automation/2026-11-27-triceratops-tail
 3. **CI integration:** add the new tail attachment test to .github/workflows/godot-validation.yml so it runs with the existing Godot 4.4.1 regression suite before the Windows export.
 
 Source-anchor and file-structure checks passed during authoring. The new Godot test and Windows export have not yet run on this branch; create/update the PR and require the complete validation and fresh fixed-route capture before merge. The previous #222 screenshot is evidence of the original defect, not evidence that the new branch fixes it. No FPS or AAA claim is made. Continue by inspecting the new preview-herd-close.png and only then decide whether the tail root/radius needs further adjustment. Target-GPU benchmarking and independent whole-game visual review remain open blockers.
+
+
+### Follow-up from the first tail close-up — 2026-11-27
+
+The first PR #18 Windows preview (#225) confirms the root move removes the open air gap: the tail now intersects the pelvis silhouette. Inspection of the actual preview-herd-close.png still shows a hard rear-cap step, so the first attachment fix is not treated as final.
+
+Refined the triceratops tail cross-section: the cached 12×20 mesh now uses a 0.44 m base radius and 0.95 vertical ratio, with its pivot center lowered to Y=1.285. At the body rear plane, the first tail ring is sized to cover the authored pelvis cap instead of leaving a narrow exposed rim. The regression now checks both root-cap burial and the first tail ring's width/height coverage of the actual rear body cap for the two herd scale/yaw variants.
+
+These follow-up geometry and regression changes are on the same PR branch. Godot validation and Windows preview must be rerun on the new head; the #225 image validates only the intermediate state. Do not merge until the new close-up is inspected. No performance or AAA claim.
