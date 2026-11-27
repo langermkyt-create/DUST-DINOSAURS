@@ -74,10 +74,13 @@ func _initialize() -> void:
 	var rock_close_index := -1
 	var west_ridge_index := -1
 	for index in range(route.size()):
-		match str(route[index]["id"]):
-			"rock_far_lod": rock_far_index = index
-			"rock_close": rock_close_index = index
-			"west_ridge_approach": west_ridge_index = index
+		var waypoint_id := str(route[index]["id"])
+		if waypoint_id == "rock_far_lod":
+			rock_far_index = index
+		elif waypoint_id == "rock_close":
+			rock_close_index = index
+		elif waypoint_id == "west_ridge_approach":
+			west_ridge_index = index
 	if rock_far_index < 0 or rock_close_index != rock_far_index + 1 or west_ridge_index != rock_close_index + 1:
 		_fail("The fixed rock LOD check must move far-to-near before rejoining the west ridge route.")
 		return
@@ -161,7 +164,7 @@ func _initialize() -> void:
 		return
 
 	print("Preview route regression passed: ", route.size(),
-		" unique stops, town + sandstone far/near LOD + walk-through saloon + triceratops + tyrannosaur, "
+		" unique stops, town + sandstone far/near LOD + walk-through saloon + triceratops + tyrannosaur, ",
 		total_duration, " seconds of camera travel.")
 	world_under_test.free()
 	world_under_test = null
