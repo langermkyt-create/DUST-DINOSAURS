@@ -21,7 +21,16 @@ func _initialize() -> void:
 		_fail(world, "Each triceratops must expose a body, named tail pivot and tail mesh for attachment validation.")
 		return
 	if first_tail.mesh == null or first_tail.mesh != second_tail.mesh:
-		_fail(world, "Herd triceratops must reuse one cached tail mesh without sharing per-animal materials.")
+		_fail(world, "Herd triceratops must reuse one cached tail mesh.")
+		return
+	if first_tail.material_override == second_tail.material_override:
+		_fail(world, "Each animal must retain its own skin material while sharing only immutable tail geometry.")
+		return
+	var tail_arrays := first_tail.mesh.surface_get_arrays(0)
+	var tail_vertices: PackedVector3Array = tail_arrays[Mesh.ARRAY_VERTEX]
+	var tail_indices: PackedInt32Array = tail_arrays[Mesh.ARRAY_INDEX]
+	if tail_vertices.size() != 242 or tail_indices.size() != 1440:
+		_fail(world, "High-resolution triceratops tail must retain 12 rings × 20 sides with indexed geometry.")
 		return
 	if not _verify_embedded_root(world, first_body, first_pivot, first_tail):
 		return
