@@ -11,6 +11,7 @@ var preview_started_at_msec: int = 0
 var _weathered_wood_shader: Shader
 var _roof_shingle_material: StandardMaterial3D
 var _rock_material: ShaderMaterial
+var _triceratops_tail_mesh_cache: ArrayMesh
 func _ready() -> void:
 	_build_atmosphere()
 	_build_landscape()
@@ -2728,13 +2729,13 @@ func _build_tyrannosaur(pos: Vector3, size: float) -> void:
 		var gait := create_tween().set_loops()
 		gait.tween_property(leg, "rotation:x", 0.12 if side < 0.0 else -0.12, 1.1).set_trans(Tween.TRANS_SINE)
 		gait.tween_property(leg, "rotation:x", -0.12 if side < 0.0 else 0.12, 1.1).set_trans(Tween.TRANS_SINE)
-func _make_tapered_tail_mesh(length: float, base_radius: float, upward_curve: float) -> ArrayMesh:
+func _make_tapered_tail_mesh(length: float, base_radius: float, upward_curve: float, ring_count: int = 9, segment_count: int = 16) -> ArrayMesh:
 	# A single continuous, ring-built tail avoids the blunt cylinder seam and keeps
 	# the silhouette tapered from the pelvis to the flexible tip.
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var ring_count := 9
-	var segment_count := 16
+	ring_count = maxi(ring_count, 4)
+	segment_count = maxi(segment_count, 8)
 	var rings: Array[PackedVector3Array] = []
 	for ring_index in range(ring_count):
 		var t := float(ring_index) / float(ring_count - 1)
@@ -2770,8 +2771,15 @@ func _make_tapered_tail_mesh(length: float, base_radius: float, upward_curve: fl
 		surface.add_vertex(tip_center)
 		surface.add_vertex(rings[ring_count - 1][segment])
 		surface.add_vertex(rings[ring_count - 1][next_segment])
+	surface.index()
 	surface.generate_normals()
 	return surface.commit()
+
+func _cached_triceratops_tail_mesh() -> ArrayMesh:
+	# The three herd animals share one higher-resolution hide mesh; each keeps its own skin material.
+	if _triceratops_tail_mesh_cache == null:
+		_triceratops_tail_mesh_cache = _make_tapered_tail_mesh(2.85, 0.39, 0.16, 12, 20)
+	return _triceratops_tail_mesh_cache
 
 func _add_frill_triangle(surface: SurfaceTool, tint: Color, a: Vector3, b: Vector3, c: Vector3) -> void:
 	surface.set_color(tint)
@@ -2990,9 +2998,12 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 
 	# Long tapered tail with a continuous hide surface and gentle vertical sweep.
 	var tail_pivot := Node3D.new()
+	tail_pivot.name = "TriceratopsTailPivot"
+	# Bury the tail's capped root inside the actual rear body profile so the hide
+	# emerges from the pelvis instead of beginning behind the silhouette.
 	tail_pivot.position = Vector3(0, 1.42, 1.48)
 	d.add_child(tail_pivot)
-	var tail_instance := _mesh(tail_pivot, _make_tapered_tail_mesh(2.85, 0.43, 0.16), hide, Vector3.ZERO)
+	var tail_instance := _mesh(tail_pivot, _cached_triceratops_tail_mesh(), hide, Vector3.ZERO)
 	tail_instance.name = "TriceratopsTail"
 	if is_inside_tree():
 		var tail_sway := create_tween().set_loops()
