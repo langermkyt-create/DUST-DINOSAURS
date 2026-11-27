@@ -806,10 +806,23 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 		Color(0.46, 0.225, 0.16)
 	]
 	for layer in range(layer_indices.size()):
-		var source_ring: PackedVector3Array = rings[layer_indices[layer]]
+		var source_layer: int = layer_indices[layer]
+		var source_ring: PackedVector3Array = rings[source_layer]
+		var lower_ring: PackedVector3Array = rings[layer_indices[maxi(layer - 1, 0)]]
+		var upper_ring: PackedVector3Array = rings[layer_indices[mini(layer + 1, layer_indices.size() - 1)]]
 		for segment in range(8):
+			var sample_index := segment * 4
+			var previous_index := ((segment - 1 + 8) % 8) * 4
+			var next_index := ((segment + 1) % 8) * 4
+			var around := (source_ring[next_index] - source_ring[previous_index]).normalized()
+			var vertical := (upper_ring[sample_index] - lower_ring[sample_index]).normalized()
+			var side_normal := vertical.cross(around).normalized()
+			var radial_direction := Vector3(source_ring[sample_index].x, 0.0, source_ring[sample_index].z).normalized()
+			if side_normal.dot(radial_direction) < 0.0:
+				side_normal = -side_normal
+			surface.set_normal(side_normal)
 			surface.set_color(lod_strata[min(layer, lod_strata.size() - 1)])
-			surface.add_vertex(source_ring[segment * 4])
+			surface.add_vertex(source_ring[sample_index])
 	for layer in range(layer_indices.size() - 1):
 		for segment in range(8):
 			var next_segment: int = (segment + 1) % 8
@@ -823,7 +836,6 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 			surface.add_index(lower_b)
 			surface.add_index(upper_a)
 			surface.add_index(upper_b)
-	surface.generate_normals(true)
 	var top_ring: PackedVector3Array = rings[layer_indices.back()]
 	var top_cap_start := layer_indices.size() * 8
 	var top_center_index := top_cap_start + 8
@@ -862,22 +874,7 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 		surface.add_index(base_center_index)
 		surface.add_index(base_cap_start + segment)
 		surface.add_index(base_cap_start + next_segment)
-	var lod_mesh := surface.commit()
-	return _flip_side_wall_normals(lod_mesh, layer_indices.size() * 8)
-
-func _flip_side_wall_normals(mesh: ArrayMesh, side_vertex_count: int) -> ArrayMesh:
-	# Godot's generated normals for these authored triangle strips point inward
-	# relative to the retained front-face winding. Flip only side-ring normals;
-	# crown/base cap normals are explicitly assigned and must remain UP/DOWN.
-	var arrays: Array = mesh.surface_get_arrays(0)
-	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	var flip_count := mini(side_vertex_count, normals.size())
-	for vertex_index in range(flip_count):
-		normals[vertex_index] = -normals[vertex_index]
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	var corrected_mesh := ArrayMesh.new()
-	corrected_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return corrected_mesh
+	return surface.commit()
 
 func _rock_formation(pos: Vector3, factor: float) -> void:
 	# A thirty-two-sided, nine-ring outcrop adds finer ledges and non-repeating weathered edges.
@@ -907,12 +904,23 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 		Color(0.36, 0.17, 0.125),
 		Color(0.49, 0.255, 0.18)
 	]
-	# Keep one vertex per side-ring point. Indexed adjacency lets Godot average
-	# normals across the ledges instead of assigning a separate flat normal to
-	# every duplicated triangle corner.
+	# Keep one vertex per side-ring point and derive its smooth outward normal
+	# from adjacent circumferential and vertical tangents. The radial guard keeps
+	# irregular ledges from producing an inward-facing averaged normal.
 	for layer in range(heights.size()):
+		var lower_layer := maxi(layer - 1, 0)
+		var upper_layer := mini(layer + 1, heights.size() - 1)
 		for segment in range(ring_segments):
+			var previous_segment := (segment - 1 + ring_segments) % ring_segments
+			var next_segment := (segment + 1) % ring_segments
+			var around := (rings[layer][next_segment] - rings[layer][previous_segment]).normalized()
+			var vertical := (rings[upper_layer][segment] - rings[lower_layer][segment]).normalized()
+			var side_normal := vertical.cross(around).normalized()
+			var radial_direction := Vector3(rings[layer][segment].x, 0.0, rings[layer][segment].z).normalized()
+			if side_normal.dot(radial_direction) < 0.0:
+				side_normal = -side_normal
 			var shade: Color = strata[layer % strata.size()] * rng.randf_range(0.90, 1.10)
+			surface.set_normal(side_normal)
 			surface.set_color(shade)
 			surface.add_vertex(rings[layer][segment])
 	for layer in range(heights.size() - 1):
@@ -928,9 +936,7 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 			surface.add_index(lower_b)
 			surface.add_index(upper_a)
 			surface.add_index(upper_b)
-	# Finish the shared side-wall normals before adding separately shaded caps.
-	# This keeps the cap seams crisp without changing the front-face winding.
-	surface.generate_normals(true)
+	# Side-wall normals are explicit; cap vertices stay separate with flat UP/DOWN normals.
 	var top_cap_start := heights.size() * ring_segments
 	var top_center_index := top_cap_start + ring_segments
 	for segment in range(ring_segments):
@@ -967,7 +973,7 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 		surface.add_index(base_center_index)
 		surface.add_index(base_cap_start + segment)
 		surface.add_index(base_cap_start + next_segment)
-	# The full-resolution 32-segment strip already produces outward side normals.
+	# The 32-segment side normals are explicitly outward-facing at every ring vertex.
 	var rock_mesh := surface.commit()
 	var rock_material := _rock_surface_material()
 	var lod_mesh := _make_rock_lod_mesh(rings)
