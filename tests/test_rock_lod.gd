@@ -86,6 +86,12 @@ func _initialize() -> void:
 	if low_normals[32].dot(Vector3.UP) < 0.90 or low_normals[41].dot(Vector3.DOWN) < 0.90:
 		_fail("Distant sandstone crown and base caps must retain their own outward-facing normals.")
 		return
+	if low_normals[40].dot(Vector3.UP) < 0.90 or low_normals[49].dot(Vector3.DOWN) < 0.90:
+		_fail("Distant sandstone cap centers must retain explicit upward/downward normals.")
+		return
+	if low_normals[8].dot(Vector3.RIGHT) < 0.25:
+		_fail("Distant sandstone side-wall normals must remain outward-facing.")
+		return
 	var high_material := high.material_override as ShaderMaterial
 	var low_material := low.material_override as ShaderMaterial
 	if high_material == null or low_material == null or high_material.shader == null or low_material.shader == null:
