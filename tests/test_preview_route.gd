@@ -6,8 +6,8 @@ func _initialize() -> void:
 	world_under_test = Node3D.new()
 	world_under_test.set_script(load("res://scripts/world.gd"))
 	var route: Array = world_under_test.call("_preview_route")
-	if route.size() != 15:
-		_fail("Preview route must preserve all 15 authored town, interior, herd, and predator stops.")
+	if route.size() != 17:
+		_fail("Preview route must preserve all 17 authored town, sandstone, interior, herd, and predator stops.")
 		return
 
 	var waypoints: Dictionary = {}
@@ -43,10 +43,44 @@ func _initialize() -> void:
 		waypoints[waypoint_id] = waypoint
 		total_duration += duration
 
-	for required_id in ["town_establishing", "main_street", "saloon_approach", "saloon_interior", "saloon_exit", "town_street_clearance", "town_north_exit", "west_ridge_approach", "herd_close", "herd_clearance", "south_detour", "tyrannosaur_vista", "town_return"]:
+	for required_id in ["town_establishing", "main_street", "saloon_approach", "saloon_interior", "saloon_exit", "town_street_clearance", "town_north_exit", "rock_far_lod", "rock_close", "west_ridge_approach", "herd_close", "herd_clearance", "south_detour", "tyrannosaur_vista", "town_return"]:
 		if not waypoints.has(required_id):
 			_fail("Preview route is missing required landmark: " + required_id)
 			return
+
+	var rock_center := Vector2(-96.0, 72.0)
+	var rock_far_position: Vector3 = waypoints["rock_far_lod"]["position"]
+	var rock_close_position: Vector3 = waypoints["rock_close"]["position"]
+	var rock_far_distance := Vector2(rock_far_position.x, rock_far_position.z).distance_to(rock_center)
+	var rock_close_distance := Vector2(rock_close_position.x, rock_close_position.z).distance_to(rock_center)
+	if absf(rock_far_distance - 152.0) > 0.1:
+		_fail("Far sandstone waypoint must remain 152 m from the fixed outcrop.")
+		return
+	if rock_far_distance <= 132.0 * 1.1:
+		_fail("Far sandstone waypoint must sit beyond the 1.1-scale near-mesh visibility range.")
+		return
+	if absf(rock_close_distance - 21.0) > 0.1:
+		_fail("Near sandstone waypoint must hold a 21 m camera distance from the outcrop center.")
+		return
+	if rock_close_distance >= 132.0 * 1.1:
+		_fail("Near sandstone waypoint must remain inside the near-mesh visibility range.")
+		return
+	var expected_rock_target := Vector3(-91.5,
+		float(world_under_test.call("_terrain_height", Vector2(-96.0, 72.0))) + 4.8, 72.0)
+	if waypoints["rock_close"]["target"].distance_to(expected_rock_target) > 0.1:
+		_fail("Near sandstone waypoint must frame the upper east ledges, not the ground behind the rock.")
+		return
+	var rock_far_index := -1
+	var rock_close_index := -1
+	var west_ridge_index := -1
+	for index in range(route.size()):
+		match str(route[index]["id"]):
+			"rock_far_lod": rock_far_index = index
+			"rock_close": rock_close_index = index
+			"west_ridge_approach": west_ridge_index = index
+	if rock_far_index < 0 or rock_close_index != rock_far_index + 1 or west_ridge_index != rock_close_index + 1:
+		_fail("The fixed rock LOD check must move far-to-near before rejoining the west ridge route.")
+		return
 
 	var saloon_approach: Vector3 = waypoints["saloon_approach"]["position"]
 	var saloon_interior: Vector3 = waypoints["saloon_interior"]["position"]
@@ -122,12 +156,12 @@ func _initialize() -> void:
 	if predator_target.distance_to(Vector3(70.0, 5.2, -112.0)) > 0.1:
 		_fail("Distant predator vista must aim at the authored tyrannosaur location.")
 		return
-	if total_duration < 23.5 or total_duration > 24.5:
-		_fail("Preview route duration must remain inside the 24-second travel budget for the 60-second CI capture.")
+	if total_duration < 26.5 or total_duration > 27.5:
+		_fail("Preview route duration must remain inside the 27-second travel budget for the complete fixed-route CI capture.")
 		return
 
 	print("Preview route regression passed: ", route.size(),
-		" unique stops, town + walk-through saloon interior + triceratops + tyrannosaur, ",
+		" unique stops, town + sandstone far/near LOD + walk-through saloon + triceratops + tyrannosaur, "
 		total_duration, " seconds of camera travel.")
 	world_under_test.free()
 	world_under_test = null
