@@ -820,6 +820,7 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 			surface.add_index(lower_b)
 			surface.add_index(upper_a)
 			surface.add_index(upper_b)
+	surface.generate_normals()
 	var top_ring: PackedVector3Array = rings[6]
 	var top_cap_start := layer_indices.size() * 8
 	var top_center_index := top_cap_start + 8
@@ -828,15 +829,18 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 		crown += point
 	crown /= float(top_ring.size())
 	for segment in range(8):
+		surface.set_normal(Vector3.UP)
 		surface.set_color(Color(0.52, 0.29, 0.21))
 		surface.add_vertex(top_ring[segment * 3])
+	surface.set_normal(Vector3.UP)
+	surface.set_normal(Vector3.UP)
 	surface.set_color(Color(0.52, 0.29, 0.21))
 	surface.add_vertex(crown)
 	for segment in range(8):
 		var next_segment: int = (segment + 1) % 8
 		surface.add_index(top_center_index)
-		surface.add_index(top_cap_start + segment)
 		surface.add_index(top_cap_start + next_segment)
+		surface.add_index(top_cap_start + segment)
 	var base_ring: PackedVector3Array = rings[0]
 	var base_cap_start := top_center_index + 1
 	var base_center_index := base_cap_start + 8
@@ -845,16 +849,18 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 		base_center += point
 	base_center /= float(base_ring.size())
 	for segment in range(8):
+		surface.set_normal(Vector3.DOWN)
 		surface.set_color(Color(0.27, 0.12, 0.09))
 		surface.add_vertex(base_ring[segment * 3])
+	surface.set_normal(Vector3.DOWN)
+	surface.set_normal(Vector3.DOWN)
 	surface.set_color(Color(0.27, 0.12, 0.09))
 	surface.add_vertex(base_center)
 	for segment in range(8):
 		var next_segment: int = (segment + 1) % 8
 		surface.add_index(base_center_index)
-		surface.add_index(base_cap_start + next_segment)
 		surface.add_index(base_cap_start + segment)
-	surface.generate_normals()
+		surface.add_index(base_cap_start + next_segment)
 	return surface.commit()
 
 func _rock_formation(pos: Vector3, factor: float) -> void:
@@ -906,11 +912,13 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 			surface.add_index(lower_b)
 			surface.add_index(upper_a)
 			surface.add_index(upper_b)
-	# Cap rings are separate from the side surface so the crown and base keep
-	# crisp geological edges while each cap itself has shared indexed vertices.
+	# Finish the shared side-wall normals before adding separately shaded caps.
+	# This keeps the cap seams crisp without changing the front-face winding.
+	surface.generate_normals()
 	var top_cap_start := heights.size() * ring_segments
 	var top_center_index := top_cap_start + ring_segments
 	for segment in range(ring_segments):
+		surface.set_normal(Vector3.UP)
 		surface.set_color(Color(0.52, 0.29, 0.21))
 		surface.add_vertex(rings[heights.size() - 1][segment])
 	var crown := Vector3.ZERO
@@ -922,11 +930,12 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	for segment in range(ring_segments):
 		var next_segment: int = (segment + 1) % ring_segments
 		surface.add_index(top_center_index)
-		surface.add_index(top_cap_start + segment)
 		surface.add_index(top_cap_start + next_segment)
+		surface.add_index(top_cap_start + segment)
 	var base_cap_start := top_center_index + 1
 	var base_center_index := base_cap_start + ring_segments
 	for segment in range(ring_segments):
+		surface.set_normal(Vector3.DOWN)
 		surface.set_color(Color(0.27, 0.12, 0.09))
 		surface.add_vertex(rings[0][segment])
 	var base_center := Vector3.ZERO
@@ -938,9 +947,8 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	for segment in range(ring_segments):
 		var next_segment: int = (segment + 1) % ring_segments
 		surface.add_index(base_center_index)
-		surface.add_index(base_cap_start + next_segment)
 		surface.add_index(base_cap_start + segment)
-	surface.generate_normals()
+		surface.add_index(base_cap_start + next_segment)
 	var rock_mesh := surface.commit()
 	var rock_material := _rock_surface_material()
 	var lod_mesh := _make_rock_lod_mesh(rings)
