@@ -189,11 +189,11 @@ jobs:
               echo "Missing elapsed timestamp for preview waypoint: $waypoint_id"
               exit 1
             fi
-            # The recorder starts about half a second before the route clock.
-            # Sample just before the waypoint tween completes, while the camera
-            # is still on the authored framing line.
+            # The preview clock starts before the route's one-second staging pause; the recorder
+            # begins after that pause. Subtract the staging second plus 0.1 s so the
+            # still is sampled just before the waypoint tween completes.
             local timestamp
-            timestamp=$(awk -v elapsed="$elapsed" 'BEGIN { sample = elapsed - 0.65; if (sample < 0) sample = 0; printf "%.2f", sample }')
+            timestamp=$(awk -v elapsed="$elapsed" 'BEGIN { sample = elapsed - 1.10; if (sample < 0) sample = 0; printf "%.2f", sample }')
             ffmpeg -y -ss "$timestamp" -i build-preview.mp4 -frames:v 1 "$output_path" >/dev/null 2>&1
             test -s "$output_path" || {
               echo "Failed to capture preview waypoint frame: $waypoint_id"
