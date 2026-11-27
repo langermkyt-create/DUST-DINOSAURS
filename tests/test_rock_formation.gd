@@ -34,11 +34,11 @@ func _initialize() -> void:
 	var repeated_indices: PackedInt32Array = repeated_arrays[Mesh.ARRAY_INDEX]
 	var high_normals: PackedVector3Array = high_arrays[Mesh.ARRAY_NORMAL]
 	var high_colors: PackedColorArray = high_arrays[Mesh.ARRAY_COLOR]
-	if high_vertices.size() != 218 or low_vertices.size() != 50:
-		_fail(first, second, "Indexed near and distant sandstone meshes must use 218 and 50 unique vertices.")
+	if high_vertices.size() != 354 or low_vertices.size() != 58:
+		_fail(first, second, "Indexed near and distant sandstone meshes must use 354 and 58 unique vertices.")
 		return
-	if high_indices.size() != 1008 or low_indices.size() != 192:
-		_fail(first, second, "Indexed near and distant sandstone meshes must retain 336 and 64 triangles.")
+	if high_indices.size() != 1728 or low_indices.size() != 240:
+		_fail(first, second, "Indexed near and distant sandstone meshes must retain 576 and 80 triangles.")
 		return
 	if repeated_indices != high_indices:
 		_fail(first, second, "Identical seeded outcrops must retain the same indexed topology.")
@@ -75,12 +75,12 @@ func _initialize() -> void:
 	# The top and base cap rings intentionally duplicate their side-ring positions.
 	# Their normals must stay oriented to the cap planes rather than bleeding across
 	# the sharp geological boundary into the smoothed side wall.
-	var top_side_normal: Vector3 = high_normals[6 * 24]
-	var top_cap_normal: Vector3 = high_normals[7 * 24]
-	var top_center_normal: Vector3 = high_normals[7 * 24 + 24]
+	var top_side_normal: Vector3 = high_normals[8 * 32]
+	var top_cap_normal: Vector3 = high_normals[9 * 32]
+	var top_center_normal: Vector3 = high_normals[9 * 32 + 32]
 	var base_side_normal: Vector3 = high_normals[0]
-	var base_cap_normal: Vector3 = high_normals[7 * 24 + 1 + 24]
-	var base_center_normal: Vector3 = high_normals[7 * 24 + 1 + 2 * 24]
+	var base_cap_normal: Vector3 = high_normals[9 * 32 + 1 + 32]
+	var base_center_normal: Vector3 = high_normals[9 * 32 + 1 + 2 * 32]
 	var top_cap_up_dot := top_cap_normal.dot(Vector3.UP)
 	var base_cap_down_dot := base_cap_normal.dot(Vector3.DOWN)
 	if top_cap_up_dot < 0.90 or base_cap_down_dot < 0.90:
@@ -90,7 +90,7 @@ func _initialize() -> void:
 		_fail(first, second, "Sandstone cap center vertices must retain explicit upward/downward normals.")
 		return
 	var top_side_dot := top_side_normal.dot(Vector3.RIGHT)
-	var mid_side_dot := high_normals[3 * 24].dot(Vector3.RIGHT)
+	var mid_side_dot := high_normals[4 * 32].dot(Vector3.RIGHT)
 	if top_side_dot < 0.25 or mid_side_dot < 0.25:
 		_fail(first, second, "Shared sandstone side-wall normals must remain outward-facing: top dot=" + str(top_side_dot) + ", middle dot=" + str(mid_side_dot) + ".")
 		return
@@ -121,12 +121,33 @@ func _initialize() -> void:
 		_fail(first, second, "Outcrop collision must use a static concave triangle mesh.")
 		return
 	var collision_faces: PackedVector3Array = (collision.shape as ConcavePolygonShape3D).get_faces()
-	if collision_faces.size() != low_indices.size() or collision_faces.size() >= high_indices.size() * 0.20:
-		_fail(first, second, "Outcrop collision must match the indexed far mesh and remain below 20% of near triangle indices.")
+	if collision_faces.size() % 3 != 0:
+		_fail(first, second, "Outcrop collision faces must contain complete triangles.")
 		return
-	var collision_triangle_ratio := float(collision_faces.size()) / float(high_indices.size())
-	if collision_triangle_ratio > 0.20:
-		_fail(first, second, "Expanded near-mesh detail must keep static collision below 20% of the near triangle budget.")
+	var near_triangle_count := int(high_indices.size() / 3)
+	var far_triangle_count := int(low_indices.size() / 3)
+	var collision_triangle_count := int(collision_faces.size() / 3)
+	if collision_triangle_count != far_triangle_count:
+		_fail(first, second, "Outcrop collision must contain exactly the distant LOD's triangle count.")
+		return
+	var collision_triangle_ratio := float(collision_triangle_count) / float(near_triangle_count)
+	if collision_triangle_ratio >= 0.20:
+		_fail(first, second, "Static collision must remain below 20% of the near-mesh triangle budget.")
+		return
+	var expected_collision_triangles: Dictionary = {}
+	for triangle_start in range(0, low_indices.size(), 3):
+		var expected_key := _triangle_key(
+			low_vertices[low_indices[triangle_start]],
+			low_vertices[low_indices[triangle_start + 1]],
+			low_vertices[low_indices[triangle_start + 2]])
+		expected_collision_triangles[expected_key] = int(expected_collision_triangles.get(expected_key, 0)) + 1
+	var actual_collision_triangles: Dictionary = {}
+	for triangle_start in range(0, collision_faces.size(), 3):
+		var actual_key := _triangle_key(collision_faces[triangle_start],
+			collision_faces[triangle_start + 1], collision_faces[triangle_start + 2])
+		actual_collision_triangles[actual_key] = int(actual_collision_triangles.get(actual_key, 0)) + 1
+	if actual_collision_triangles != expected_collision_triangles:
+		_fail(first, second, "Static collision triangles must match the distant render mesh topology, not only its triangle count.")
 		return
 	if absf(high.visibility_range_end - 132.0) > 0.01 or absf(low.visibility_range_begin - 118.0) > 0.01:
 		_fail(first, second, "Unit-scale outcrop must retain the authored near/far LOD handoff distances.")
@@ -142,10 +163,18 @@ func _initialize() -> void:
 	if high_material == null or low_material == null or high_material.shader.code != low_material.shader.code:
 		_fail(first, second, "Both outcrop LODs must share the same layered sandstone response.")
 		return
-	print("Rock formation regression passed: indexed near mesh (218 vertices/336 triangles), indexed far mesh (50 vertices/64 triangles), valid non-degenerate indices, seeded strata, shared material and scale-aware LOD.")
+	print("Rock formation regression passed: indexed near mesh (354 vertices/576 triangles), indexed far mesh (58 vertices/80 triangles), exact collision topology, seeded strata, shared material and scale-aware LOD.")
 	first.free()
 	second.free()
 	quit(0)
+
+func _point_key(point: Vector3) -> String:
+	return str(Vector3i(roundi(point.x * 10000.0), roundi(point.y * 10000.0), roundi(point.z * 10000.0)))
+
+func _triangle_key(a: Vector3, b: Vector3, c: Vector3) -> String:
+	var points := [_point_key(a), _point_key(b), _point_key(c)]
+	points.sort()
+	return points[0] + "|" + points[1] + "|" + points[2]
 
 func _fail(first: Node3D, second: Node3D, message: String) -> void:
 	if is_instance_valid(first):
