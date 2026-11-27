@@ -835,8 +835,8 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 	for segment in range(8):
 		var next_segment: int = (segment + 1) % 8
 		surface.add_index(top_center_index)
-		surface.add_index(top_cap_start + next_segment)
 		surface.add_index(top_cap_start + segment)
+		surface.add_index(top_cap_start + next_segment)
 	var base_ring: PackedVector3Array = rings[0]
 	var base_cap_start := top_center_index + 1
 	var base_center_index := base_cap_start + 8
@@ -852,8 +852,8 @@ func _make_rock_lod_mesh(rings: Array) -> ArrayMesh:
 	for segment in range(8):
 		var next_segment: int = (segment + 1) % 8
 		surface.add_index(base_center_index)
-		surface.add_index(base_cap_start + segment)
 		surface.add_index(base_cap_start + next_segment)
+		surface.add_index(base_cap_start + segment)
 	surface.generate_normals()
 	return surface.commit()
 
@@ -922,8 +922,8 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	for segment in range(ring_segments):
 		var next_segment: int = (segment + 1) % ring_segments
 		surface.add_index(top_center_index)
-		surface.add_index(top_cap_start + next_segment)
 		surface.add_index(top_cap_start + segment)
+		surface.add_index(top_cap_start + next_segment)
 	var base_cap_start := top_center_index + 1
 	var base_center_index := base_cap_start + ring_segments
 	for segment in range(ring_segments):
@@ -938,8 +938,8 @@ func _rock_formation(pos: Vector3, factor: float) -> void:
 	for segment in range(ring_segments):
 		var next_segment: int = (segment + 1) % ring_segments
 		surface.add_index(base_center_index)
-		surface.add_index(base_cap_start + segment)
 		surface.add_index(base_cap_start + next_segment)
+		surface.add_index(base_cap_start + segment)
 	surface.generate_normals()
 	var rock_mesh := surface.commit()
 	var rock_material := _rock_surface_material()
