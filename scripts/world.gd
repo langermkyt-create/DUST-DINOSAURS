@@ -2729,7 +2729,7 @@ func _build_tyrannosaur(pos: Vector3, size: float) -> void:
 		var gait := create_tween().set_loops()
 		gait.tween_property(leg, "rotation:x", 0.12 if side < 0.0 else -0.12, 1.1).set_trans(Tween.TRANS_SINE)
 		gait.tween_property(leg, "rotation:x", -0.12 if side < 0.0 else 0.12, 1.1).set_trans(Tween.TRANS_SINE)
-func _make_tapered_tail_mesh(length: float, base_radius: float, upward_curve: float, ring_count: int = 9, segment_count: int = 16) -> ArrayMesh:
+func _make_tapered_tail_mesh(length: float, base_radius: float, upward_curve: float, ring_count: int = 9, segment_count: int = 16, vertical_ratio: float = 0.78) -> ArrayMesh:
 	# A single continuous, ring-built tail avoids the blunt cylinder seam and keeps
 	# the silhouette tapered from the pelvis to the flexible tip.
 	var surface := SurfaceTool.new()
@@ -2746,7 +2746,7 @@ func _make_tapered_tail_mesh(length: float, base_radius: float, upward_curve: fl
 			var angle := TAU * float(segment) / float(segment_count)
 			var rib := 1.0 + 0.025 * cos(angle * 8.0)
 			ring.append(center + Vector3(cos(angle) * radius * rib,
-				sin(angle) * radius * 0.78 * rib, 0.0))
+				sin(angle) * radius * vertical_ratio * rib, 0.0))
 		rings.append(ring)
 	for ring_index in range(rings.size() - 1):
 		for segment in range(segment_count):
@@ -2778,7 +2778,7 @@ func _make_tapered_tail_mesh(length: float, base_radius: float, upward_curve: fl
 func _cached_triceratops_tail_mesh() -> ArrayMesh:
 	# The three herd animals share one higher-resolution hide mesh; each keeps its own skin material.
 	if _triceratops_tail_mesh_cache == null:
-		_triceratops_tail_mesh_cache = _make_tapered_tail_mesh(2.85, 0.39, 0.16, 12, 20)
+		_triceratops_tail_mesh_cache = _make_tapered_tail_mesh(2.85, 0.44, 0.16, 12, 20, 0.95)
 	return _triceratops_tail_mesh_cache
 
 func _add_frill_triangle(surface: SurfaceTool, tint: Color, a: Vector3, b: Vector3, c: Vector3) -> void:
@@ -3001,7 +3001,7 @@ func _make_triceratops(pos: Vector3, size: float, yaw: float) -> void:
 	tail_pivot.name = "TriceratopsTailPivot"
 	# Bury the tail's capped root inside the actual rear body profile so the hide
 	# emerges from the pelvis instead of beginning behind the silhouette.
-	tail_pivot.position = Vector3(0, 1.42, 1.48)
+	tail_pivot.position = Vector3(0, 1.285, 1.48)
 	d.add_child(tail_pivot)
 	var tail_instance := _mesh(tail_pivot, _cached_triceratops_tail_mesh(), hide, Vector3.ZERO)
 	tail_instance.name = "TriceratopsTail"
