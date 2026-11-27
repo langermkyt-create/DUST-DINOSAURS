@@ -56,6 +56,9 @@ jobs:
       - name: Test closed triceratops frill geometry
         run: timeout 30s godot --headless --path . --script tests/test_triceratops_frill.gd
 
+      - name: Test triceratops tail attachment into pelvis
+        run: timeout 30s godot --headless --path . --script tests/test_triceratops_tail.gd
+
       - name: Test sandstone rock LOD and collision
         run: godot --headless --path . --script tests/test_rock_lod.gd
 
